@@ -1,8 +1,11 @@
 <h3>{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}</h3>
 <p class="muted">candidate_id <code>{{ candidate.candidate_id }}</code> ·
-  lat <code>{{ candidate.lat }}</code> lon <code>{{ candidate.lon }}</code> ·
-  verdict <span class="pill">{{ candidate.verdict or '—' }}</span>
-  {% if candidate.nearest_dist_m %}· nearest {{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }} at {{ '%.1fm' % candidate.nearest_dist_m }}{% endif %}
+  lat <code>{{ candidate.lat }}</code> lon <code>{{ candidate.lon }}</code>
+  {% if candidate.lat and candidate.lon %}
+  · <a href="https://www.openstreetmap.org/?mlat={{ candidate.lat }}&mlon={{ candidate.lon }}#map=19/{{ candidate.lat }}/{{ candidate.lon }}" target="_blank" rel="noopener">open in OSM</a>
+  {% endif %}
+  · verdict <span class="pill">{{ candidate.verdict or '—' }}</span>
+  {% if candidate.nearest_dist_m %}· nearest <a href="https://www.openstreetmap.org/{{ candidate.nearest_osm_type }}/{{ candidate.nearest_osm_id }}" target="_blank" rel="noopener">{{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }}</a> at {{ '%.1fm' % candidate.nearest_dist_m }}{% endif %}
 </p>
 {% if candidate.lo_num is not none and candidate.hi_num is not none and candidate.lo_num != candidate.hi_num %}
 <p class="muted">Range: <strong>{{ candidate.lo_num }}{{ candidate.lo_num_suf or '' }}–{{ candidate.hi_num }}{{ candidate.hi_num_suf or '' }}</strong> (reference only — not conflated)</p>
