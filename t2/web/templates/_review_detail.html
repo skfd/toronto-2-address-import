@@ -72,8 +72,11 @@
   <p><span class="pill">Deferred{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
 {% elif rs == 'OPEN' %}
   <p><span class="pill warn">Open — awaiting decision</span></p>
+{% elif rs is none %}
+  <p><span class="pill">Stage: {{ candidate.stage or '—' }}</span>
+     <span class="muted">— not in review queue. Use buttons below to override.</span></p>
 {% endif %}
-{% set has_decision = rs in ('AUTO_APPROVED','APPROVED','REJECTED','DEFERRED') %}
+{% set has_decision = rs in ('AUTO_APPROVED','APPROVED','REJECTED','DEFERRED') or rs is none and candidate.stage in ('SKIPPED',) %}
 <form hx-post="/runs/{{ run_id }}/review/{{ candidate.candidate_id }}" hx-swap="none">
   <input type="text" name="note" placeholder="optional note" style="width:60%" value="{{ review_state.note or '' }}"/>
   <button name="status" value="APPROVED">{% if has_decision %}Change to Approved{% else %}Approve{% endif %}</button>

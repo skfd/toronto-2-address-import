@@ -1,0 +1,29 @@
+<div class="card" id="approved-list" style="max-height: 70vh; overflow: auto;">
+  {% for it in items %}
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
+         hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail">
+      <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
+      {% if it.lat and it.lon %}
+      <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      {% endif %}
+      <br>
+      {% if it.review_status == 'APPROVED' and it.prior_auto_approved %}
+        <span class="pill warn">operator (override)</span>
+      {% elif it.review_status == 'APPROVED' %}
+        <span class="pill warn">operator</span>
+      {% else %}
+        <span class="pill ok">auto</span>
+      {% endif %}
+      {% if it.verdict %}
+        <span class="pill">{{ it.verdict }}</span>
+      {% endif %}
+      {% if it.nearest_osm_id %}
+        <span class="muted">{{ it.nearest_osm_type }} #{{ it.nearest_osm_id }}{% if it.nearest_dist_m is not none %} · {{ '%.1f' % it.nearest_dist_m }} m{% endif %}</span>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="muted">Nothing approved yet.</p>
+  {% endfor %}
+</div>

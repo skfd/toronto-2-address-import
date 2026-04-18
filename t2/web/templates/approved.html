@@ -4,59 +4,14 @@
 <div class="card">
   <h2>Approved <span class="muted">(run #{{ run_id }}, {{ items|length }})</span></h2>
   <p><a href="/runs/{{ run_id }}">← run</a></p>
-  <p class="muted">Candidates staged for upload. <span class="pill">auto</span> = approved by pipeline (clean MISSING, no flags); <span class="pill warn">operator</span> = approved via review; <span class="pill warn">operator (override)</span> = operator overrode a prior auto-approval.</p>
+  <p class="muted">Candidates staged for upload. <span class="pill ok">auto</span> = approved by pipeline (clean MISSING, no flags); <span class="pill warn">operator</span> = approved via review; <span class="pill warn">operator (override)</span> = operator overrode a prior auto-approval. Click an item to review details and override the decision.</p>
 </div>
 
-<div class="card" style="max-height: 75vh; overflow: auto;">
-  {% if items %}
-  <table>
-    <thead>
-      <tr>
-        <th>Address</th>
-        <th>Verdict</th>
-        <th>Source</th>
-        <th>Nearest OSM</th>
-        <th>Updated</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for it in items %}
-      <tr>
-        <td>
-          <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
-        </td>
-        <td>
-          <span class="pill">{{ it.verdict or '—' }}</span>
-        </td>
-        <td>
-          {% if it.review_status == 'APPROVED' and it.prior_auto_approved %}
-            <span class="pill warn">operator (override)</span>
-          {% elif it.review_status == 'APPROVED' %}
-            <span class="pill warn">operator</span>
-          {% else %}
-            <span class="pill">auto</span>
-          {% endif %}
-        </td>
-        <td class="muted">
-          {% if it.nearest_osm_id %}
-            {{ it.nearest_osm_type }} #{{ it.nearest_osm_id }}
-            {% if it.nearest_dist_m is not none %} · {{ '%.1f' % it.nearest_dist_m }} m{% endif %}
-          {% else %}—{% endif %}
-        </td>
-        <td class="muted">{{ it.stage_updated_at or '' }}</td>
-        <td>
-          {% if it.lat and it.lon %}
-          <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
-             target="_blank" rel="noopener" class="muted" title="Open in OpenStreetMap">OSM↗</a>
-          {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-    <p class="muted">Nothing approved yet.</p>
-  {% endif %}
+<div class="grid-2">
+  {% include "_approved_list.html" %}
+
+  <div class="card" id="detail">
+    <p class="muted">Select an item on the left.</p>
+  </div>
 </div>
 {% endblock %}
