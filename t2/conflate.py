@@ -115,17 +115,25 @@ def _classify(cand_row: dict, idx: GridIndex, match_radius_m: float, close_neigh
     return "MISSING", None, None, None
 
 
+def _is_range(row: dict) -> bool:
+    """Return True when the candidate represents an address range (lo_num != hi_num)."""
+    lo = row.get("lo_num")
+    hi = row.get("hi_num")
+    return lo is not None and hi is not None and lo != hi
+
+
 def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, close_neighbor_m: float) -> dict[str, int]:
     """Iterate candidates at stage INGESTED, write conflation row, advance to CONFLATED."""
     elements = osm_fetch.load_cached(run_id)
     idx = build_osm_index(elements)
     now = datetime.now(timezone.utc).isoformat()
 
-    counts = {"MATCH": 0, "MISSING": 0, "CONFLICT": 0}
+    counts = {"MATCH": 0, "MISSING": 0, "CONFLICT": 0, "SKIPPED": 0}
     conn = _db.connect()
     try:
         rows = conn.execute(
-            "SELECT candidate_id, housenumber, street_norm, lat, lon FROM candidates "
+            "SELECT candidate_id, housenumber, street_norm, lat, lon, lo_num, hi_num "
+            "FROM candidates "
             "WHERE run_id = ? AND stage = 'INGESTED'",
             (run_id,),
         ).fetchall()
@@ -133,9 +141,14 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, close_neighb
         conn.execute("BEGIN")
         for r in rows:
             cand = dict(r)
-            verdict, osm_id, osm_type, dist = _classify(
-                cand, idx, match_radius_m, close_neighbor_m
-            )
+
+            # Address ranges are skipped during conflation (kept for reference only)
+            if _is_range(cand):
+                verdict, osm_id, osm_type, dist = "SKIPPED", None, None, None
+            else:
+                verdict, osm_id, osm_type, dist = _classify(
+                    cand, idx, match_radius_m, close_neighbor_m
+                )
             counts[verdict] += 1
             conn.execute(
                 """

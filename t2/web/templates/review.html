@@ -11,7 +11,10 @@
     {% for it in items %}
       <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
            hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail">
-        <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong><br>
+        <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
+        {% if it.lo_num is not none and it.hi_num is not none and it.lo_num != it.hi_num %}
+          <span class="muted">(range {{ it.lo_num }}–{{ it.hi_num }})</span>
+        {% endif %}<br>
         <span class="pill {% if it.verdict == 'CONFLICT' %}bad{% else %}warn{% endif %}">{{ it.verdict }}</span>
         <span class="muted">{{ it.reason_code }}</span>
       </div>
