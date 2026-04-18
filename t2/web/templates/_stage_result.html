@@ -1,8 +1,20 @@
 {% if msg %}<p><em>{{ msg }}</em></p>{% endif %}
 {% if counts %}
+{% set rid = run.run_id if run is defined else run_id %}
+{% set stage_links = {
+  'APPROVED': '/runs/' ~ rid ~ '/approved',
+  'SKIPPED': '/runs/' ~ rid ~ '/skipped',
+  'REVIEW_PENDING': '/runs/' ~ rid ~ '/review',
+  'BATCHED': '/runs/' ~ rid ~ '#batches',
+} %}
 <p>
   {% for stage, n in counts.items() %}
-  <span class="pill">{{ stage }}: {{ n }}</span>
+    {% set href = stage_links.get(stage) %}
+    {% if href %}
+    <a class="pill" href="{{ href }}">{{ stage }}: {{ n }}</a>
+    {% else %}
+    <span class="pill">{{ stage }}: {{ n }}</span>
+    {% endif %}
   {% endfor %}
 </p>
 {% endif %}

@@ -58,7 +58,7 @@ def create_app() -> Flask:
         else:
             abort(400)
         counts = pipeline.counts_by_stage(run_id)
-        return render_template("_stage_result.html", msg=msg, counts=counts)
+        return render_template("_stage_result.html", msg=msg, counts=counts, run_id=run_id)
 
     @app.post("/runs/<int:run_id>/toggle/<check_id>")
     def run_toggle(run_id: int, check_id: str):
