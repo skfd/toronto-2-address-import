@@ -274,6 +274,12 @@ def run_checks(run_id: int) -> dict[str, int]:
                     "UPDATE candidates SET stage=?, stage_updated_at=? WHERE run_id=? AND candidate_id=?",
                     (new_stage, now, run_id, cand.candidate_id),
                 )
+                if new_stage == "APPROVED":
+                    audit.log(
+                        actor="pipeline", event_type="AUTO_APPROVED",
+                        run_id=run_id, candidate_id=cand.candidate_id,
+                        payload={"verdict": cand.verdict}, conn=conn,
+                    )
 
         audit.log(actor="pipeline", event_type="CHECK_RAN", run_id=run_id,
                   payload={"counts": counts, "check_ids": [c.id for c in checks]}, conn=conn)

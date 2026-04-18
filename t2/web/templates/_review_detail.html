@@ -60,9 +60,23 @@
 </table>
 
 <h4>Decision</h4>
+{% set rs = review_state.status %}
+{% if rs == 'AUTO_APPROVED' %}
+  <p><span class="pill ok">Auto-approved by pipeline</span>
+     <span class="muted">— change the decision below to override.</span></p>
+{% elif rs == 'APPROVED' %}
+  <p><span class="pill ok">Approved by operator{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
+{% elif rs == 'REJECTED' %}
+  <p><span class="pill bad">Rejected by operator{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
+{% elif rs == 'DEFERRED' %}
+  <p><span class="pill">Deferred{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
+{% elif rs == 'OPEN' %}
+  <p><span class="pill warn">Open — awaiting decision</span></p>
+{% endif %}
+{% set has_decision = rs in ('AUTO_APPROVED','APPROVED','REJECTED','DEFERRED') %}
 <form hx-post="/runs/{{ run_id }}/review/{{ candidate.candidate_id }}" hx-swap="none">
-  <input type="text" name="note" placeholder="optional note" style="width:60%"/>
-  <button name="status" value="APPROVED">Approve</button>
-  <button name="status" value="REJECTED" class="danger">Reject</button>
-  <button name="status" value="DEFERRED" class="secondary">Defer</button>
+  <input type="text" name="note" placeholder="optional note" style="width:60%" value="{{ review_state.note or '' }}"/>
+  <button name="status" value="APPROVED">{% if has_decision %}Change to Approved{% else %}Approve{% endif %}</button>
+  <button name="status" value="REJECTED" class="danger">{% if has_decision %}Change to Rejected{% else %}Reject{% endif %}</button>
+  <button name="status" value="DEFERRED" class="secondary">{% if has_decision %}Change to Deferred{% else %}Defer{% endif %}</button>
 </form>

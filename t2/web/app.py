@@ -69,10 +69,27 @@ def create_app() -> Flask:
 
     # ---- Review ----
 
+    _REVIEW_STATUSES = ("OPEN", "APPROVED", "REJECTED", "DEFERRED")
+
     @app.get("/runs/<int:run_id>/review")
     def review_page(run_id: int):
-        items = review.queue(run_id, limit=200)
-        return render_template("review.html", run_id=run_id, items=items)
+        raw = request.args.get("statuses")
+        if raw is None:
+            statuses = ("OPEN",)
+        else:
+            statuses = tuple(s for s in raw.split(",") if s in _REVIEW_STATUSES)
+        include_auto = request.args.get("auto", "0") == "1"
+        items = review.queue(run_id, statuses=statuses, include_auto=include_auto, limit=500)
+        partial = request.args.get("partial") == "1"
+        template = "_review_list.html" if partial else "review.html"
+        return render_template(
+            template,
+            run_id=run_id,
+            items=items,
+            active_statuses=set(statuses),
+            include_auto=include_auto,
+            all_statuses=_REVIEW_STATUSES,
+        )
 
     @app.get("/runs/<int:run_id>/review/<int:candidate_id>")
     def review_detail(run_id: int, candidate_id: int):
@@ -110,6 +127,7 @@ def create_app() -> Flask:
             geom_label = f"{base_type} #{cand['nearest_osm_id']}{polygon_hint}"
         else:
             geom_label = None
+        review_state = review.get_review_state(run_id, candidate_id)
         return render_template(
             "_review_detail.html",
             candidate=cand,
@@ -117,6 +135,7 @@ def create_app() -> Flask:
             run_id=run_id,
             diff_rows=diff_rows,
             geom_label=geom_label,
+            review_state=review_state,
         )
 
     @app.post("/runs/<int:run_id>/review/<int:candidate_id>")
@@ -137,7 +156,7 @@ def create_app() -> Flask:
                 SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
                        c.lat, c.lon, c.stage_updated_at,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
-                       r.status AS review_status
+                       r.status AS review_status, r.prior_auto_approved
                 FROM candidates c
                 LEFT JOIN conflation cf USING (run_id, candidate_id)
                 LEFT JOIN review_items r USING (run_id, candidate_id)

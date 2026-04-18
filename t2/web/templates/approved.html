@@ -4,7 +4,7 @@
 <div class="card">
   <h2>Approved <span class="muted">(run #{{ run_id }}, {{ items|length }})</span></h2>
   <p><a href="/runs/{{ run_id }}">← run</a></p>
-  <p class="muted">Candidates staged for upload. <span class="pill">auto</span> = approved by pipeline (clean MISSING, no flags); <span class="pill warn">operator</span> = approved via review.</p>
+  <p class="muted">Candidates staged for upload. <span class="pill">auto</span> = approved by pipeline (clean MISSING, no flags); <span class="pill warn">operator</span> = approved via review; <span class="pill warn">operator (override)</span> = operator overrode a prior auto-approval.</p>
 </div>
 
 <div class="card" style="max-height: 75vh; overflow: auto;">
@@ -30,7 +30,9 @@
           <span class="pill">{{ it.verdict or '—' }}</span>
         </td>
         <td>
-          {% if it.review_status == 'APPROVED' %}
+          {% if it.review_status == 'APPROVED' and it.prior_auto_approved %}
+            <span class="pill warn">operator (override)</span>
+          {% elif it.review_status == 'APPROVED' %}
             <span class="pill warn">operator</span>
           {% else %}
             <span class="pill">auto</span>
