@@ -27,9 +27,13 @@
         <td>{{ it.local_node_id }}</td>
         <td>{{ it.housenumber }}</td>
         <td>{{ it.street_raw }}</td>
-        <td class="muted">{{ it.lat }}, {{ it.lon }}</td>
+        <td class="muted">
+          {% if it.lat and it.lon %}
+          <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}" target="_blank" rel="noopener">{{ it.lat }}, {{ it.lon }}</a>
+          {% else %}—{% endif %}
+        </td>
         <td><span class="pill">{{ it.upload_status }}</span></td>
-        <td>{{ it.osm_node_id or '—' }}</td>
+        <td>{% if it.osm_node_id %}<a href="https://master.apis.dev.openstreetmap.org/node/{{ it.osm_node_id }}" target="_blank" rel="noopener">{{ it.osm_node_id }}</a>{% else %}—{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

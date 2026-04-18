@@ -11,7 +11,13 @@
     {% for it in items %}
       <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
            hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail">
-        <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong><br>
+        <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
+        {% if it.lat and it.lon %}
+        <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
+           target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+           title="Open in OpenStreetMap">OSM↗</a>
+        {% endif %}
+        <br>
         <span class="pill {% if it.verdict == 'CONFLICT' %}bad{% else %}warn{% endif %}">{{ it.verdict }}</span>
         <span class="muted">{{ it.reason_code }}</span>
       </div>
