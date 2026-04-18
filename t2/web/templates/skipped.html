@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Skipped{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Skipped <span class="muted">(run #{{ run_id }}, {{ items|length }})</span></h2>
+  <p><a href="/runs/{{ run_id }}">← run</a></p>
+  <p class="muted">Not uploaded. <code>MATCH</code> = already in OSM. <code>SKIPPED</code> = address range (kept for reference only).</p>
+</div>
+
+<div class="card" style="max-height: 75vh; overflow: auto;">
+  {% if items %}
+  <table>
+    <thead>
+      <tr>
+        <th>Address</th>
+        <th>Reason</th>
+        <th>Matched OSM</th>
+        <th>Updated</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for it in items %}
+      <tr>
+        <td>
+          <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
+          {% if it.lo_num is not none and it.hi_num is not none and it.lo_num != it.hi_num %}
+            <span class="muted">(range {{ it.lo_num }}–{{ it.hi_num }})</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if it.verdict == 'MATCH' %}
+            <span class="pill ok">MATCH</span>
+            <span class="muted">already in OSM</span>
+          {% elif it.verdict == 'SKIPPED' %}
+            <span class="pill">range</span>
+          {% else %}
+            <span class="pill">{{ it.verdict or '—' }}</span>
+          {% endif %}
+        </td>
+        <td class="muted">
+          {% if it.nearest_osm_id %}
+            <a href="https://www.openstreetmap.org/{{ it.nearest_osm_type }}/{{ it.nearest_osm_id }}"
+               target="_blank" rel="noopener">{{ it.nearest_osm_type }} #{{ it.nearest_osm_id }}</a>
+            {% if it.nearest_dist_m is not none %} · {{ '%.1f' % it.nearest_dist_m }} m{% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td class="muted">{{ it.stage_updated_at or '' }}</td>
+        <td>
+          {% if it.lat and it.lon %}
+          <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
+             target="_blank" rel="noopener" class="muted" title="Open in OpenStreetMap">OSM↗</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">Nothing skipped.</p>
+  {% endif %}
+</div>
+{% endblock %}

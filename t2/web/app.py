@@ -126,6 +126,54 @@ def create_app() -> Flask:
         review.resolve(run_id, candidate_id, status, actor="operator", note=note)
         return "", 204
 
+    # ---- Approved / Skipped lists ----
+
+    @app.get("/runs/<int:run_id>/approved")
+    def approved_page(run_id: int):
+        conn = _db.connect()
+        try:
+            rows = conn.execute(
+                """
+                SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
+                       c.lat, c.lon, c.stage_updated_at,
+                       cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
+                       r.status AS review_status
+                FROM candidates c
+                LEFT JOIN conflation cf USING (run_id, candidate_id)
+                LEFT JOIN review_items r USING (run_id, candidate_id)
+                WHERE c.run_id = ? AND c.stage = 'APPROVED'
+                ORDER BY c.stage_updated_at DESC
+                """,
+                (run_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        items = [dict(r) for r in rows]
+        return render_template("approved.html", run_id=run_id, items=items)
+
+    @app.get("/runs/<int:run_id>/skipped")
+    def skipped_page(run_id: int):
+        conn = _db.connect()
+        try:
+            rows = conn.execute(
+                """
+                SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
+                       c.lat, c.lon, c.lo_num, c.hi_num, c.stage_updated_at,
+                       cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
+                       r.status AS review_status
+                FROM candidates c
+                LEFT JOIN conflation cf USING (run_id, candidate_id)
+                LEFT JOIN review_items r USING (run_id, candidate_id)
+                WHERE c.run_id = ? AND c.stage = 'SKIPPED'
+                ORDER BY c.stage_updated_at DESC
+                """,
+                (run_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        items = [dict(r) for r in rows]
+        return render_template("skipped.html", run_id=run_id, items=items)
+
     # ---- Batches ----
 
     @app.post("/runs/<int:run_id>/batches")
