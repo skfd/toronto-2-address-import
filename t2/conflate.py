@@ -3,11 +3,13 @@
 Core helpers (normalize_street, GridIndex, haversine) preserved from sibling
 project's src/conflate.py — the algorithmic contract there is proven.
 """
+import json
 import math
 from collections import defaultdict
 from datetime import datetime, timezone
 
 from . import audit, db as _db, osm_fetch
+from .osm_export import STATIC_TAGS
 
 STREET_SUFFIXES = {
     "STREET": "ST", "ROAD": "RD", "AVENUE": "AVE", "BOULEVARD": "BLVD",
@@ -84,9 +86,13 @@ def build_osm_index(elements: list[dict]) -> GridIndex:
 
 
 def _classify(cand_row: dict, idx: GridIndex, match_radius_m: float, close_neighbor_m: float):
+    """Return (verdict, osm_id, osm_type, dist_m, matched_osm_el).
+
+    matched_osm_el is the nearest OSM element we picked (for MATCH/CONFLICT), or None.
+    """
     c_lat, c_lon = cand_row["lat"], cand_row["lon"]
     if c_lat is None or c_lon is None:
-        return "MISSING", None, None, None
+        return "MISSING", None, None, None, None
 
     c_num = (cand_row.get("housenumber") or "").upper()
     c_street_norm = cand_row.get("street_norm") or ""
@@ -105,14 +111,24 @@ def _classify(cand_row: dict, idx: GridIndex, match_radius_m: float, close_neigh
 
     if match:
         el = best[1]
-        return "MATCH", el.get("id"), el.get("type"), best[0]
+        return "MATCH", el.get("id"), el.get("type"), best[0], el
 
     # within close radius but didn't match — CONFLICT
     if best is not None and best[0] <= close_neighbor_m:
         el = best[1]
-        return "CONFLICT", el.get("id"), el.get("type"), best[0]
+        return "CONFLICT", el.get("id"), el.get("type"), best[0], el
 
-    return "MISSING", None, None, None
+    return "MISSING", None, None, None, None
+
+
+def _proposed_tags(cand_row: dict) -> dict[str, str]:
+    """Build the tag dict we would propose for this candidate (matches osm_export output)."""
+    tags = {
+        "addr:housenumber": (cand_row.get("housenumber") or "").strip(),
+        "addr:street": (cand_row.get("street_raw") or "").strip(),
+        **STATIC_TAGS,
+    }
+    return {k: v for k, v in tags.items() if v}
 
 
 def _is_range(row: dict) -> bool:
@@ -124,6 +140,8 @@ def _is_range(row: dict) -> bool:
 
 def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, close_neighbor_m: float) -> dict[str, int]:
     """Iterate candidates at stage INGESTED, write conflation row, advance to CONFLATED."""
+    from . import tag_diff  # local import avoids an import cycle at module load
+
     elements = osm_fetch.load_cached(run_id)
     idx = build_osm_index(elements)
     now = datetime.now(timezone.utc).isoformat()
@@ -132,9 +150,9 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, close_neighb
     conn = _db.connect()
     try:
         rows = conn.execute(
-            "SELECT candidate_id, housenumber, street_norm, lat, lon, lo_num, hi_num "
-            "FROM candidates "
-            "WHERE run_id = ? AND stage = 'INGESTED'",
+            "SELECT candidate_id, housenumber, street_raw, street_norm, lat, lon, "
+            "       lo_num, hi_num "
+            "FROM candidates WHERE run_id = ? AND stage = 'INGESTED'",
             (run_id,),
         ).fetchall()
 
@@ -144,26 +162,56 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, close_neighb
 
             # Address ranges are skipped during conflation (kept for reference only)
             if _is_range(cand):
-                verdict, osm_id, osm_type, dist = "SKIPPED", None, None, None
+                verdict, osm_id, osm_type, dist, matched = "SKIPPED", None, None, None, None
             else:
-                verdict, osm_id, osm_type, dist = _classify(
+                verdict, osm_id, osm_type, dist, matched = _classify(
                     cand, idx, match_radius_m, close_neighbor_m
                 )
             counts[verdict] += 1
+
+            osm_tags = (matched.get("tags") if matched else None) or None
+            geom = tag_diff.geom_hint(matched) if matched else None
+
             conn.execute(
                 """
                 INSERT OR REPLACE INTO conflation
                   (run_id, candidate_id, verdict, nearest_osm_id, nearest_osm_type,
-                   nearest_dist_m, osm_snapshot_hash, computed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                   nearest_dist_m, osm_snapshot_hash, computed_at,
+                   matched_osm_tags_json, matched_osm_geom_hint)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (run_id, cand["candidate_id"], verdict, osm_id, osm_type, dist, osm_snapshot_hash, now),
+                (
+                    run_id, cand["candidate_id"], verdict, osm_id, osm_type, dist,
+                    osm_snapshot_hash, now,
+                    json.dumps(osm_tags) if osm_tags else None,
+                    geom,
+                ),
             )
             conn.execute(
                 "UPDATE candidates SET stage = 'CONFLATED', stage_updated_at = ? "
                 "WHERE run_id = ? AND candidate_id = ?",
                 (now, run_id, cand["candidate_id"]),
             )
+
+            proposed = _proposed_tags(cand)
+            diff_rows = tag_diff.compare_tags(proposed, osm_tags)
+            has_diff = any(row["status"] != "SAME" for row in diff_rows)
+            if has_diff and verdict != "SKIPPED":
+                audit.log(
+                    actor="pipeline",
+                    event_type="CONFLATE_CANDIDATE",
+                    run_id=run_id,
+                    candidate_id=cand["candidate_id"],
+                    payload={
+                        "verdict": verdict,
+                        "osm_id": osm_id,
+                        "osm_type": osm_type,
+                        "geom_hint": geom,
+                        "dist_m": dist,
+                        "diff": diff_rows,
+                    },
+                    conn=conn,
+                )
         audit.log(
             actor="pipeline",
             event_type="CONFLATE_DONE",

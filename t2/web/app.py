@@ -4,7 +4,8 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
-from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, pipeline, review
+from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, pipeline, review, tag_diff
+from ..conflate import _proposed_tags
 from ..checks import REGISTRY
 
 
@@ -78,7 +79,8 @@ def create_app() -> Flask:
         conn = _db.connect()
         try:
             row = conn.execute(
-                """SELECT c.*, cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m
+                """SELECT c.*, cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type,
+                          cf.nearest_dist_m, cf.matched_osm_tags_json, cf.matched_osm_geom_hint
                    FROM candidates c LEFT JOIN conflation cf USING (run_id, candidate_id)
                    WHERE c.run_id=? AND c.candidate_id=?""",
                 (run_id, candidate_id),
@@ -93,7 +95,29 @@ def create_app() -> Flask:
                 r["details"] = json.loads(r["details_json"] or "{}")
             except Exception:
                 r["details"] = {}
-        return render_template("_review_detail.html", candidate=dict(row), results=results, run_id=run_id)
+
+        cand = dict(row)
+        try:
+            osm_tags = json.loads(cand.get("matched_osm_tags_json") or "null")
+        except Exception:
+            osm_tags = None
+        proposed = _proposed_tags(cand)
+        diff_rows = tag_diff.compare_tags(proposed, osm_tags)
+        geom = cand.get("matched_osm_geom_hint")
+        if cand.get("nearest_osm_id") and geom:
+            polygon_hint = " (polygon)" if geom.endswith("-polygon") else ""
+            base_type = geom.split("-")[0]
+            geom_label = f"{base_type} #{cand['nearest_osm_id']}{polygon_hint}"
+        else:
+            geom_label = None
+        return render_template(
+            "_review_detail.html",
+            candidate=cand,
+            results=results,
+            run_id=run_id,
+            diff_rows=diff_rows,
+            geom_label=geom_label,
+        )
 
     @app.post("/runs/<int:run_id>/review/<int:candidate_id>")
     def review_resolve(run_id: int, candidate_id: int):

@@ -21,7 +21,32 @@
         <td><code>{{ e.event_type }}</code></td>
         <td>{{ e.candidate_id or '' }}</td>
         <td>{{ e.batch_id or '' }}</td>
-        <td class="muted"><code>{{ e.payload }}</code></td>
+        <td class="muted">
+          {% if e.event_type == 'CONFLATE_CANDIDATE' %}
+            {% set p = e.payload %}
+            <div><strong>{{ p.verdict }}</strong>
+              {% if p.osm_id %}
+                · {{ p.geom_hint or p.osm_type }} #{{ p.osm_id }}{% if p.geom_hint and p.geom_hint.endswith('-polygon') %} (polygon){% endif %}
+                {% if p.dist_m %}· {{ '%.1fm' % p.dist_m }}{% endif %}
+              {% else %}· no OSM match{% endif %}
+            </div>
+            <table>
+              <thead><tr><th>Tag</th><th>Proposed</th><th>OSM has</th><th>Status</th></tr></thead>
+              <tbody>
+                {% for r in p.diff or [] %}
+                <tr>
+                  <td><code>{{ r.tag }}</code></td>
+                  <td>{{ r.proposed or '—' }}</td>
+                  <td>{{ r.osm or '—' }}</td>
+                  <td><span class="pill {% if r.status == 'SAME' %}ok{% elif r.status == 'CHANGE' %}warn{% endif %}">{{ r.status }}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <code>{{ e.payload }}</code>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
