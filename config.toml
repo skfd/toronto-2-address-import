@@ -1,0 +1,28 @@
+[source]
+sqlite_path = "C:/Users/kk/Code/toronto-addresses-import/addresses.db"
+
+[run_defaults]
+# Small downtown rectangle for first test run
+bbox = [43.645, -79.42, 43.665, -79.39]
+overpass_url = "https://overpass-api.de/api/interpreter"
+
+[conflation]
+match_radius_m = 30
+close_neighbor_m = 10
+
+[checks]
+conflict_30m = true
+suffix_range = true
+city_duplicate = true
+missing_sample = true
+
+[check_params.city_duplicate]
+radius_m = 3.0
+
+[check_params.missing_sample]
+every_nth = 50
+
+[upload]
+batch_size = 300
+changesets_per_minute = 1
+changeset_comment_template = "Toronto Open Data address import, run={run_name}, batch={batch_id}"
