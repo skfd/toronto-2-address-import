@@ -191,6 +191,15 @@ def run_checks(run_id: int) -> dict[str, int]:
                 nearest_osm_type=r["nearest_osm_type"],
                 nearest_dist_m=r["nearest_dist_m"],
             )
+            # Ranges were skipped during conflation — auto-skip in checks too
+            if cand.verdict == "SKIPPED":
+                conn.execute(
+                    "UPDATE candidates SET stage='SKIPPED', stage_updated_at=? WHERE run_id=? AND candidate_id=?",
+                    (now, run_id, cand.candidate_id),
+                )
+                counts["SKIP"] = counts.get("SKIP", 0) + 1
+                continue
+
             any_flag = False
             flag_reasons: list[str] = []
             for check in checks:

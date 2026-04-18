@@ -70,6 +70,7 @@ def queue(run_id: int, limit: int = 100, offset: int = 0) -> list[dict]:
             """
             SELECT r.candidate_id, r.reason_code, r.status, r.opened_at,
                    c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
+                   c.lo_num, c.hi_num,
                    cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m
             FROM review_items r
             JOIN candidates c USING (run_id, candidate_id)

@@ -12,6 +12,9 @@
       <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
            hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail">
         <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
+        {% if it.lo_num is not none and it.hi_num is not none and it.lo_num != it.hi_num %}
+          <span class="muted">(range {{ it.lo_num }}–{{ it.hi_num }})</span>
+        {% endif %}
         {% if it.lat and it.lon %}
         <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
            target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
