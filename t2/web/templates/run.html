@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Run: {{ run.name }} <span class="muted">#{{ run.run_id }}</span></h2>
+  <p class="muted">bbox {{ '%.5f, %.5f → %.5f, %.5f' % (run.bbox_min_lat, run.bbox_min_lon, run.bbox_max_lat, run.bbox_max_lon) }}
+    · source snapshot {{ run.source_snapshot_id }}</p>
+  <p>
+    <a href="/runs/{{ run.run_id }}/review">Review queue</a> ·
+    <a href="/runs/{{ run.run_id }}/audit">Audit log</a>
+  </p>
+</div>
+
+<div class="card">
+  <h3>Pipeline stages</h3>
+  <div id="stage-result">
+    {% include "_stage_result.html" %}
+  </div>
+  <form hx-post="/runs/{{ run.run_id }}/stage/ingest" hx-target="#stage-result" class="inline">
+    <button>1. Ingest candidates</button>
+  </form>
+  <form hx-post="/runs/{{ run.run_id }}/stage/fetch" hx-target="#stage-result" class="inline">
+    <button>2. Fetch OSM</button>
+  </form>
+  <form hx-post="/runs/{{ run.run_id }}/stage/conflate" hx-target="#stage-result" class="inline">
+    <button>3. Conflate</button>
+  </form>
+  <form hx-post="/runs/{{ run.run_id }}/stage/checks" hx-target="#stage-result" class="inline">
+    <button>4. Run checks</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Check toggles</h3>
+  <div id="toggles">
+    {% include "_toggles.html" %}
+  </div>
+</div>
+
+<div class="card">
+  <h3>Batches</h3>
+  <form method="post" action="/runs/{{ run.run_id }}/batches">
+    <label>Mode
+      <select name="mode">
+        <option value="josm_xml">josm_xml</option>
+        <option value="osm_api">osm_api</option>
+      </select>
+    </label>
+    <label>Size <input name="size" type="number" value="300" min="1" max="10000" /></label>
+    <button>Compose batch</button>
+  </form>
+  {% if batches %}
+  <table>
+    <thead><tr><th>ID</th><th>Mode</th><th>Status</th><th>Size</th><th>Created</th><th>Changeset</th></tr></thead>
+    <tbody>
+      {% for b in batches %}
+      <tr>
+        <td><a href="/batches/{{ b.batch_id }}">{{ b.batch_id }}</a></td>
+        <td>{{ b.mode }}</td>
+        <td><span class="pill {% if b.status == 'uploaded' %}ok{% elif b.status in ('failed','needs_attention') %}bad{% else %}warn{% endif %}">{{ b.status }}</span></td>
+        <td>{{ b.size }}</td>
+        <td class="muted">{{ b.created_at }}</td>
+        <td class="muted">{{ b.changeset_id or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

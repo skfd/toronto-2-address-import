@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Review queue{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Review queue <span class="muted">(run #{{ run_id }}, {{ items|length }} open)</span></h2>
+  <p><a href="/runs/{{ run_id }}">← run</a></p>
+</div>
+
+<div class="grid-2">
+  <div class="card" style="max-height: 70vh; overflow: auto;">
+    {% for it in items %}
+      <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
+           hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail">
+        <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong><br>
+        <span class="pill {% if it.verdict == 'CONFLICT' %}bad{% else %}warn{% endif %}">{{ it.verdict }}</span>
+        <span class="muted">{{ it.reason_code }}</span>
+      </div>
+    {% else %}
+      <p class="muted">Queue empty.</p>
+    {% endfor %}
+  </div>
+
+  <div class="card" id="detail">
+    <p class="muted">Select an item on the left.</p>
+  </div>
+</div>
+{% endblock %}

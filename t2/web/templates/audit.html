@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Audit{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Audit log <span class="muted">(run #{{ run_id }})</span></h2>
+  <form method="get">
+    Filter type: <input name="type" value="{{ event_type or '' }}" placeholder="e.g. CHANGESET_UPLOADED" />
+    <button>Apply</button>
+    {% if event_type %}<a href="/runs/{{ run_id }}/audit">clear</a>{% endif %}
+  </form>
+</div>
+
+<div class="card">
+  <table>
+    <thead><tr><th>ts</th><th>actor</th><th>type</th><th>cand</th><th>batch</th><th>payload</th></tr></thead>
+    <tbody>
+      {% for e in events %}
+      <tr>
+        <td class="muted">{{ e.ts }}</td>
+        <td>{{ e.actor }}</td>
+        <td><code>{{ e.event_type }}</code></td>
+        <td>{{ e.candidate_id or '' }}</td>
+        <td>{{ e.batch_id or '' }}</td>
+        <td class="muted"><code>{{ e.payload }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

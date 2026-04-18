@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Batch {{ batch.batch_id }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Batch #{{ batch.batch_id }} <span class="pill">{{ batch.status }}</span></h2>
+  <p class="muted">mode <code>{{ batch.mode }}</code> · size {{ batch.size }} ·
+    client_token <code>{{ batch.client_token }}</code>
+    {% if batch.changeset_id %}· changeset <a href="https://master.apis.dev.openstreetmap.org/changeset/{{ batch.changeset_id }}" target="_blank">#{{ batch.changeset_id }}</a>{% endif %}</p>
+  {% if batch.error_msg %}<p class="flash">{{ batch.error_msg }}</p>{% endif %}
+
+  <form method="post" action="/batches/{{ batch.batch_id }}/export" class="inline">
+    <button>Export .osm (JOSM)</button>
+  </form>
+  <form method="post" action="/batches/{{ batch.batch_id }}/upload" class="inline">
+    <button {% if batch.status == 'uploaded' %}disabled{% endif %}>Upload via OSM API</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Items ({{ items|length }})</h3>
+  <table>
+    <thead><tr><th>cand_id</th><th>local_id</th><th>housenumber</th><th>street</th><th>coords</th><th>status</th><th>osm_id</th></tr></thead>
+    <tbody>
+      {% for it in items %}
+      <tr>
+        <td>{{ it.candidate_id }}</td>
+        <td>{{ it.local_node_id }}</td>
+        <td>{{ it.housenumber }}</td>
+        <td>{{ it.street_raw }}</td>
+        <td class="muted">{{ it.lat }}, {{ it.lon }}</td>
+        <td><span class="pill">{{ it.upload_status }}</span></td>
+        <td>{{ it.osm_node_id or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

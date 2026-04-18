@@ -1,0 +1,20 @@
+<table>
+  <thead><tr><th>Check</th><th>Version</th><th>Enabled</th><th>Description</th></tr></thead>
+  <tbody>
+    {% for cid, check in registry.items() %}
+    <tr>
+      <td><code>{{ cid }}</code></td>
+      <td>{{ check.version }}</td>
+      <td>
+        <form hx-post="/runs/{{ run_id }}/toggle/{{ cid }}" hx-target="#toggles" class="inline">
+          <input type="hidden" name="enabled" value="{{ '0' if toggles.get(cid) else '1' }}" />
+          <button class="{% if not toggles.get(cid) %}secondary{% endif %}">
+            {{ 'ON' if toggles.get(cid) else 'off' }}
+          </button>
+        </form>
+      </td>
+      <td class="muted">{{ check.description }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

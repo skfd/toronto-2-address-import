@@ -1,0 +1,8 @@
+{% if msg %}<p><em>{{ msg }}</em></p>{% endif %}
+{% if counts %}
+<p>
+  {% for stage, n in counts.items() %}
+  <span class="pill">{{ stage }}: {{ n }}</span>
+  {% endfor %}
+</p>
+{% endif %}

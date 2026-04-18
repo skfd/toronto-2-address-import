@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>New run</h2>
+  <form method="post" action="{{ url_for('runs_new') }}">
+    <label>Name <input name="name" required placeholder="ward-14-test" /></label><br><br>
+    <label>min_lat <input name="min_lat" value="{{ default_bbox[0] }}" size="10"/></label>
+    <label>min_lon <input name="min_lon" value="{{ default_bbox[1] }}" size="10"/></label>
+    <label>max_lat <input name="max_lat" value="{{ default_bbox[2] }}" size="10"/></label>
+    <label>max_lon <input name="max_lon" value="{{ default_bbox[3] }}" size="10"/></label><br><br>
+    <button>Create run</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Runs</h2>
+  {% if runs %}
+  <table>
+    <thead><tr><th>ID</th><th>Name</th><th>Created</th><th>BBox</th><th>Snap</th><th></th></tr></thead>
+    <tbody>
+      {% for r in runs %}
+      <tr>
+        <td>{{ r.run_id }}</td>
+        <td><a href="/runs/{{ r.run_id }}">{{ r.name }}</a></td>
+        <td class="muted">{{ r.created_at }}</td>
+        <td class="muted">{{ '%.4f, %.4f → %.4f, %.4f' % (r.bbox_min_lat, r.bbox_min_lon, r.bbox_max_lat, r.bbox_max_lon) }}</td>
+        <td>{{ r.source_snapshot_id }}</td>
+        <td><a href="/runs/{{ r.run_id }}/review">review</a> · <a href="/runs/{{ r.run_id }}/audit">audit</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No runs yet.</p>{% endif %}
+</div>
+{% endblock %}

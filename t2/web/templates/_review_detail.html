@@ -1,0 +1,44 @@
+<h3>{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}</h3>
+<p class="muted">candidate_id <code>{{ candidate.candidate_id }}</code> ·
+  lat <code>{{ candidate.lat }}</code> lon <code>{{ candidate.lon }}</code> ·
+  verdict <span class="pill">{{ candidate.verdict or '—' }}</span>
+  {% if candidate.nearest_dist_m %}· nearest {{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }} at {{ '%.1fm' % candidate.nearest_dist_m }}{% endif %}
+</p>
+
+{% if candidate.lat and candidate.lon %}
+<div id="leaflet-map"></div>
+<script>
+  (function(){
+    const el = document.getElementById('leaflet-map');
+    if (el._leaflet_id) { el._leaflet_id = null; el.innerHTML = ''; }
+    const map = L.map('leaflet-map').setView([{{ candidate.lat }}, {{ candidate.lon }}], 18);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '© OSM' }).addTo(map);
+    L.marker([{{ candidate.lat }}, {{ candidate.lon }}]).addTo(map);
+  })();
+</script>
+{% endif %}
+
+<h4>Check results</h4>
+<table>
+  <thead><tr><th>Check</th><th>Verdict</th><th>Severity</th><th>Reason</th><th>Details</th></tr></thead>
+  <tbody>
+    {% for r in results %}
+    <tr>
+      <td><code>{{ r.check_id }}</code> v{{ r.check_version }}</td>
+      <td><span class="pill {% if r.verdict == 'FLAG' %}warn{% elif r.verdict == 'PASS' %}ok{% endif %}">{{ r.verdict }}</span></td>
+      <td>{{ r.severity or '' }}</td>
+      <td>{{ r.reason_code or '' }}</td>
+      <td class="muted"><code>{{ r.details }}</code></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h4>Decision</h4>
+<form hx-post="/runs/{{ run_id }}/review/{{ candidate.candidate_id }}" hx-swap="none">
+  <input type="text" name="note" placeholder="optional note" style="width:60%"/>
+  <button name="status" value="APPROVED">Approve</button>
+  <button name="status" value="REJECTED" class="danger">Reject</button>
+  <button name="status" value="DEFERRED" class="secondary">Defer</button>
+</form>
