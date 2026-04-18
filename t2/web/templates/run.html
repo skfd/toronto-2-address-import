@@ -5,6 +5,22 @@
   <h2>Run: {{ run.name }} <span class="muted">#{{ run.run_id }}</span></h2>
   <p class="muted">bbox {{ '%.5f, %.5f → %.5f, %.5f' % (run.bbox_min_lat, run.bbox_min_lon, run.bbox_max_lat, run.bbox_max_lon) }}
     · source snapshot {{ run.source_snapshot_id }}</p>
+  <div id="run-map" style="height: 320px; border-radius: 4px; margin: .6rem 0;"></div>
+  <script>
+    (function(){
+      const bounds = [[{{ run.bbox_min_lat }}, {{ run.bbox_min_lon }}],
+                      [{{ run.bbox_max_lat }}, {{ run.bbox_max_lon }}]];
+      const map = L.map('run-map').fitBounds(bounds, { padding: [20, 20] });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { maxZoom: 19, attribution: '© OSM' }).addTo(map);
+      const rect = L.rectangle(bounds, { color: '#2563eb', weight: 2, fillOpacity: 0.08 }).addTo(map);
+      rect.bindTooltip({{ run.name|tojson }}, { permanent: true, direction: 'center', className: 'run-label' });
+    })();
+  </script>
+  <style>
+    .run-label { background: rgba(37, 99, 235, 0.85); color: #fff; border: 0; font-weight: 600; padding: 4px 10px; }
+    .leaflet-tooltip.run-label:before { display: none; }
+  </style>
   <p>
     <a href="/runs/{{ run.run_id }}/review">Review queue</a> ·
     <a href="/runs/{{ run.run_id }}/audit">Audit log</a>
