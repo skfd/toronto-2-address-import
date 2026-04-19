@@ -49,6 +49,8 @@ GLOSSARY: dict[str, str] = {
     "reason.plain_number": "Plain housenumber — no suffix or range.",
     "reason.unique_location": "No nearby duplicates in the input.",
     "reason.not_sampled": "Not selected in this sampling round.",
+    "reason.potential_amenity": "Matched OSM node carries non-address tags — may actually be a POI we should exclude. Review to refine the POI filter.",
+    "reason.pure_address": "Matched OSM node has only addr:* tags — nothing to flag.",
 
     # POI acknowledgment pills
     "pill.poi_acknowledged": "A shop/amenity node sits at this address but isn't a canonical address feature — ignored for matching.",
