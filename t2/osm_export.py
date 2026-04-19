@@ -9,7 +9,6 @@ _CONFIG = _config.load()
 
 STATIC_TAGS = {
     "addr:city": "Toronto",
-    "addr:province": "ON",
     "source": "City of Toronto Open Data",
 }
 

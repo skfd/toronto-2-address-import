@@ -13,7 +13,6 @@ DEFAULT_KEYS: tuple[str, ...] = (
     "addr:unit",
     "addr:postcode",
     "addr:city",
-    "addr:province",
     "addr:country",
 )
 
