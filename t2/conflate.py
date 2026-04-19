@@ -64,7 +64,10 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-POI_TAG_KEYS = ("amenity", "shop", "office", "tourism", "leisure", "craft", "healthcare", "building")
+POI_TAG_KEYS = (
+    "amenity", "shop", "office", "tourism", "leisure", "craft", "healthcare", "building",
+    "disused:shop", "disused:amenity", "disused:office", "was:amenity",
+)
 
 
 def _is_poi_node(el: dict) -> bool:

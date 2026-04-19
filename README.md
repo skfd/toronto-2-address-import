@@ -74,6 +74,25 @@ restarting is safe — each stage skips work already done:
 - **Uploads** look up prior changesets by their `import:client_token` tag
   before opening a new one.
 
+## How conflation decides
+
+Match targets are **pure address nodes** (`addr:housenumber` + no POI tags) and
+**polygons** (ways/relations with an address — typically buildings, including
+amenity-tagged footprints like a hospital).
+
+**POI nodes** (nodes carrying `amenity`, `shop`, `office`, `tourism`, `leisure`,
+`craft`, `healthcare`, `building`, plus `disused:*` / `was:*` variants — see
+`POI_TAG_KEYS` in `t2/conflate.py`) are **ignored** for matching: their address
+is a courtesy annotation, not the canonical address feature. When a POI sits at
+a MISSING candidate's address, the review UI acknowledges it with a pill, and
+any `addr:postcode` on the POI is copied into the proposed upload tags.
+
+Even after that filter, a matched "pure address" node can quietly carry
+non-address tags (`name`, `ref`, `entrance`). The `potential_amenity` check
+flags those with `severity=info` so we can refine the POI filter over time.
+Metadata keys like `source`, `opendata:type`, `check_date`, `note` are on an
+ignore list inside the check and don't trigger it.
+
 ## Writing a new check
 
 1. Create `t2/checks/<name>.py` exporting a class that matches the `Check`
