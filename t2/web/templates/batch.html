@@ -2,17 +2,17 @@
 {% block title %}Batch {{ batch.batch_id }}{% endblock %}
 {% block content %}
 <div class="card">
-  <h2>Batch #{{ batch.batch_id }} <span class="pill">{{ batch.status }}</span></h2>
+  <h2>Batch #{{ batch.batch_id }} <span class="pill" data-tip="{{ tip('batch.' ~ batch.status) }}">{{ batch.status }}</span></h2>
   <p class="muted">mode <code>{{ batch.mode }}</code> · size {{ batch.size }} ·
     client_token <code>{{ batch.client_token }}</code>
     {% if batch.changeset_id %}· changeset <a href="https://master.apis.dev.openstreetmap.org/changeset/{{ batch.changeset_id }}" target="_blank">#{{ batch.changeset_id }}</a>{% endif %}</p>
   {% if batch.error_msg %}<p class="flash">{{ batch.error_msg }}</p>{% endif %}
 
   <form method="post" action="/batches/{{ batch.batch_id }}/export" class="inline">
-    <button>Export .osm (JOSM)</button>
+    <button title="{{ tip('btn.export_osm') }}">Export .osm (JOSM)</button>
   </form>
   <form method="post" action="/batches/{{ batch.batch_id }}/upload" class="inline">
-    <button {% if batch.status == 'uploaded' %}disabled{% endif %}>Upload via OSM API</button>
+    <button {% if batch.status == 'uploaded' %}disabled{% endif %} title="{{ tip('btn.upload_api') }}">Upload via OSM API</button>
   </form>
 </div>
 
@@ -32,7 +32,7 @@
           <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}" target="_blank" rel="noopener">{{ it.lat }}, {{ it.lon }}</a>
           {% else %}—{% endif %}
         </td>
-        <td><span class="pill">{{ it.upload_status }}</span></td>
+        <td><span class="pill" data-tip="{{ tip('batch.' ~ it.upload_status) if it.upload_status else '' }}">{{ it.upload_status }}</span></td>
         <td>{% if it.osm_node_id %}<a href="https://master.apis.dev.openstreetmap.org/node/{{ it.osm_node_id }}" target="_blank" rel="noopener">{{ it.osm_node_id }}</a>{% else %}—{% endif %}</td>
       </tr>
       {% endfor %}

@@ -24,10 +24,10 @@
         <td class="muted">
           {% if e.event_type == 'CONFLATE_CANDIDATE' %}
             {% set p = e.payload %}
-            <div><strong>{{ p.verdict }}</strong>
+            <div><strong data-tip="{{ tip('verdict.' ~ p.verdict) if p.verdict else '' }}">{{ p.verdict }}</strong>
               {% if p.osm_id %}
                 · {{ p.geom_hint or p.osm_type }} #{{ p.osm_id }}{% if p.geom_hint and p.geom_hint.endswith('-polygon') %} (polygon){% endif %}
-                {% if p.dist_m %}· {{ '%.1fm' % p.dist_m }}{% endif %}
+                {% if p.dist_m %}· <span data-tip="{{ tip('metric.nearest_dist_m') }}">{{ '%.1fm' % p.dist_m }}</span>{% endif %}
               {% else %}· no OSM match{% endif %}
             </div>
             <table>
@@ -35,10 +35,10 @@
               <tbody>
                 {% for r in p.diff or [] %}
                 <tr>
-                  <td><code>{{ r.tag }}</code></td>
+                  <td><code data-tip="{{ tip('tag.' ~ r.tag) }}">{{ r.tag }}</code></td>
                   <td>{{ r.proposed or '—' }}</td>
                   <td>{{ r.osm or '—' }}</td>
-                  <td><span class="pill {% if r.status == 'SAME' %}ok{% elif r.status == 'CHANGE' %}warn{% endif %}">{{ r.status }}</span></td>
+                  <td><span class="pill {% if r.status == 'SAME' %}ok{% elif r.status == 'CHANGE' %}warn{% endif %}" data-tip="{{ tip('diff.' ~ r.status) }}">{{ r.status }}</span></td>
                 </tr>
                 {% endfor %}
               </tbody>

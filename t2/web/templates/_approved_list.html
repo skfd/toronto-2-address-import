@@ -10,17 +10,17 @@
       {% endif %}
       <br>
       {% if it.review_status == 'APPROVED' and it.prior_auto_approved %}
-        <span class="pill warn">operator (override)</span>
+        <span class="pill warn" data-tip="{{ tip('status.APPROVED_override') }}">operator (override)</span>
       {% elif it.review_status == 'APPROVED' %}
-        <span class="pill warn">operator</span>
+        <span class="pill warn" data-tip="{{ tip('status.APPROVED') }}">operator</span>
       {% else %}
-        <span class="pill ok">auto</span>
+        <span class="pill ok" data-tip="{{ tip('status.AUTO_APPROVED') }}">auto</span>
       {% endif %}
       {% if it.verdict %}
-        <span class="pill">{{ it.verdict }}</span>
+        <span class="pill" data-tip="{{ tip('verdict.' ~ it.verdict) }}">{{ it.verdict }}</span>
       {% endif %}
       {% if it.nearest_osm_id %}
-        <span class="muted">{{ it.nearest_osm_type }} #{{ it.nearest_osm_id }}{% if it.nearest_dist_m is not none %} · {{ '%.1f' % it.nearest_dist_m }} m{% endif %}</span>
+        <span class="muted">{{ it.nearest_osm_type }} #{{ it.nearest_osm_id }}{% if it.nearest_dist_m is not none %} · <span data-tip="{{ tip('metric.nearest_dist_m') }}">{{ '%.1f' % it.nearest_dist_m }} m</span>{% endif %}</span>
       {% endif %}
     </div>
   {% else %}

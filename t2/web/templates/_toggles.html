@@ -3,12 +3,12 @@
   <tbody>
     {% for cid, check in registry.items() %}
     <tr>
-      <td><code>{{ cid }}</code></td>
+      <td><code data-tip="{{ check.description }}">{{ cid }}</code></td>
       <td>{{ check.version }}</td>
       <td>
         <form hx-post="/runs/{{ run_id }}/toggle/{{ cid }}" hx-target="#toggles" class="inline">
           <input type="hidden" name="enabled" value="{{ '0' if toggles.get(cid) else '1' }}" />
-          <button class="{% if not toggles.get(cid) %}secondary{% endif %}">
+          <button class="{% if not toggles.get(cid) %}secondary{% endif %}" title="{{ tip('btn.toggle_check') }}">
             {{ 'ON' if toggles.get(cid) else 'off' }}
           </button>
         </form>

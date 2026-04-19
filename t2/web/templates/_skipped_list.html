@@ -13,15 +13,15 @@
       {% endif %}
       <br>
       {% if it.verdict == 'MATCH' %}
-        <span class="pill ok">MATCH</span>
+        <span class="pill ok" data-tip="{{ tip('verdict.MATCH') }}">MATCH</span>
         <span class="muted">already in OSM</span>
       {% elif it.verdict == 'SKIPPED' %}
-        <span class="pill">range</span>
+        <span class="pill" data-tip="{{ tip('reason.range') }}">range</span>
       {% else %}
-        <span class="pill">{{ it.verdict or '—' }}</span>
+        <span class="pill" data-tip="{{ tip('verdict.' ~ it.verdict) if it.verdict else '' }}">{{ it.verdict or '—' }}</span>
       {% endif %}
       {% if it.nearest_osm_id %}
-        <span class="muted">· {{ it.nearest_osm_type }} #{{ it.nearest_osm_id }}{% if it.nearest_dist_m is not none %} · {{ '%.1f' % it.nearest_dist_m }} m{% endif %}</span>
+        <span class="muted">· {{ it.nearest_osm_type }} #{{ it.nearest_osm_id }}{% if it.nearest_dist_m is not none %} · <span data-tip="{{ tip('metric.nearest_dist_m') }}">{{ '%.1f' % it.nearest_dist_m }} m</span>{% endif %}</span>
       {% endif %}
     </div>
   {% else %}

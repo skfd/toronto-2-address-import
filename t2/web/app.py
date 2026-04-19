@@ -7,6 +7,7 @@ from flask import Flask, abort, flash, g, jsonify, redirect, render_template, re
 from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, pipeline, review, tag_diff
 from ..conflate import _proposed_tags
 from ..checks import REGISTRY
+from .glossary import GLOSSARY
 
 
 def create_app() -> Flask:
@@ -15,6 +16,7 @@ def create_app() -> Flask:
 
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.secret_key = cfg.flask_secret_key
+    app.jinja_env.globals["tip"] = lambda key: GLOSSARY.get(key, "")
 
     # ---- Dashboard / runs ----
 
@@ -136,6 +138,7 @@ def create_app() -> Flask:
             diff_rows=diff_rows,
             geom_label=geom_label,
             review_state=review_state,
+            registry=REGISTRY,
         )
 
     @app.post("/runs/<int:run_id>/review/<int:candidate_id>")

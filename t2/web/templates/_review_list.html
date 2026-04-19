@@ -13,20 +13,20 @@
       {% endif %}
       <br>
       {% if it.status == 'OPEN' %}
-        <span class="pill warn">OPEN</span>
+        <span class="pill warn" data-tip="{{ tip('status.OPEN') }}">OPEN</span>
       {% elif it.status == 'APPROVED' %}
-        <span class="pill ok">{% if it.prior_auto_approved %}APPROVED (override){% else %}APPROVED{% endif %}</span>
+        <span class="pill ok" data-tip="{{ tip('status.APPROVED_override' if it.prior_auto_approved else 'status.APPROVED') }}">{% if it.prior_auto_approved %}APPROVED (override){% else %}APPROVED{% endif %}</span>
       {% elif it.status == 'REJECTED' %}
-        <span class="pill bad">{% if it.prior_auto_approved %}REJECTED (override){% else %}REJECTED{% endif %}</span>
+        <span class="pill bad" data-tip="{{ tip('status.REJECTED_override' if it.prior_auto_approved else 'status.REJECTED') }}">{% if it.prior_auto_approved %}REJECTED (override){% else %}REJECTED{% endif %}</span>
       {% elif it.status == 'DEFERRED' %}
-        <span class="pill">DEFERRED</span>
+        <span class="pill" data-tip="{{ tip('status.DEFERRED') }}">DEFERRED</span>
       {% elif it.status == 'AUTO_APPROVED' %}
-        <span class="pill ok">AUTO</span>
+        <span class="pill ok" data-tip="{{ tip('status.AUTO_APPROVED') }}">AUTO</span>
       {% endif %}
       {% if it.verdict %}
-        <span class="pill {% if it.verdict == 'CONFLICT' %}bad{% else %}warn{% endif %}">{{ it.verdict }}</span>
+        <span class="pill {% if it.verdict == 'CONFLICT' %}bad{% else %}warn{% endif %}" data-tip="{{ tip('verdict.' ~ it.verdict) }}">{{ it.verdict }}</span>
       {% endif %}
-      <span class="muted">{{ it.reason_code }}</span>
+      {% if it.reason_code %}<span class="muted" data-tip="{{ tip('reason.' ~ it.reason_code) }}">{{ it.reason_code }}</span>{% endif %}
     </div>
   {% else %}
     <p class="muted">No items match the current filter.</p>

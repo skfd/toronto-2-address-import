@@ -5,10 +5,10 @@
   <h2>New run</h2>
   <form method="post" action="{{ url_for('runs_new') }}">
     <label>Name <input name="name" required placeholder="ward-14-test" /></label><br><br>
-    <label>min_lat <input name="min_lat" value="{{ default_bbox[0] }}" size="10"/></label>
-    <label>min_lon <input name="min_lon" value="{{ default_bbox[1] }}" size="10"/></label>
-    <label>max_lat <input name="max_lat" value="{{ default_bbox[2] }}" size="10"/></label>
-    <label>max_lon <input name="max_lon" value="{{ default_bbox[3] }}" size="10"/></label><br><br>
+    <label title="{{ tip('field.bbox') }}">min_lat <input name="min_lat" value="{{ default_bbox[0] }}" size="10"/></label>
+    <label title="{{ tip('field.bbox') }}">min_lon <input name="min_lon" value="{{ default_bbox[1] }}" size="10"/></label>
+    <label title="{{ tip('field.bbox') }}">max_lat <input name="max_lat" value="{{ default_bbox[2] }}" size="10"/></label>
+    <label title="{{ tip('field.bbox') }}">max_lon <input name="max_lon" value="{{ default_bbox[3] }}" size="10"/></label><br><br>
     <button>Create run</button>
   </form>
 </div>

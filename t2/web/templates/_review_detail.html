@@ -4,8 +4,8 @@
   {% if candidate.lat and candidate.lon %}
   · <a href="https://www.openstreetmap.org/?mlat={{ candidate.lat }}&mlon={{ candidate.lon }}#map=19/{{ candidate.lat }}/{{ candidate.lon }}" target="_blank" rel="noopener">open in OSM</a>
   {% endif %}
-  · verdict <span class="pill">{{ candidate.verdict or '—' }}</span>
-  {% if candidate.nearest_dist_m %}· nearest <a href="https://www.openstreetmap.org/{{ candidate.nearest_osm_type }}/{{ candidate.nearest_osm_id }}" target="_blank" rel="noopener">{{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }}</a> at {{ '%.1fm' % candidate.nearest_dist_m }}{% endif %}
+  · verdict <span class="pill" data-tip="{{ tip('verdict.' ~ candidate.verdict) if candidate.verdict else '' }}">{{ candidate.verdict or '—' }}</span>
+  {% if candidate.nearest_dist_m %}· nearest <a href="https://www.openstreetmap.org/{{ candidate.nearest_osm_type }}/{{ candidate.nearest_osm_id }}" target="_blank" rel="noopener">{{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }}</a> at <span data-tip="{{ tip('metric.nearest_dist_m') }}">{{ '%.1fm' % candidate.nearest_dist_m }}</span>{% endif %}
 </p>
 {% if candidate.lo_num is not none and candidate.hi_num is not none and candidate.lo_num != candidate.hi_num %}
 <p class="muted">Range: <strong>{{ candidate.lo_num }}{{ candidate.lo_num_suf or '' }}–{{ candidate.hi_num }}{{ candidate.hi_num_suf or '' }}</strong> (reference only — not conflated)</p>
@@ -32,10 +32,10 @@
   <tbody>
     {% for r in diff_rows %}
     <tr>
-      <td><code>{{ r.tag }}</code></td>
+      <td><code data-tip="{{ tip('tag.' ~ r.tag) }}">{{ r.tag }}</code></td>
       <td>{{ r.proposed or '—' }}</td>
       <td>{{ r.osm or '—' }}</td>
-      <td><span class="pill {% if r.status == 'SAME' %}ok{% elif r.status == 'CHANGE' %}warn{% endif %}">{{ r.status }}</span></td>
+      <td><span class="pill {% if r.status == 'SAME' %}ok{% elif r.status == 'CHANGE' %}warn{% endif %}" data-tip="{{ tip('diff.' ~ r.status) }}">{{ r.status }}</span></td>
     </tr>
     {% else %}
     <tr><td colspan="4" class="muted">No address tags proposed or matched.</td></tr>
@@ -48,11 +48,12 @@
   <thead><tr><th>Check</th><th>Verdict</th><th>Severity</th><th>Reason</th><th>Details</th></tr></thead>
   <tbody>
     {% for r in results %}
+    {% set check_def = registry.get(r.check_id) if registry else none %}
     <tr>
-      <td><code>{{ r.check_id }}</code> v{{ r.check_version }}</td>
-      <td><span class="pill {% if r.verdict == 'FLAG' %}warn{% elif r.verdict == 'PASS' %}ok{% endif %}">{{ r.verdict }}</span></td>
-      <td>{{ r.severity or '' }}</td>
-      <td>{{ r.reason_code or '' }}</td>
+      <td><code data-tip="{{ check_def.description if check_def else '' }}">{{ r.check_id }}</code> v{{ r.check_version }}</td>
+      <td><span class="pill {% if r.verdict == 'FLAG' %}warn{% elif r.verdict == 'PASS' %}ok{% endif %}" data-tip="{{ tip('checkverdict.' ~ r.verdict) }}">{{ r.verdict }}</span></td>
+      <td>{% if r.severity %}<span data-tip="{{ tip('severity.' ~ r.severity) }}">{{ r.severity }}</span>{% endif %}</td>
+      <td>{% if r.reason_code %}<span data-tip="{{ tip('reason.' ~ r.reason_code) }}">{{ r.reason_code }}</span>{% endif %}</td>
       <td class="muted"><code>{{ r.details }}</code></td>
     </tr>
     {% endfor %}
@@ -62,24 +63,24 @@
 <h4>Decision</h4>
 {% set rs = review_state.status %}
 {% if rs == 'AUTO_APPROVED' %}
-  <p><span class="pill ok">Auto-approved by pipeline</span>
+  <p><span class="pill ok" data-tip="{{ tip('status.AUTO_APPROVED') }}">Auto-approved by pipeline</span>
      <span class="muted">— change the decision below to override.</span></p>
 {% elif rs == 'APPROVED' %}
-  <p><span class="pill ok">Approved by operator{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
+  <p><span class="pill ok" data-tip="{{ tip('status.APPROVED_override' if review_state.prior_auto_approved else 'status.APPROVED') }}">Approved by operator{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
 {% elif rs == 'REJECTED' %}
-  <p><span class="pill bad">Rejected by operator{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
+  <p><span class="pill bad" data-tip="{{ tip('status.REJECTED_override' if review_state.prior_auto_approved else 'status.REJECTED') }}">Rejected by operator{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
 {% elif rs == 'DEFERRED' %}
-  <p><span class="pill">Deferred{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
+  <p><span class="pill" data-tip="{{ tip('status.DEFERRED') }}">Deferred{% if review_state.prior_auto_approved %} (was auto-approved){% endif %}</span></p>
 {% elif rs == 'OPEN' %}
-  <p><span class="pill warn">Open — awaiting decision</span></p>
+  <p><span class="pill warn" data-tip="{{ tip('status.OPEN') }}">Open — awaiting decision</span></p>
 {% elif rs is none %}
-  <p><span class="pill">Stage: {{ candidate.stage or '—' }}</span>
+  <p><span class="pill" data-tip="{{ tip('stage.' ~ candidate.stage) if candidate.stage else '' }}">Stage: {{ candidate.stage or '—' }}</span>
      <span class="muted">— not in review queue. Use buttons below to override.</span></p>
 {% endif %}
 {% set has_decision = rs in ('AUTO_APPROVED','APPROVED','REJECTED','DEFERRED') or rs is none and candidate.stage in ('SKIPPED',) %}
 <form hx-post="/runs/{{ run_id }}/review/{{ candidate.candidate_id }}" hx-swap="none">
-  <input type="text" name="note" placeholder="optional note" style="width:60%" value="{{ review_state.note or '' }}"/>
-  <button name="status" value="APPROVED">{% if has_decision %}Change to Approved{% else %}Approve{% endif %}</button>
-  <button name="status" value="REJECTED" class="danger">{% if has_decision %}Change to Rejected{% else %}Reject{% endif %}</button>
-  <button name="status" value="DEFERRED" class="secondary">{% if has_decision %}Change to Deferred{% else %}Defer{% endif %}</button>
+  <input type="text" name="note" placeholder="optional note" style="width:60%" value="{{ review_state.note or '' }}" title="{{ tip('field.note') }}"/>
+  <button name="status" value="APPROVED" title="{{ tip('btn.approve') }}">{% if has_decision %}Change to Approved{% else %}Approve{% endif %}</button>
+  <button name="status" value="REJECTED" class="danger" title="{{ tip('btn.reject') }}">{% if has_decision %}Change to Rejected{% else %}Reject{% endif %}</button>
+  <button name="status" value="DEFERRED" class="secondary" title="{{ tip('btn.defer') }}">{% if has_decision %}Change to Deferred{% else %}Defer{% endif %}</button>
 </form>
