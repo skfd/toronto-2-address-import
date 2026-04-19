@@ -6,6 +6,19 @@ sqlite_path = "C:/Users/kk/Code/toronto-addresses-import/addresses.db"
 bbox = [43.645, -79.42, 43.665, -79.39]
 overpass_url = "https://overpass-api.de/api/interpreter"
 
+[osm]
+# Where stage 2 reads OSM data from. "local" reads the cached extract refreshed
+# via `python -m t2.osm_refresh`. "overpass" posts a live query to overpass_url.
+source = "local"
+# Geofabrik PBF covering Toronto. Ontario is the smallest Geofabrik region
+# that includes the city; ~600MB on first download, diff-friendly.
+pbf_url = "https://download.geofabrik.de/north-america/canada/ontario-latest.osm.pbf"
+# City-of-Toronto-ish clip applied after tag filtering. Anything outside this
+# rectangle is discarded from the local extract to keep it small.
+toronto_bbox = [43.58, -79.64, 43.86, -79.11]
+# Where the PBF, filtered JSON, meta sidecar, lock and log live.
+extract_dir = "data/osm"
+
 [conflation]
 # Search radius for finding a matching OSM address (same housenumber + street).
 match_radius_m = 100

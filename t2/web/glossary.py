@@ -94,4 +94,21 @@ GLOSSARY: dict[str, str] = {
     "field.source_snapshot": "OSM snapshot identifier this run was conflated against.",
     "field.note": "Optional free-text comment explaining the operator decision.",
     "metric.nearest_dist_m": "Distance in metres to the nearest OSM feature.",
+
+    # local OSM extract view
+    "field.osm_source": "Where stage 2 reads OSM from: 'local' uses the cached extract, 'overpass' queries the live API.",
+    "field.osm_pbf_url": "Geofabrik URL we download the raw PBF from.",
+    "field.osm_source_last_modified": "Last-Modified header Geofabrik reported for the PBF when we last downloaded it.",
+    "field.osm_downloaded_at": "Wall-clock time of our last successful refresh.",
+    "field.osm_pbf_sha256": "SHA-256 of the downloaded PBF.",
+    "field.osm_json_sha256": "SHA-256 of the filtered address JSON.",
+    "field.osm_element_counts": "Feature counts after filtering: nodes + ways kept, relations skipped (no centroid), features outside the Toronto bbox.",
+    "field.osm_toronto_bbox": "Clip bbox applied after tag filtering — features outside are discarded.",
+    "field.osm_filter_duration": "Time spent running pyosmium over the PBF.",
+    "status.osm.fresh": "Extract is present and refreshed recently.",
+    "status.osm.stale": "Extract exists but hasn't been refreshed in a while — consider a refresh.",
+    "status.osm.missing": "No extract on disk yet — run a refresh to populate it.",
+    "status.osm.running": "A refresh subprocess is currently running.",
+    "btn.osm_refresh": "Start a refresh subprocess. Skips the download if Geofabrik is unchanged since the last refresh.",
+    "btn.osm_refresh_force": "Start a refresh subprocess and re-download even if Geofabrik is unchanged.",
 }
