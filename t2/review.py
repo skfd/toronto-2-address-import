@@ -135,7 +135,7 @@ def queue(
                 SELECT r.candidate_id, r.reason_code, r.status, r.opened_at, r.resolved_at,
                        r.prior_auto_approved,
                        c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
-                       c.lo_num, c.hi_num, c.stage,
+                       c.lo_num, c.hi_num, c.stage, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode
                 FROM review_items r
@@ -157,7 +157,7 @@ def queue(
                        c.stage_updated_at AS resolved_at,
                        0 AS prior_auto_approved,
                        c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
-                       c.lo_num, c.hi_num, c.stage,
+                       c.lo_num, c.hi_num, c.stage, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode
                 FROM candidates c

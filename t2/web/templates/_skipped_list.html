@@ -3,6 +3,9 @@
     <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
          hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail">
       <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
+      {% if it.address_class and it.address_class != 'Land' %}
+        <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ it.address_class }}</span>
+      {% endif %}
       {% if it.lo_num is not none and it.hi_num is not none and it.lo_num != it.hi_num %}
         <span class="muted">(range {{ it.lo_num }}–{{ it.hi_num }})</span>
       {% endif %}
@@ -16,7 +19,13 @@
         <span class="pill ok" data-tip="{{ tip('verdict.MATCH') }}">MATCH</span>
         <span class="muted">already in OSM</span>
       {% elif it.verdict == 'SKIPPED' %}
-        <span class="pill" data-tip="{{ tip('reason.range') }}">range</span>
+        {% if it.lo_num is not none and it.hi_num is not none and it.lo_num != it.hi_num %}
+          <span class="pill" data-tip="{{ tip('reason.range') }}">range</span>
+        {% elif it.address_class and it.address_class != 'Land' %}
+          <span class="pill" data-tip="{{ tip('reason.colocated_land') }}">colocated Land</span>
+        {% else %}
+          <span class="pill" data-tip="{{ tip('verdict.SKIPPED') }}">SKIPPED</span>
+        {% endif %}
       {% else %}
         <span class="pill" data-tip="{{ tip('verdict.' ~ it.verdict) if it.verdict else '' }}">{{ it.verdict or '—' }}</span>
       {% endif %}

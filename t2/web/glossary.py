@@ -43,6 +43,7 @@ GLOSSARY: dict[str, str] = {
     # check reason codes
     "reason.match_far": "Same housenumber+street exists in OSM, but the matched element is unusually far from the candidate coordinates.",
     "reason.range": "Address range (e.g. 10–14) — reference only, not uploaded.",
+    "reason.colocated_land": "Non-Land row sits within 50 m of a Land sibling at the same address — the Land row is the canonical record.",
     "reason.suffix": "Suffixed number (e.g. 10A) — may duplicate a plain base number.",
     "reason.city_duplicate": "Another candidate in this run sits within a few metres.",
     "reason.spot_check": "Randomly sampled MISSING address for manual QA.",
@@ -55,6 +56,7 @@ GLOSSARY: dict[str, str] = {
     # POI acknowledgment pills
     "pill.poi_acknowledged": "A shop/amenity node sits at this address but isn't a canonical address feature — ignored for matching.",
     "pill.postcode_from_poi": "Postal code copied from the nearby POI node; included in the proposed tags.",
+    "pill.address_class": "Source address class. Non-Land rows (Structure, Structure Entrance, Land Entrance) mark building centroids, doors, or driveways rather than the parcel.",
 
     # severities
     "severity.warn": "Likely problem — requires attention.",

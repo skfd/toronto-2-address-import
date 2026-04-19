@@ -192,7 +192,7 @@ def create_app() -> Flask:
             rows = conn.execute(
                 f"""
                 SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
-                       c.lat, c.lon, c.stage_updated_at,
+                       c.lat, c.lon, c.stage_updated_at, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode,
                        r.status AS review_status, r.prior_auto_approved
@@ -231,7 +231,7 @@ def create_app() -> Flask:
             rows = conn.execute(
                 f"""
                 SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
-                       c.lat, c.lon, c.lo_num, c.hi_num, c.stage_updated_at,
+                       c.lat, c.lon, c.lo_num, c.hi_num, c.stage_updated_at, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode,
                        r.status AS review_status
