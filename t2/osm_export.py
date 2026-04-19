@@ -34,6 +34,9 @@ def _osm_change_xml(items: list[dict]) -> bytes:
             "addr:street": (it.get("street_raw") or "").strip(),
             **STATIC_TAGS,
         }
+        postcode = (it.get("proposed_postcode") or "").strip()
+        if postcode:
+            tags["addr:postcode"] = postcode
         for k, v in tags.items():
             if v:
                 ET.SubElement(node, "tag", k=k, v=v)
@@ -71,6 +74,9 @@ def osmchange_xml(batch_id: int, changeset_id: int) -> bytes:
             "addr:street": (it.get("street_raw") or "").strip(),
             **STATIC_TAGS,
         }
+        postcode = (it.get("proposed_postcode") or "").strip()
+        if postcode:
+            tags["addr:postcode"] = postcode
         for k, v in tags.items():
             if v:
                 ET.SubElement(node, "tag", k=k, v=v)

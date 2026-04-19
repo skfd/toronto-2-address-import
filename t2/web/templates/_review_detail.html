@@ -6,6 +6,13 @@
   {% endif %}
   · verdict <span class="pill" data-tip="{{ tip('verdict.' ~ candidate.verdict) if candidate.verdict else '' }}">{{ candidate.verdict or '—' }}</span>
   {% if candidate.nearest_dist_m %}· nearest <a href="https://www.openstreetmap.org/{{ candidate.nearest_osm_type }}/{{ candidate.nearest_osm_id }}" target="_blank" rel="noopener">{{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }}</a> at <span data-tip="{{ tip('metric.nearest_dist_m') }}">{{ '%.1fm' % candidate.nearest_dist_m }}</span>{% endif %}
+  {% if candidate.poi_osm_id %}
+  · <span class="pill" data-tip="{{ tip('pill.poi_acknowledged') }}">POI acknowledged:
+    <a href="https://www.openstreetmap.org/{{ candidate.poi_osm_type }}/{{ candidate.poi_osm_id }}" target="_blank" rel="noopener">{{ candidate.poi_osm_type }} #{{ candidate.poi_osm_id }}</a>{% if candidate.poi_tags and candidate.poi_tags.name %} — {{ candidate.poi_tags.name }}{% endif %}</span>
+  {% endif %}
+  {% if candidate.proposed_postcode %}
+  · <span class="pill" data-tip="{{ tip('pill.postcode_from_poi') }}">postcode from POI: {{ candidate.proposed_postcode }}</span>
+  {% endif %}
 </p>
 {% if candidate.lo_num is not none and candidate.hi_num is not none and candidate.lo_num != candidate.hi_num %}
 <p class="muted">Range: <strong>{{ candidate.lo_num }}{{ candidate.lo_num_suf or '' }}–{{ candidate.hi_num }}{{ candidate.hi_num_suf or '' }}</strong> (reference only — not conflated)</p>

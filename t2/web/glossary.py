@@ -50,6 +50,10 @@ GLOSSARY: dict[str, str] = {
     "reason.unique_location": "No nearby duplicates in the input.",
     "reason.not_sampled": "Not selected in this sampling round.",
 
+    # POI acknowledgment pills
+    "pill.poi_acknowledged": "A shop/amenity node sits at this address but isn't a canonical address feature — ignored for matching.",
+    "pill.postcode_from_poi": "Postal code copied from the nearby POI node; included in the proposed tags.",
+
     # severities
     "severity.warn": "Likely problem — requires attention.",
     "severity.info": "Informational — surfaced for context only.",

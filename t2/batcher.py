@@ -78,10 +78,12 @@ def load_batch_items(batch_id: int) -> list[dict]:
         rows = conn.execute(
             """
             SELECT bi.candidate_id, bi.local_node_id, bi.upload_status, bi.osm_node_id,
-                   c.housenumber, c.street_raw, c.lat, c.lon
+                   c.housenumber, c.street_raw, c.lat, c.lon,
+                   cf.proposed_postcode
             FROM batch_items bi
             JOIN batches b ON b.batch_id = bi.batch_id
             JOIN candidates c ON c.run_id = b.run_id AND c.candidate_id = bi.candidate_id
+            LEFT JOIN conflation cf ON cf.run_id = b.run_id AND cf.candidate_id = bi.candidate_id
             WHERE bi.batch_id = ?
             ORDER BY bi.local_node_id DESC
             """,

@@ -100,7 +100,9 @@ def create_app() -> Flask:
             row = conn.execute(
                 """SELECT c.*, cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type,
                           cf.nearest_dist_m, cf.matched_osm_tags_json, cf.matched_osm_geom_hint,
-                          cf.matched_osm_lat, cf.matched_osm_lon
+                          cf.matched_osm_lat, cf.matched_osm_lon,
+                          cf.poi_osm_id, cf.poi_osm_type, cf.poi_tags_json,
+                          cf.proposed_postcode
                    FROM candidates c LEFT JOIN conflation cf USING (run_id, candidate_id)
                    WHERE c.run_id=? AND c.candidate_id=?""",
                 (run_id, candidate_id),
@@ -121,6 +123,11 @@ def create_app() -> Flask:
             osm_tags = json.loads(cand.get("matched_osm_tags_json") or "null")
         except Exception:
             osm_tags = None
+        try:
+            poi_tags = json.loads(cand.get("poi_tags_json") or "null")
+        except Exception:
+            poi_tags = None
+        cand["poi_tags"] = poi_tags
         proposed = _proposed_tags(cand)
         diff_rows = tag_diff.compare_tags(proposed, osm_tags)
         geom = cand.get("matched_osm_geom_hint")

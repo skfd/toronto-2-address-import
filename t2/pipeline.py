@@ -157,7 +157,7 @@ def run_checks(run_id: int) -> dict[str, int]:
         return {}
 
     elements = osm_fetch.load_cached(run_id)
-    osm_idx = conflate.build_osm_index(elements)
+    osm_idx, _poi_idx = conflate.build_osm_index(elements)
 
     counts = {"PASS": 0, "FLAG": 0, "SKIP": 0}
     conn = _db.connect()
