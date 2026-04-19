@@ -8,9 +8,43 @@ from pathlib import Path
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
 from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, review, tag_diff
-from ..conflate import _proposed_tags
+from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
+
+# Cache per-run OSM JSON by (path, mtime) so panning the review map doesn't
+# re-parse a multi-megabyte file on every bbox request. The tuple is
+# (mtime, elements, interp_node_ids) — interpolation endpoint nodes are the
+# numeric endpoints of an addr:interpolation way and must be hidden from the
+# sibling map for the same reason conflate drops them from match_idx.
+_OSM_CACHE: dict[Path, tuple[float, list[dict], set[int]]] = {}
+
+
+def _load_osm_for_run(path: Path) -> tuple[list[dict], set[int]]:
+    if not path.exists():
+        return [], set()
+    mtime = path.stat().st_mtime
+    cached = _OSM_CACHE.get(path)
+    if cached and cached[0] == mtime:
+        return cached[1], cached[2]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    interp: set[int] = set()
+    for el in data:
+        if el.get("type") != "way":
+            continue
+        if "addr:interpolation" not in (el.get("tags") or {}):
+            continue
+        for nid in el.get("nodes") or ():
+            interp.add(nid)
+    _OSM_CACHE[path] = (mtime, data, interp)
+    return data, interp
+
+
+def _osm_element_latlon(el: dict) -> tuple[float | None, float | None]:
+    if el.get("type") == "node":
+        return el.get("lat"), el.get("lon")
+    c = el.get("center") or {}
+    return c.get("lat"), c.get("lon")
 
 
 def create_app() -> Flask:
@@ -219,6 +253,126 @@ def create_app() -> Flask:
         note = request.form.get("note") or None
         review.resolve(run_id, candidate_id, status, actor="operator", note=note)
         return "", 204
+
+    # ~3 km at Toronto latitude — guards against unbounded zoom-out queries.
+    _MAX_BBOX_SPAN_DEG = 0.03
+    _SIBLING_LIMIT = 500
+
+    @app.get("/runs/<int:run_id>/siblings")
+    def review_siblings(run_id: int):
+        raw = request.args.get("bbox") or ""
+        try:
+            parts = [float(x) for x in raw.split(",")]
+        except ValueError:
+            abort(400)
+        if len(parts) != 4:
+            abort(400)
+        min_lat, min_lon, max_lat, max_lon = parts
+        if min_lat >= max_lat or min_lon >= max_lon:
+            abort(400)
+        if (max_lat - min_lat) > _MAX_BBOX_SPAN_DEG or (max_lon - min_lon) > _MAX_BBOX_SPAN_DEG:
+            cy = (min_lat + max_lat) / 2
+            cx = (min_lon + max_lon) / 2
+            half = _MAX_BBOX_SPAN_DEG / 2
+            min_lat, max_lat = cy - half, cy + half
+            min_lon, max_lon = cx - half, cx + half
+
+        try:
+            focus_id = int(request.args.get("focus") or 0)
+        except ValueError:
+            focus_id = 0
+
+        conn = _db.connect()
+        try:
+            focus_match = None
+            if focus_id:
+                focus_match = conn.execute(
+                    "SELECT nearest_osm_type, nearest_osm_id FROM conflation "
+                    "WHERE run_id=? AND candidate_id=?",
+                    (run_id, focus_id),
+                ).fetchone()
+            rows = conn.execute(
+                """SELECT c.candidate_id, c.lat, c.lon, c.address_full, c.housenumber,
+                          c.street_raw, c.address_class, c.stage,
+                          cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type,
+                          r.status AS review_status
+                   FROM candidates c
+                   LEFT JOIN conflation cf USING (run_id, candidate_id)
+                   LEFT JOIN review_items r USING (run_id, candidate_id)
+                   WHERE c.run_id = ?
+                     AND c.lat BETWEEN ? AND ?
+                     AND c.lon BETWEEN ? AND ?
+                     AND c.candidate_id != ?
+                   LIMIT ?""",
+                (run_id, min_lat, max_lat, min_lon, max_lon, focus_id, _SIBLING_LIMIT),
+            ).fetchall()
+        finally:
+            conn.close()
+
+        candidates_out = []
+        for row in rows:
+            d = dict(row)
+            candidates_out.append({
+                "candidate_id": d["candidate_id"],
+                "lat": d["lat"],
+                "lon": d["lon"],
+                "address": d["address_full"],
+                "housenumber": d["housenumber"],
+                "street": d["street_raw"],
+                "address_class": d["address_class"],
+                "stage": d["stage"],
+                "verdict": d["verdict"],
+                "review_status": d["review_status"],
+                "nearest_osm_type": d["nearest_osm_type"],
+                "nearest_osm_id": d["nearest_osm_id"],
+            })
+
+        excluded: tuple[str, int] | None = None
+        if focus_match and focus_match["nearest_osm_id"]:
+            excluded = (focus_match["nearest_osm_type"], focus_match["nearest_osm_id"])
+
+        osm_path = cfg.data_dir / f"osm_current_run{run_id}.json"
+        elements, interp_node_ids = _load_osm_for_run(osm_path)
+        osm_out: list[dict] = []
+        for el in elements:
+            if el.get("type") == "node" and el.get("id") in interp_node_ids:
+                continue
+            lat, lon = _osm_element_latlon(el)
+            if lat is None or lon is None:
+                continue
+            if not (min_lat <= lat <= max_lat and min_lon <= lon <= max_lon):
+                continue
+            tags = el.get("tags") or {}
+            hn = tags.get("addr:housenumber")
+            if not hn:
+                continue
+            if excluded and el.get("type") == excluded[0] and el.get("id") == excluded[1]:
+                continue
+            is_poi = _is_poi_node(el)
+            poi_tag = None
+            if is_poi:
+                for key in POI_TAG_KEYS:
+                    if key in tags:
+                        poi_tag = f"{key}={tags[key]}"
+                        break
+            osm_out.append({
+                "type": el.get("type"),
+                "id": el.get("id"),
+                "lat": lat,
+                "lon": lon,
+                "housenumber": hn,
+                "street": tags.get("addr:street"),
+                "unit": tags.get("addr:unit"),
+                "floor": tags.get("addr:floor"),
+                "postcode": tags.get("addr:postcode"),
+                "name": tags.get("name"),
+                "kind": "poi" if is_poi else "address",
+                "poi_tag": poi_tag,
+            })
+            if len(osm_out) >= _SIBLING_LIMIT:
+                break
+
+        return jsonify({"candidates": candidates_out, "osm": osm_out})
 
     # ---- Approved / Skipped lists ----
 
