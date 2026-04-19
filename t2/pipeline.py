@@ -281,6 +281,18 @@ def run_checks(run_id: int) -> dict[str, int]:
                     "UPDATE candidates SET stage=?, stage_updated_at=? WHERE run_id=? AND candidate_id=?",
                     (new_stage, now, run_id, cand.candidate_id),
                 )
+                # A prior check version may have flagged this candidate; its OPEN review_item
+                # no longer reflects reality. Clear it so the queue stays consistent with stage.
+                cur = conn.execute(
+                    "DELETE FROM review_items WHERE run_id=? AND candidate_id=? AND status='OPEN'",
+                    (run_id, cand.candidate_id),
+                )
+                if cur.rowcount:
+                    audit.log(
+                        actor="pipeline", event_type="REVIEW_CLEARED",
+                        run_id=run_id, candidate_id=cand.candidate_id,
+                        payload={"reason": "no_flags_on_rerun"}, conn=conn,
+                    )
                 if new_stage == "APPROVED":
                     audit.log(
                         actor="pipeline", event_type="AUTO_APPROVED",
