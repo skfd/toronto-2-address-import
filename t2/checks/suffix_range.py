@@ -2,14 +2,19 @@ import re
 
 from .base import Candidate, CheckContext, Verdict
 
-_SUFFIXED_NUMBER = re.compile(r"^\d+[A-Z/\-].*$", re.IGNORECASE)
+_SUFFIX_CHAR = re.compile(r"^\d+\s*([A-Za-z])\b")
+
+# Letters that look like digits and often indicate a data-entry typo
+# (I ↔ 1, O ↔ 0, Q ↔ 0). Other single-letter suffixes (A, B, R for "rear",
+# C–K, 1/2 fractionals) are normal Toronto civic forms and pass.
+_SUSPICIOUS_SUFFIXES = frozenset({"I", "O", "Q"})
 
 
 class SuffixRangeCheck:
     id = "suffix_range"
-    version = 1
+    version = 2
     default_enabled = True
-    description = "Flags suffixed or ranged housenumbers (10A, 10-14) that often duplicate a plain base number in OSM."
+    description = "Flags housenumber ranges (100-110) and digit-confusable suffix letters (I, O, Q). Other suffixes (A, B, R, 1/2, …) pass."
 
     def applies(self, cand: Candidate, ctx: CheckContext) -> bool:
         return cand.verdict == "MISSING"
@@ -17,17 +22,27 @@ class SuffixRangeCheck:
     def evaluate(self, cand: Candidate, ctx: CheckContext) -> Verdict:
         hn = (cand.housenumber or "").strip()
         is_range = cand.lo_num is not None and cand.hi_num is not None and cand.lo_num != cand.hi_num
-        has_suffix = bool(_SUFFIXED_NUMBER.match(hn)) or bool(cand.lo_num_suf)
-        if not (is_range or has_suffix):
-            return Verdict(status="PASS", reason_code="plain_number")
-        return Verdict(
-            status="FLAG",
-            severity="info",
-            reason_code="range" if is_range else "suffix",
-            details={
-                "housenumber": hn,
-                "lo_num": cand.lo_num,
-                "hi_num": cand.hi_num,
-                "lo_num_suf": cand.lo_num_suf,
-            },
-        )
+
+        if is_range:
+            return Verdict(
+                status="FLAG",
+                severity="info",
+                reason_code="range",
+                details={"housenumber": hn, "lo_num": cand.lo_num, "hi_num": cand.hi_num},
+            )
+
+        suffix = (cand.lo_num_suf or "").strip().upper()
+        if not suffix:
+            m = _SUFFIX_CHAR.match(hn)
+            if m:
+                suffix = m.group(1).upper()
+
+        if suffix in _SUSPICIOUS_SUFFIXES:
+            return Verdict(
+                status="FLAG",
+                severity="info",
+                reason_code="suspicious_suffix",
+                details={"housenumber": hn, "suffix": suffix},
+            )
+
+        return Verdict(status="PASS", reason_code="ok")

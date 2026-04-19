@@ -48,7 +48,7 @@ GLOSSARY: dict[str, str] = {
     "reason.match_far": "Same housenumber+street exists in OSM, but the matched element is unusually far from the candidate coordinates.",
     "reason.range": "Address range (e.g. 10–14) — reference only, not uploaded.",
     "reason.colocated_land": "Non-Land row sits within 50 m of a Land sibling at the same address — the Land row is the canonical record.",
-    "reason.suffix": "Suffixed number (e.g. 10A) — may duplicate a plain base number.",
+    "reason.suspicious_suffix": "Suffix letter looks like a digit (I↔1, O↔0, Q↔0) — likely a data-entry typo.",
     "reason.city_duplicate": "Another candidate in this run sits within a few metres.",
     "reason.spot_check": "Randomly sampled MISSING address for manual QA.",
     "reason.plain_number": "Plain housenumber — no suffix or range.",
