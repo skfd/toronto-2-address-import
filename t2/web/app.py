@@ -295,21 +295,24 @@ def create_app() -> Flask:
         if force:
             args.append("--force")
         osm_refresh.extract_dir(cfg).mkdir(parents=True, exist_ok=True)
-        log_file = open(osm_refresh.log_path(cfg), "wb")
-        popen_kwargs: dict = {
-            "stdout": log_file,
-            "stderr": subprocess.STDOUT,
-            "stdin": subprocess.DEVNULL,
-            "close_fds": True,
-            "cwd": str(_config.ROOT),
-        }
-        if os.name == "nt":
-            popen_kwargs["creationflags"] = (
-                subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-            )
-        else:
-            popen_kwargs["start_new_session"] = True
-        subprocess.Popen(args, **popen_kwargs)
+        # Open the log file for the child's stdout/stderr, then close our copy
+        # after Popen returns — the child inherits its own fd, so keeping the
+        # parent handle open would leak one fd per refresh click.
+        with open(osm_refresh.log_path(cfg), "wb") as log_file:
+            popen_kwargs: dict = {
+                "stdout": log_file,
+                "stderr": subprocess.STDOUT,
+                "stdin": subprocess.DEVNULL,
+                "close_fds": True,
+                "cwd": str(_config.ROOT),
+            }
+            if os.name == "nt":
+                popen_kwargs["creationflags"] = (
+                    subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+                )
+            else:
+                popen_kwargs["start_new_session"] = True
+            subprocess.Popen(args, **popen_kwargs)
         flash("OSM extract refresh started. Reload the page to watch progress.")
         return redirect(url_for("osm_view"))
 
