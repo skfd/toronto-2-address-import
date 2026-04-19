@@ -15,8 +15,8 @@ pipeline. Code, DB schema, and templates use `candidate`; discussion and new
 docs may use either term. Each one carries three orthogonal axes:
 
 - **`verdict`** — what conflation decided (`MATCH`, `MATCH_FAR`, `MISSING`, `SKIPPED`)
-- **`status`** — what the operator decided (`OPEN`, `APPROVED`, `REJECTED`, `DEFERRED`, `AUTO_APPROVED`, …)
-- **`stage`** — where it sits in the pipeline (`REVIEW_PENDING`, `APPROVED`, `SKIPPED`, `BATCHED`)
+- **`status`** — what the operator decided (`OPEN`, `APPROVED`, `REJECTED`, `DEFERRED`); `AUTO_APPROVED` is a synthetic status the review queue derives for clean MISSING rows that bypass manual review
+- **`stage`** — where it sits in the pipeline (`INGESTED`, `CONFLATED`, `CHECKED`, `REVIEW_PENDING`, `APPROVED`, `REJECTED`, `BATCHED`, `UPLOADED`, `FAILED`, `SKIPPED`)
 
 A **Run** is one execution of the pipeline (produces many candidates); a
 **Batch** is a bundle of `APPROVED` candidates packaged for upload.
