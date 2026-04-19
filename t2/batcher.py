@@ -78,7 +78,7 @@ def load_batch_items(batch_id: int) -> list[dict]:
         rows = conn.execute(
             """
             SELECT bi.candidate_id, bi.local_node_id, bi.upload_status, bi.osm_node_id,
-                   c.housenumber, c.street_raw, c.lat, c.lon,
+                   c.housenumber, c.street_raw, c.lat, c.lon, c.address_class,
                    cf.proposed_postcode
             FROM batch_items bi
             JOIN batches b ON b.batch_id = bi.batch_id

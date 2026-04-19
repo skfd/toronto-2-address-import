@@ -14,6 +14,21 @@ STATIC_TAGS = {
 }
 
 
+def build_tags(it: dict) -> dict[str, str]:
+    """Tag dict for a batch item. Emits entrance=yes for Structure Entrance rows."""
+    tags = {
+        "addr:housenumber": (it.get("housenumber") or "").strip(),
+        "addr:street": (it.get("street_raw") or "").strip(),
+        **STATIC_TAGS,
+    }
+    postcode = (it.get("proposed_postcode") or "").strip()
+    if postcode:
+        tags["addr:postcode"] = postcode
+    if it.get("address_class") == "Structure Entrance":
+        tags["entrance"] = "yes"
+    return {k: v for k, v in tags.items() if v}
+
+
 def _osm_change_xml(items: list[dict]) -> bytes:
     """Build an <osm version=0.6> element with one <node> per item. Returns serialized bytes."""
     root = ET.Element("osm", version="0.6", generator="t2-address-import")
@@ -29,17 +44,8 @@ def _osm_change_xml(items: list[dict]) -> bytes:
             action="modify",
             visible="true",
         )
-        tags = {
-            "addr:housenumber": (it.get("housenumber") or "").strip(),
-            "addr:street": (it.get("street_raw") or "").strip(),
-            **STATIC_TAGS,
-        }
-        postcode = (it.get("proposed_postcode") or "").strip()
-        if postcode:
-            tags["addr:postcode"] = postcode
-        for k, v in tags.items():
-            if v:
-                ET.SubElement(node, "tag", k=k, v=v)
+        for k, v in build_tags(it).items():
+            ET.SubElement(node, "tag", k=k, v=v)
     return ET.tostring(root, encoding="utf-8")
 
 
@@ -69,15 +75,6 @@ def osmchange_xml(batch_id: int, changeset_id: int) -> bytes:
             lon=f"{lon:.7f}",
             version="0",
         )
-        tags = {
-            "addr:housenumber": (it.get("housenumber") or "").strip(),
-            "addr:street": (it.get("street_raw") or "").strip(),
-            **STATIC_TAGS,
-        }
-        postcode = (it.get("proposed_postcode") or "").strip()
-        if postcode:
-            tags["addr:postcode"] = postcode
-        for k, v in tags.items():
-            if v:
-                ET.SubElement(node, "tag", k=k, v=v)
+        for k, v in build_tags(it).items():
+            ET.SubElement(node, "tag", k=k, v=v)
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)

@@ -187,6 +187,8 @@ def _proposed_tags(cand_row: dict, poi_tags: dict | None = None) -> dict[str, st
         postcode = (poi_tags.get("addr:postcode") or "").strip()
     if postcode:
         tags["addr:postcode"] = postcode
+    if cand_row.get("address_class") == "Structure Entrance":
+        tags["entrance"] = "yes"
     return {k: v for k, v in tags.items() if v}
 
 
@@ -211,6 +213,26 @@ def _is_range(row: dict) -> bool:
     return lo is not None and hi is not None and lo != hi
 
 
+# Land sibling within this distance auto-skips the non-Land candidate.
+# 50 m is comfortably wider than typical Toronto lot depth, so it catches
+# parcel-centroid-vs-entrance pairs without colliding with the next address
+# over. See SOURCE_DATA.md for why the dedup is scoped to same address_full.
+_LAND_SIBLING_RADIUS_M = 50.0
+
+
+def _colocated_land_sibling(cand: dict, land_lookup: dict[str, list[tuple[float, float]]]) -> bool:
+    if cand.get("address_class") == "Land":
+        return False
+    addr = cand.get("address_full")
+    lat, lon = cand.get("lat"), cand.get("lon")
+    if not addr or lat is None or lon is None:
+        return False
+    for la, lo in land_lookup.get(addr, ()):
+        if haversine(lat, lon, la, lo) <= _LAND_SIBLING_RADIUS_M:
+            return True
+    return False
+
+
 def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m: float) -> dict[str, int]:
     """Iterate candidates at stage INGESTED, write conflation row, advance to CONFLATED."""
     from . import tag_diff  # local import avoids an import cycle at module load
@@ -222,9 +244,18 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
     counts = {"MATCH": 0, "MATCH_FAR": 0, "MISSING": 0, "SKIPPED": 0}
     conn = _db.connect()
     try:
+        land_lookup: dict[str, list[tuple[float, float]]] = {}
+        for lr in conn.execute(
+            "SELECT address_full, lat, lon FROM candidates "
+            "WHERE run_id = ? AND address_class = 'Land' "
+            "  AND address_full IS NOT NULL AND lat IS NOT NULL AND lon IS NOT NULL",
+            (run_id,),
+        ):
+            land_lookup.setdefault(lr["address_full"], []).append((lr["lat"], lr["lon"]))
+
         rows = conn.execute(
-            "SELECT candidate_id, housenumber, street_raw, street_norm, lat, lon, "
-            "       lo_num, hi_num "
+            "SELECT candidate_id, address_full, housenumber, street_raw, street_norm, lat, lon, "
+            "       lo_num, hi_num, address_class "
             "FROM candidates WHERE run_id = ? AND stage = 'INGESTED'",
             (run_id,),
         ).fetchall()
@@ -233,8 +264,10 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
         for r in rows:
             cand = dict(r)
 
-            # Address ranges are skipped during conflation (kept for reference only)
-            if _is_range(cand):
+            # Address ranges are skipped during conflation (kept for reference only).
+            # Non-Land rows colocated with a Land sibling at the same address are also
+            # skipped — the Land row is the canonical record (see SOURCE_DATA.md).
+            if _is_range(cand) or _colocated_land_sibling(cand, land_lookup):
                 verdict, osm_id, osm_type, dist, matched, poi = "SKIPPED", None, None, None, None, None
             else:
                 verdict, osm_id, osm_type, dist, matched, poi = _classify(
