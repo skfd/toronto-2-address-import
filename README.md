@@ -135,6 +135,62 @@ flags those with `severity=info` so we can refine the POI filter over time.
 Metadata keys like `source`, `opendata:type`, `check_date`, `note` are on an
 ignore list inside the check and don't trigger it.
 
+## Out of scope (possible next phase)
+
+The current pipeline is one-directional: Toronto source → OSM lookup → upload
+additions. Two cleanup flows in the opposite direction are **explicitly out of
+scope** and left for a later phase. Documented here so reviewers don't assume
+they were overlooked.
+
+### Removing OSM addresses absent from Toronto source
+
+If OSM has an address that Toronto's active snapshot doesn't, we do not flag,
+propose, or remove it.
+
+Reasoning — the absence direction is asymmetric. Toronto's open data is
+authoritative when it asserts an address exists; silence is a weaker signal.
+The feed has refresh lag, known-missing neighborhoods, and retired-address
+states that aren't cleanly separable from "never existed." Deleting OSM data
+based on absence alone would destroy real addresses on worse evidence than we
+accept for additions.
+
+A future phase would need, at minimum: a reverse-sweep stage enumerating OSM
+addresses in the run bbox; a separate review queue (not `Candidate` — the
+verdicts don't fit); a street-level cross-check to suppress the common case
+where Toronto's feed is missing a whole street; prioritization by OSM metadata
+(`start_date`, last-edit age, `source`); and human-only approval — no
+automation, since OSM deletions are high blast radius and hard to reverse.
+
+### Removing `addr:interpolation` ways
+
+OSM `addr:interpolation` ways synthesize housenumbers along a street segment
+between two endpoint nodes. When Toronto's per-address points cover the same
+segment with real data, the interpolation way is technically redundant. We
+still don't touch them.
+
+Reasoning — an interpolation way isn't an address, it's a geometry-anchored
+range declaration. Our matching model (housenumber + street + point) doesn't
+describe what's being replaced. Replacement needs cross-validation: every
+integer in the interpolation range must have a real Toronto point before
+removal, otherwise the delete leaves mapped gaps. It's also a bulk structural
+edit to OSM, not an address-import operation — different review bar, different
+changeset hygiene, different rollback story than what this tool was built for.
+
+A future phase would need: enumeration of `addr:interpolation` ways in the
+bbox; coverage check that every integer in the range has a colocated Toronto
+point; a proposed delete-way-plus-preserve-endpoints changeset for human
+review; and care around tags (`addr:street`, `addr:postcode`) that the
+interpolation way carries on behalf of its endpoints.
+
+### Why defer both
+
+The shipping scope — "get Toronto's missing civic addresses into OSM without
+creating duplicates" — has standalone value. Folding cleanup into the same
+pipeline expands blast radius and review burden without proportional benefit,
+and the two reverse flows have different enough semantics (different data
+sources, different review criteria, different failure modes) that they
+deserve their own pipelines when we get to them.
+
 ## Writing a new check
 
 1. Create `t2/checks/<name>.py` exporting a class that matches the `Check`
