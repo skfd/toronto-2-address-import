@@ -8,8 +8,14 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #f6f7f9; color: #222; }
-    header { background: #1f2937; color: #fff; padding: .7rem 1.2rem; }
-    header a { color: #fff; text-decoration: none; margin-right: 1rem; }
+    header { background: #1f2937; color: #fff; padding: .7rem 1.2rem;
+             display: flex; align-items: center; gap: 1rem; }
+    header a { color: #fff; text-decoration: none; }
+    header .nav a { margin-right: 1rem; }
+    header .meta { margin-left: auto; font-size: .82rem; color: #cbd5e1; }
+    header .meta a { color: #cbd5e1; }
+    header .meta a:hover { color: #fff; text-decoration: underline; }
+    header .meta .sep { margin: 0 .4rem; color: #64748b; }
     main { padding: 1.2rem; max-width: 1200px; margin: 0 auto; }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
     table { border-collapse: collapse; width: 100%; }
@@ -44,10 +50,21 @@
 </head>
 <body>
   <header>
-    <a href="/"><strong>t2 address import</strong></a>
-    <a href="/osm">OSM extract</a>
-    <a href="/data">Data</a>
-    <a href="/oauth/start">OSM auth</a>
+    <span class="nav">
+      <a href="/"><strong>t2 address import</strong></a>
+      <a href="/osm">OSM extract</a>
+      <a href="/data">Data</a>
+      <a href="/oauth/start">OSM auth</a>
+    </span>
+    <span class="meta">
+      <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/skfd/toronto-2-address-import/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+      <span class="sep">·</span>
+      <a href="https://open.toronto.ca/open-data-license/" target="_blank" rel="noopener">Toronto Open Data</a>
+      &amp;
+      &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>
+    </span>
   </header>
   <main>
     {% with messages = get_flashed_messages() %}
