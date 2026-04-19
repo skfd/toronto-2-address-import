@@ -1,6 +1,10 @@
 """Hover-tooltip text for UI vocabulary. Looked up via the `tip()` Jinja global."""
 
 GLOSSARY: dict[str, str] = {
+    # core entity (Candidate and AddressMatch are synonyms — see README "Terminology")
+    "entity.candidate": "One input-CSV row paired with its OSM lookup result; the unit flowing through the pipeline. Synonym: AddressMatch.",
+    "entity.address_match": "Synonym for Candidate — used in discussion; code/DB use 'candidate'.",
+
     # review statuses
     "status.OPEN": "Awaiting operator decision.",
     "status.APPROVED": "Operator approved — will be uploaded in the next batch.",

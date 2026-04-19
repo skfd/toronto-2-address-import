@@ -7,6 +7,20 @@ reviewer via a web UI, and uploads approved batches to the OpenStreetMap
 **dev sandbox** (`master.apis.dev.openstreetmap.org`). Every auto and manual
 action is written to an append-only audit log.
 
+## Terminology
+
+**Candidate** and **AddressMatch** are synonyms — both refer to one row from
+the input CSV paired with its OSM lookup result, the unit flowing through the
+pipeline. Code, DB schema, and templates use `candidate`; discussion and new
+docs may use either term. Each one carries three orthogonal axes:
+
+- **`verdict`** — what conflation decided (`MATCH`, `MATCH_FAR`, `MISSING`, `SKIPPED`)
+- **`status`** — what the operator decided (`OPEN`, `APPROVED`, `REJECTED`, `DEFERRED`, `AUTO_APPROVED`, …)
+- **`stage`** — where it sits in the pipeline (`REVIEW_PENDING`, `APPROVED`, `SKIPPED`, `BATCHED`)
+
+A **Run** is one execution of the pipeline (produces many candidates); a
+**Batch** is a bundle of `APPROVED` candidates packaged for upload.
+
 ## Setup
 
 1. **Python 3.11+** (uses `tomllib`).
