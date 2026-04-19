@@ -13,3 +13,5 @@ at the date they were written.
 - [postcode-enrichment.md](postcode-enrichment.md) — fill `addr:postcode` on
   matched OSM nodes that lack one, sourced from same-address POI nodes.
   First mutation flow in an otherwise create-only pipeline.
+- [maplibre.md](maplibre.md) — swap the review UI's Leaflet maps for
+  MapLibre GL JS (vector tiles, richer styling).
