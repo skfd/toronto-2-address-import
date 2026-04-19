@@ -1,7 +1,8 @@
 <div class="card" id="skipped-list" style="max-height: 70vh; overflow: auto;">
   {% for it in items %}
     <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
-         hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail">
+         hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
+         hx-include="#review-filters">
       <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
       {% if it.address_class and it.address_class != 'Land' %}
         <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ it.address_class }}</span>

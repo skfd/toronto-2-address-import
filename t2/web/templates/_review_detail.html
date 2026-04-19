@@ -3,7 +3,8 @@
     <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ candidate.address_class }}</span>
   {% endif %}
 </h3>
-<p class="muted">candidate_id <code>{{ candidate.candidate_id }}</code> ·
+<p class="muted">candidate_id <code>{{ candidate.candidate_id }}</code>
+  · <a href="/runs/{{ run_id }}/review/{{ candidate.candidate_id }}" title="Permalink to this candidate">permalink</a> ·
   lat <code>{{ candidate.lat }}</code> lon <code>{{ candidate.lon }}</code>
   {% if candidate.lat and candidate.lon %}
   · <a href="https://www.openstreetmap.org/?mlat={{ candidate.lat }}&mlon={{ candidate.lon }}#map=19/{{ candidate.lat }}/{{ candidate.lon }}" target="_blank" rel="noopener">open in OSM</a>

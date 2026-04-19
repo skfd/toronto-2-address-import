@@ -113,10 +113,10 @@ def create_app() -> Flask:
             postcode_from_poi=postcode_from_poi,
             all_statuses=_REVIEW_STATUSES,
             all_verdicts=_REVIEW_VERDICTS,
+            selected_candidate_id=None,
         )
 
-    @app.get("/runs/<int:run_id>/review/<int:candidate_id>")
-    def review_detail(run_id: int, candidate_id: int):
+    def _review_detail_context(run_id: int, candidate_id: int):
         conn = _db.connect()
         try:
             row = conn.execute(
@@ -132,7 +132,7 @@ def create_app() -> Flask:
         finally:
             conn.close()
         if not row:
-            abort(404)
+            return None
         results = review.check_results_for(run_id, candidate_id)
         for r in results:
             try:
@@ -160,15 +160,54 @@ def create_app() -> Flask:
         else:
             geom_label = None
         review_state = review.get_review_state(run_id, candidate_id)
+        return {
+            "candidate": cand,
+            "results": results,
+            "run_id": run_id,
+            "diff_rows": diff_rows,
+            "geom_label": geom_label,
+            "review_state": review_state,
+            "registry": REGISTRY,
+        }
+
+    @app.get("/runs/<int:run_id>/review/<int:candidate_id>")
+    def review_detail(run_id: int, candidate_id: int):
+        ctx = _review_detail_context(run_id, candidate_id)
+        if ctx is None:
+            abort(404)
+        if request.headers.get("HX-Request"):
+            return render_template("_review_detail.html", **ctx)
+        raw = request.args.get("statuses")
+        if raw is None:
+            statuses = ("OPEN",)
+        else:
+            statuses = tuple(s for s in raw.split(",") if s in _REVIEW_STATUSES)
+        include_auto = request.args.get("auto", "0") == "1"
+        verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
+        poi_ack = request.args.get("poi_ack", "0") == "1"
+        postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        items = review.queue(
+            run_id,
+            statuses=statuses,
+            include_auto=include_auto,
+            verdicts=verdicts,
+            poi_ack=poi_ack,
+            postcode_from_poi=postcode_from_poi,
+            limit=500,
+        )
         return render_template(
-            "_review_detail.html",
-            candidate=cand,
-            results=results,
-            run_id=run_id,
-            diff_rows=diff_rows,
-            geom_label=geom_label,
-            review_state=review_state,
-            registry=REGISTRY,
+            "review.html",
+            items=items,
+            active_statuses=set(statuses),
+            active_verdicts=set(verdicts),
+            include_auto=include_auto,
+            poi_ack=poi_ack,
+            postcode_from_poi=postcode_from_poi,
+            all_statuses=_REVIEW_STATUSES,
+            all_verdicts=_REVIEW_VERDICTS,
+            selected_candidate=True,
+            selected_candidate_id=candidate_id,
+            **ctx,
         )
 
     @app.post("/runs/<int:run_id>/review/<int:candidate_id>")
