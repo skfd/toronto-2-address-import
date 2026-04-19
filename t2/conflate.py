@@ -216,18 +216,24 @@ def _is_range(row: dict) -> bool:
 # Land sibling within this distance auto-skips the non-Land candidate.
 # 50 m is comfortably wider than typical Toronto lot depth, so it catches
 # parcel-centroid-vs-entrance pairs without colliding with the next address
-# over. See SOURCE_DATA.md for why the dedup is scoped to same address_full.
+# over. The lookup is keyed on (address_full, municipality_name) because
+# the same string recurs across former municipalities post-amalgamation
+# (see SOURCE_DATA.md "Municipality trap" — e.g. "66 George St" exists in
+# three of them). The 50 m haversine check is a backstop, not the primary
+# disambiguator.
 _LAND_SIBLING_RADIUS_M = 50.0
 
 
-def _colocated_land_sibling(cand: dict, land_lookup: dict[str, list[tuple[float, float]]]) -> bool:
+def _colocated_land_sibling(
+    cand: dict, land_lookup: dict[tuple[str, str | None], list[tuple[float, float]]]
+) -> bool:
     if cand.get("address_class") == "Land":
         return False
     addr = cand.get("address_full")
     lat, lon = cand.get("lat"), cand.get("lon")
     if not addr or lat is None or lon is None:
         return False
-    for la, lo in land_lookup.get(addr, ()):
+    for la, lo in land_lookup.get((addr, cand.get("municipality_name")), ()):
         if haversine(lat, lon, la, lo) <= _LAND_SIBLING_RADIUS_M:
             return True
     return False
@@ -244,18 +250,20 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
     counts = {"MATCH": 0, "MATCH_FAR": 0, "MISSING": 0, "SKIPPED": 0}
     conn = _db.connect()
     try:
-        land_lookup: dict[str, list[tuple[float, float]]] = {}
+        land_lookup: dict[tuple[str, str | None], list[tuple[float, float]]] = {}
         for lr in conn.execute(
-            "SELECT address_full, lat, lon FROM candidates "
+            "SELECT address_full, municipality_name, lat, lon FROM candidates "
             "WHERE run_id = ? AND address_class = 'Land' "
             "  AND address_full IS NOT NULL AND lat IS NOT NULL AND lon IS NOT NULL",
             (run_id,),
         ):
-            land_lookup.setdefault(lr["address_full"], []).append((lr["lat"], lr["lon"]))
+            land_lookup.setdefault(
+                (lr["address_full"], lr["municipality_name"]), []
+            ).append((lr["lat"], lr["lon"]))
 
         rows = conn.execute(
             "SELECT candidate_id, address_full, housenumber, street_raw, street_norm, lat, lon, "
-            "       lo_num, hi_num, address_class "
+            "       lo_num, hi_num, address_class, municipality_name "
             "FROM candidates WHERE run_id = ? AND stage = 'INGESTED'",
             (run_id,),
         ).fetchall()

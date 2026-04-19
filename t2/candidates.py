@@ -45,6 +45,7 @@ def ingest(run_id: int, bbox: tuple[float, float, float, float], snapshot_id: in
                 row.get("hi_num_suf"),
                 extra_raw,
                 address_class,
+                row.get("municipality_name"),
                 "INGESTED",
                 now,
             )
@@ -53,8 +54,8 @@ def ingest(run_id: int, bbox: tuple[float, float, float, float], snapshot_id: in
                 INSERT OR IGNORE INTO candidates
                   (run_id, candidate_id, address_full, housenumber, street_raw, street_norm,
                    lat, lon, lo_num, lo_num_suf, hi_num, hi_num_suf, extra_json,
-                   address_class, stage, stage_updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   address_class, municipality_name, stage, stage_updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
