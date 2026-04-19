@@ -7,6 +7,20 @@ reviewer via a web UI, and uploads approved batches to the OpenStreetMap
 **dev sandbox** (`master.apis.dev.openstreetmap.org`). Every auto and manual
 action is written to an append-only audit log.
 
+## Terminology
+
+**Candidate** and **AddressMatch** are synonyms — both refer to one row from
+the input CSV paired with its OSM lookup result, the unit flowing through the
+pipeline. Code, DB schema, and templates use `candidate`; discussion and new
+docs may use either term. Each one carries three orthogonal axes:
+
+- **`verdict`** — what conflation decided (`MATCH`, `MATCH_FAR`, `MISSING`, `SKIPPED`)
+- **`status`** — what the operator decided (`OPEN`, `APPROVED`, `REJECTED`, `DEFERRED`); `AUTO_APPROVED` is a synthetic status the review queue derives for clean MISSING rows that bypass manual review
+- **`stage`** — where it sits in the pipeline (`INGESTED`, `CONFLATED`, `CHECKED`, `REVIEW_PENDING`, `APPROVED`, `REJECTED`, `BATCHED`, `UPLOADED`, `FAILED`, `SKIPPED`)
+
+A **Run** is one execution of the pipeline (produces many candidates); a
+**Batch** is a bundle of `APPROVED` candidates packaged for upload.
+
 ## Setup
 
 1. **Python 3.11+** (uses `tomllib`).
@@ -73,6 +87,25 @@ restarting is safe — each stage skips work already done:
   already has a result row. Bump a check's `version` in code to force rerun.
 - **Uploads** look up prior changesets by their `import:client_token` tag
   before opening a new one.
+
+## How conflation decides
+
+Match targets are **pure address nodes** (`addr:housenumber` + no POI tags) and
+**polygons** (ways/relations with an address — typically buildings, including
+amenity-tagged footprints like a hospital).
+
+**POI nodes** (nodes carrying `amenity`, `shop`, `office`, `tourism`, `leisure`,
+`craft`, `healthcare`, `building`, plus `disused:*` / `was:*` variants — see
+`POI_TAG_KEYS` in `t2/conflate.py`) are **ignored** for matching: their address
+is a courtesy annotation, not the canonical address feature. When a POI sits at
+a MISSING candidate's address, the review UI acknowledges it with a pill, and
+any `addr:postcode` on the POI is copied into the proposed upload tags.
+
+Even after that filter, a matched "pure address" node can quietly carry
+non-address tags (`name`, `ref`, `entrance`). The `potential_amenity` check
+flags those with `severity=info` so we can refine the POI filter over time.
+Metadata keys like `source`, `opendata:type`, `check_date`, `note` are on an
+ignore list inside the check and don't trigger it.
 
 ## Writing a new check
 

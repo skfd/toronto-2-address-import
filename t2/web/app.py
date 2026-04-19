@@ -72,6 +72,13 @@ def create_app() -> Flask:
     # ---- Review ----
 
     _REVIEW_STATUSES = ("OPEN", "APPROVED", "REJECTED", "DEFERRED")
+    _REVIEW_VERDICTS = ("MATCH", "MATCH_FAR", "MISSING", "SKIPPED")
+
+    def _parse_csv_arg(name: str, allowed: tuple[str, ...]) -> tuple[str, ...]:
+        raw = request.args.get(name)
+        if raw is None:
+            return ()
+        return tuple(v for v in raw.split(",") if v in allowed)
 
     @app.get("/runs/<int:run_id>/review")
     def review_page(run_id: int):
@@ -81,7 +88,18 @@ def create_app() -> Flask:
         else:
             statuses = tuple(s for s in raw.split(",") if s in _REVIEW_STATUSES)
         include_auto = request.args.get("auto", "0") == "1"
-        items = review.queue(run_id, statuses=statuses, include_auto=include_auto, limit=500)
+        verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
+        poi_ack = request.args.get("poi_ack", "0") == "1"
+        postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        items = review.queue(
+            run_id,
+            statuses=statuses,
+            include_auto=include_auto,
+            verdicts=verdicts,
+            poi_ack=poi_ack,
+            postcode_from_poi=postcode_from_poi,
+            limit=500,
+        )
         partial = request.args.get("partial") == "1"
         template = "_review_list.html" if partial else "review.html"
         return render_template(
@@ -89,8 +107,12 @@ def create_app() -> Flask:
             run_id=run_id,
             items=items,
             active_statuses=set(statuses),
+            active_verdicts=set(verdicts),
             include_auto=include_auto,
+            poi_ack=poi_ack,
+            postcode_from_poi=postcode_from_poi,
             all_statuses=_REVIEW_STATUSES,
+            all_verdicts=_REVIEW_VERDICTS,
             selected_candidate_id=None,
         )
 
@@ -100,7 +122,9 @@ def create_app() -> Flask:
             row = conn.execute(
                 """SELECT c.*, cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type,
                           cf.nearest_dist_m, cf.matched_osm_tags_json, cf.matched_osm_geom_hint,
-                          cf.matched_osm_lat, cf.matched_osm_lon
+                          cf.matched_osm_lat, cf.matched_osm_lon,
+                          cf.poi_osm_id, cf.poi_osm_type, cf.poi_tags_json,
+                          cf.proposed_postcode
                    FROM candidates c LEFT JOIN conflation cf USING (run_id, candidate_id)
                    WHERE c.run_id=? AND c.candidate_id=?""",
                 (run_id, candidate_id),
@@ -121,6 +145,11 @@ def create_app() -> Flask:
             osm_tags = json.loads(cand.get("matched_osm_tags_json") or "null")
         except Exception:
             osm_tags = None
+        try:
+            poi_tags = json.loads(cand.get("poi_tags_json") or "null")
+        except Exception:
+            poi_tags = None
+        cand["poi_tags"] = poi_tags
         proposed = _proposed_tags(cand)
         diff_rows = tag_diff.compare_tags(proposed, osm_tags)
         geom = cand.get("matched_osm_geom_hint")
@@ -154,13 +183,28 @@ def create_app() -> Flask:
         else:
             statuses = tuple(s for s in raw.split(",") if s in _REVIEW_STATUSES)
         include_auto = request.args.get("auto", "0") == "1"
-        items = review.queue(run_id, statuses=statuses, include_auto=include_auto, limit=500)
+        verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
+        poi_ack = request.args.get("poi_ack", "0") == "1"
+        postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        items = review.queue(
+            run_id,
+            statuses=statuses,
+            include_auto=include_auto,
+            verdicts=verdicts,
+            poi_ack=poi_ack,
+            postcode_from_poi=postcode_from_poi,
+            limit=500,
+        )
         return render_template(
             "review.html",
             items=items,
             active_statuses=set(statuses),
+            active_verdicts=set(verdicts),
             include_auto=include_auto,
+            poi_ack=poi_ack,
+            postcode_from_poi=postcode_from_poi,
             all_statuses=_REVIEW_STATUSES,
+            all_verdicts=_REVIEW_VERDICTS,
             selected_candidate=True,
             selected_candidate_id=candidate_id,
             **ctx,
@@ -177,49 +221,81 @@ def create_app() -> Flask:
 
     @app.get("/runs/<int:run_id>/approved")
     def approved_page(run_id: int):
+        verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
+        poi_ack = request.args.get("poi_ack", "0") == "1"
+        postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        extra_where, extra_params = review._poi_where(poi_ack, postcode_from_poi, verdicts)
+        and_extra = (" AND " + extra_where) if extra_where else ""
         conn = _db.connect()
         try:
             rows = conn.execute(
-                """
+                f"""
                 SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
-                       c.lat, c.lon, c.stage_updated_at,
+                       c.lat, c.lon, c.stage_updated_at, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
+                       cf.poi_osm_id, cf.proposed_postcode,
                        r.status AS review_status, r.prior_auto_approved
                 FROM candidates c
                 LEFT JOIN conflation cf USING (run_id, candidate_id)
                 LEFT JOIN review_items r USING (run_id, candidate_id)
-                WHERE c.run_id = ? AND c.stage = 'APPROVED'
+                WHERE c.run_id = ? AND c.stage = 'APPROVED'{and_extra}
                 ORDER BY c.stage_updated_at DESC
                 """,
-                (run_id,),
+                (run_id, *extra_params),
             ).fetchall()
         finally:
             conn.close()
         items = [dict(r) for r in rows]
-        return render_template("approved.html", run_id=run_id, items=items)
+        partial = request.args.get("partial") == "1"
+        template = "_approved_list.html" if partial else "approved.html"
+        return render_template(
+            template,
+            run_id=run_id,
+            items=items,
+            active_verdicts=set(verdicts),
+            poi_ack=poi_ack,
+            postcode_from_poi=postcode_from_poi,
+            all_verdicts=_REVIEW_VERDICTS,
+        )
 
     @app.get("/runs/<int:run_id>/skipped")
     def skipped_page(run_id: int):
+        verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
+        poi_ack = request.args.get("poi_ack", "0") == "1"
+        postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        extra_where, extra_params = review._poi_where(poi_ack, postcode_from_poi, verdicts)
+        and_extra = (" AND " + extra_where) if extra_where else ""
         conn = _db.connect()
         try:
             rows = conn.execute(
-                """
+                f"""
                 SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
-                       c.lat, c.lon, c.lo_num, c.hi_num, c.stage_updated_at,
+                       c.lat, c.lon, c.lo_num, c.hi_num, c.stage_updated_at, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
+                       cf.poi_osm_id, cf.proposed_postcode,
                        r.status AS review_status
                 FROM candidates c
                 LEFT JOIN conflation cf USING (run_id, candidate_id)
                 LEFT JOIN review_items r USING (run_id, candidate_id)
-                WHERE c.run_id = ? AND c.stage = 'SKIPPED'
+                WHERE c.run_id = ? AND c.stage = 'SKIPPED'{and_extra}
                 ORDER BY c.stage_updated_at DESC
                 """,
-                (run_id,),
+                (run_id, *extra_params),
             ).fetchall()
         finally:
             conn.close()
         items = [dict(r) for r in rows]
-        return render_template("skipped.html", run_id=run_id, items=items)
+        partial = request.args.get("partial") == "1"
+        template = "_skipped_list.html" if partial else "skipped.html"
+        return render_template(
+            template,
+            run_id=run_id,
+            items=items,
+            active_verdicts=set(verdicts),
+            poi_ack=poi_ack,
+            postcode_from_poi=postcode_from_poi,
+            all_verdicts=_REVIEW_VERDICTS,
+        )
 
     # ---- Batches ----
 

@@ -64,13 +64,49 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def build_osm_index(elements: list[dict]) -> GridIndex:
-    idx = GridIndex()
+POI_TAG_KEYS = (
+    "amenity", "shop", "office", "tourism", "leisure", "craft", "healthcare", "building",
+    "disused:shop", "disused:amenity", "disused:office", "was:amenity",
+)
+
+
+def _is_poi_node(el: dict) -> bool:
+    """A POI node is a node that carries shop/amenity/etc. tags — its address is
+    a courtesy annotation, not the canonical address feature. Polygons are never
+    POI-filtered: a hospital or building polygon with addr:* is a valid match.
+    """
+    if el.get("type") != "node":
+        return False
+    tags = el.get("tags") or {}
+    return any(k in tags for k in POI_TAG_KEYS)
+
+
+def build_osm_index(elements: list[dict]) -> tuple[GridIndex, GridIndex]:
+    """Return (match_idx, poi_idx).
+
+    match_idx holds pure-address nodes and polygons — valid conflation targets.
+    poi_idx holds amenity/shop/etc. nodes, acknowledged but ignored for matching.
+    Nodes that are members of an addr:interpolation way are dropped entirely:
+    they're endpoints of an interpolated range, not standalone addresses.
+    """
+    interp_node_ids: set[int] = set()
+    for el in elements:
+        if el.get("type") != "way":
+            continue
+        if "addr:interpolation" not in (el.get("tags") or {}):
+            continue
+        for nid in el.get("nodes") or ():
+            interp_node_ids.add(nid)
+
+    match_idx = GridIndex()
+    poi_idx = GridIndex()
     for el in elements:
         tags = el.get("tags") or {}
         if "addr:housenumber" not in tags:
             continue
         if el.get("type") == "node":
+            if el.get("id") in interp_node_ids:
+                continue
             lat, lon = el.get("lat"), el.get("lon")
         elif "center" in el:
             lat = el["center"].get("lat")
@@ -81,26 +117,34 @@ def build_osm_index(elements: list[dict]) -> GridIndex:
             continue
         el["_norm_street"] = normalize_street(tags.get("addr:street", ""))
         el["_norm_number"] = str(tags.get("addr:housenumber", "")).upper()
-        idx.add(el, float(lat), float(lon))
-    return idx
+        target = poi_idx if _is_poi_node(el) else match_idx
+        target.add(el, float(lat), float(lon))
+    return match_idx, poi_idx
 
 
-def _classify(cand_row: dict, idx: GridIndex, match_radius_m: float, match_near_m: float):
-    """Return (verdict, osm_id, osm_type, dist_m, matched_osm_el).
+def _classify(
+    cand_row: dict,
+    match_idx: GridIndex,
+    poi_idx: GridIndex,
+    match_radius_m: float,
+    match_near_m: float,
+):
+    """Return (verdict, osm_id, osm_type, dist_m, matched_osm_el, poi_el).
 
-    Scans within match_radius_m for an OSM address with the same normalized
-    housenumber + street. If the nearest such match is within match_near_m it's
-    a MATCH; beyond that it's MATCH_FAR (operator review). No match → MISSING.
+    Scans match_idx within match_radius_m for an OSM address with the same
+    normalized housenumber + street. Nearest match within match_near_m = MATCH;
+    beyond that = MATCH_FAR (operator review). No match → MISSING, plus a
+    same-address POI node from poi_idx (if any) attached as acknowledgment.
     """
     c_lat, c_lon = cand_row["lat"], cand_row["lon"]
     if c_lat is None or c_lon is None:
-        return "MISSING", None, None, None, None
+        return "MISSING", None, None, None, None, None
 
     c_num = (cand_row.get("housenumber") or "").upper()
     c_street_norm = cand_row.get("street_norm") or ""
 
-    best_match = None  # (dist, osm_el) for exact-attribute matches only
-    for o_lat, o_lon, osm in idx.query(c_lat, c_lon):
+    best_match = None
+    for o_lat, o_lon, osm in match_idx.query(c_lat, c_lon):
         dist = haversine(c_lat, c_lon, o_lat, o_lon)
         if dist > match_radius_m:
             continue
@@ -108,21 +152,43 @@ def _classify(cand_row: dict, idx: GridIndex, match_radius_m: float, match_near_
             if best_match is None or dist < best_match[0]:
                 best_match = (dist, osm)
 
-    if best_match is None:
-        return "MISSING", None, None, None, None
+    if best_match is not None:
+        dist, el = best_match
+        verdict = "MATCH" if dist <= match_near_m else "MATCH_FAR"
+        return verdict, el.get("id"), el.get("type"), dist, el, None
 
-    dist, el = best_match
-    verdict = "MATCH" if dist <= match_near_m else "MATCH_FAR"
-    return verdict, el.get("id"), el.get("type"), dist, el
+    best_poi = None
+    for o_lat, o_lon, poi in poi_idx.query(c_lat, c_lon):
+        dist = haversine(c_lat, c_lon, o_lat, o_lon)
+        if dist > match_radius_m:
+            continue
+        if poi["_norm_number"] == c_num and poi["_norm_street"] == c_street_norm:
+            if best_poi is None or dist < best_poi[0]:
+                best_poi = (dist, poi)
+
+    poi_el = best_poi[1] if best_poi else None
+    return "MISSING", None, None, None, None, poi_el
 
 
-def _proposed_tags(cand_row: dict) -> dict[str, str]:
-    """Build the tag dict we would propose for this candidate (matches osm_export output)."""
+def _proposed_tags(cand_row: dict, poi_tags: dict | None = None) -> dict[str, str]:
+    """Build the tag dict we would propose for this candidate.
+
+    Adds addr:postcode when cand_row has proposed_postcode (stored during
+    conflation) or when poi_tags carries one, so the OSM upload includes it.
+    Output matches what osm_export writes.
+    """
     tags = {
         "addr:housenumber": (cand_row.get("housenumber") or "").strip(),
         "addr:street": (cand_row.get("street_raw") or "").strip(),
         **STATIC_TAGS,
     }
+    postcode = (cand_row.get("proposed_postcode") or "").strip()
+    if not postcode and poi_tags:
+        postcode = (poi_tags.get("addr:postcode") or "").strip()
+    if postcode:
+        tags["addr:postcode"] = postcode
+    if cand_row.get("address_class") == "Structure Entrance":
+        tags["entrance"] = "yes"
     return {k: v for k, v in tags.items() if v}
 
 
@@ -147,20 +213,49 @@ def _is_range(row: dict) -> bool:
     return lo is not None and hi is not None and lo != hi
 
 
+# Land sibling within this distance auto-skips the non-Land candidate.
+# 50 m is comfortably wider than typical Toronto lot depth, so it catches
+# parcel-centroid-vs-entrance pairs without colliding with the next address
+# over. See SOURCE_DATA.md for why the dedup is scoped to same address_full.
+_LAND_SIBLING_RADIUS_M = 50.0
+
+
+def _colocated_land_sibling(cand: dict, land_lookup: dict[str, list[tuple[float, float]]]) -> bool:
+    if cand.get("address_class") == "Land":
+        return False
+    addr = cand.get("address_full")
+    lat, lon = cand.get("lat"), cand.get("lon")
+    if not addr or lat is None or lon is None:
+        return False
+    for la, lo in land_lookup.get(addr, ()):
+        if haversine(lat, lon, la, lo) <= _LAND_SIBLING_RADIUS_M:
+            return True
+    return False
+
+
 def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m: float) -> dict[str, int]:
     """Iterate candidates at stage INGESTED, write conflation row, advance to CONFLATED."""
     from . import tag_diff  # local import avoids an import cycle at module load
 
     elements = osm_fetch.load_cached(run_id)
-    idx = build_osm_index(elements)
+    match_idx, poi_idx = build_osm_index(elements)
     now = datetime.now(timezone.utc).isoformat()
 
     counts = {"MATCH": 0, "MATCH_FAR": 0, "MISSING": 0, "SKIPPED": 0}
     conn = _db.connect()
     try:
+        land_lookup: dict[str, list[tuple[float, float]]] = {}
+        for lr in conn.execute(
+            "SELECT address_full, lat, lon FROM candidates "
+            "WHERE run_id = ? AND address_class = 'Land' "
+            "  AND address_full IS NOT NULL AND lat IS NOT NULL AND lon IS NOT NULL",
+            (run_id,),
+        ):
+            land_lookup.setdefault(lr["address_full"], []).append((lr["lat"], lr["lon"]))
+
         rows = conn.execute(
-            "SELECT candidate_id, housenumber, street_raw, street_norm, lat, lon, "
-            "       lo_num, hi_num "
+            "SELECT candidate_id, address_full, housenumber, street_raw, street_norm, lat, lon, "
+            "       lo_num, hi_num, address_class "
             "FROM candidates WHERE run_id = ? AND stage = 'INGESTED'",
             (run_id,),
         ).fetchall()
@@ -169,12 +264,14 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
         for r in rows:
             cand = dict(r)
 
-            # Address ranges are skipped during conflation (kept for reference only)
-            if _is_range(cand):
-                verdict, osm_id, osm_type, dist, matched = "SKIPPED", None, None, None, None
+            # Address ranges are skipped during conflation (kept for reference only).
+            # Non-Land rows colocated with a Land sibling at the same address are also
+            # skipped — the Land row is the canonical record (see SOURCE_DATA.md).
+            if _is_range(cand) or _colocated_land_sibling(cand, land_lookup):
+                verdict, osm_id, osm_type, dist, matched, poi = "SKIPPED", None, None, None, None, None
             else:
-                verdict, osm_id, osm_type, dist, matched = _classify(
-                    cand, idx, match_radius_m, match_near_m
+                verdict, osm_id, osm_type, dist, matched, poi = _classify(
+                    cand, match_idx, poi_idx, match_radius_m, match_near_m
                 )
             counts[verdict] += 1
 
@@ -182,20 +279,28 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
             geom = tag_diff.geom_hint(matched) if matched else None
             m_lat, m_lon = _matched_latlon(matched)
 
+            poi_tags = (poi.get("tags") if poi else None) or None
+            poi_postcode = (poi_tags.get("addr:postcode").strip() if poi_tags and poi_tags.get("addr:postcode") else None)
+
             conn.execute(
                 """
                 INSERT OR REPLACE INTO conflation
                   (run_id, candidate_id, verdict, nearest_osm_id, nearest_osm_type,
                    nearest_dist_m, osm_snapshot_hash, computed_at,
                    matched_osm_tags_json, matched_osm_geom_hint,
-                   matched_osm_lat, matched_osm_lon)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   matched_osm_lat, matched_osm_lon,
+                   poi_osm_id, poi_osm_type, poi_tags_json, proposed_postcode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     run_id, cand["candidate_id"], verdict, osm_id, osm_type, dist,
                     osm_snapshot_hash, now,
                     json.dumps(osm_tags) if osm_tags else None,
                     geom, m_lat, m_lon,
+                    (poi.get("id") if poi else None),
+                    (poi.get("type") if poi else None),
+                    json.dumps(poi_tags) if poi_tags else None,
+                    poi_postcode,
                 ),
             )
             conn.execute(
@@ -204,7 +309,8 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
                 (now, run_id, cand["candidate_id"]),
             )
 
-            proposed = _proposed_tags(cand)
+            cand_for_proposal = dict(cand, proposed_postcode=poi_postcode)
+            proposed = _proposed_tags(cand_for_proposal)
             diff_rows = tag_diff.compare_tags(proposed, osm_tags)
             has_diff = any(row["status"] != "SAME" for row in diff_rows)
             if has_diff and verdict != "SKIPPED":

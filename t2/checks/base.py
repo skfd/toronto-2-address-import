@@ -25,6 +25,7 @@ class Candidate:
     nearest_osm_id: int | None
     nearest_osm_type: str | None
     nearest_dist_m: float | None
+    matched_osm_tags: dict[str, str] | None = None
 
 
 @dataclass

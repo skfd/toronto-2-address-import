@@ -157,7 +157,7 @@ def run_checks(run_id: int) -> dict[str, int]:
         return {}
 
     elements = osm_fetch.load_cached(run_id)
-    osm_idx = conflate.build_osm_index(elements)
+    osm_idx, _poi_idx = conflate.build_osm_index(elements)
 
     counts = {"PASS": 0, "FLAG": 0, "SKIP": 0}
     conn = _db.connect()
@@ -169,7 +169,8 @@ def run_checks(run_id: int) -> dict[str, int]:
             SELECT c.run_id, c.candidate_id, c.address_full, c.housenumber,
                    c.street_raw, c.street_norm, c.lat, c.lon,
                    c.lo_num, c.lo_num_suf, c.hi_num, c.hi_num_suf,
-                   cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m
+                   cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
+                   cf.matched_osm_tags_json
             FROM candidates c
             LEFT JOIN conflation cf USING (run_id, candidate_id)
             WHERE c.run_id = ? AND c.stage IN ('CONFLATED', 'CHECKED', 'REVIEW_PENDING')
@@ -179,6 +180,10 @@ def run_checks(run_id: int) -> dict[str, int]:
         now = _iso()
         conn.execute("BEGIN")
         for r in rows:
+            try:
+                matched_tags = json.loads(r["matched_osm_tags_json"]) if r["matched_osm_tags_json"] else None
+            except Exception:
+                matched_tags = None
             cand = Candidate(
                 run_id=r["run_id"], candidate_id=r["candidate_id"],
                 address_full=r["address_full"], housenumber=r["housenumber"],
@@ -190,6 +195,7 @@ def run_checks(run_id: int) -> dict[str, int]:
                 nearest_osm_id=r["nearest_osm_id"],
                 nearest_osm_type=r["nearest_osm_type"],
                 nearest_dist_m=r["nearest_dist_m"],
+                matched_osm_tags=matched_tags,
             )
             # Ranges were skipped during conflation — auto-skip in checks too
             if cand.verdict == "SKIPPED":
