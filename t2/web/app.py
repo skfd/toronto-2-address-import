@@ -91,10 +91,10 @@ def create_app() -> Flask:
             active_statuses=set(statuses),
             include_auto=include_auto,
             all_statuses=_REVIEW_STATUSES,
+            selected_candidate_id=None,
         )
 
-    @app.get("/runs/<int:run_id>/review/<int:candidate_id>")
-    def review_detail(run_id: int, candidate_id: int):
+    def _review_detail_context(run_id: int, candidate_id: int):
         conn = _db.connect()
         try:
             row = conn.execute(
@@ -108,7 +108,7 @@ def create_app() -> Flask:
         finally:
             conn.close()
         if not row:
-            abort(404)
+            return None
         results = review.check_results_for(run_id, candidate_id)
         for r in results:
             try:
@@ -131,15 +131,33 @@ def create_app() -> Flask:
         else:
             geom_label = None
         review_state = review.get_review_state(run_id, candidate_id)
+        return {
+            "candidate": cand,
+            "results": results,
+            "run_id": run_id,
+            "diff_rows": diff_rows,
+            "geom_label": geom_label,
+            "review_state": review_state,
+            "registry": REGISTRY,
+        }
+
+    @app.get("/runs/<int:run_id>/review/<int:candidate_id>")
+    def review_detail(run_id: int, candidate_id: int):
+        ctx = _review_detail_context(run_id, candidate_id)
+        if ctx is None:
+            abort(404)
+        if request.headers.get("HX-Request"):
+            return render_template("_review_detail.html", **ctx)
+        items = review.queue(run_id, statuses=("OPEN",), include_auto=False, limit=500)
         return render_template(
-            "_review_detail.html",
-            candidate=cand,
-            results=results,
-            run_id=run_id,
-            diff_rows=diff_rows,
-            geom_label=geom_label,
-            review_state=review_state,
-            registry=REGISTRY,
+            "review.html",
+            items=items,
+            active_statuses={"OPEN"},
+            include_auto=False,
+            all_statuses=_REVIEW_STATUSES,
+            selected_candidate=True,
+            selected_candidate_id=candidate_id,
+            **ctx,
         )
 
     @app.post("/runs/<int:run_id>/review/<int:candidate_id>")
