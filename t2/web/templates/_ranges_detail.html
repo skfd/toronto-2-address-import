@@ -15,6 +15,37 @@
   {% if candidate.municipality_name %}<span class="muted">· {{ candidate.municipality_name }}</span>{% endif %}
 </p>
 
+{% if coverage.parity_total %}
+<div style="border:1px solid #e5e7eb; border-radius:4px; padding:.6rem .8rem; margin:.6rem 0; background:#f9fafb;">
+  <strong>Source coverage</strong>
+  <span class="muted">— which integers in this range appear as single-row source addresses on the same street + municipality (run's snapshot)</span>
+  <div style="margin-top:.4rem;">
+    Parity-stepped (every 2 from {{ candidate.lo_num }}):
+    <strong>{{ coverage.parity_present_count }} / {{ coverage.parity_total }}</strong>
+    {% set pct = (100 * coverage.parity_present_count / coverage.parity_total)|round(0, 'floor')|int %}
+    <span class="pill {% if coverage.parity_present_count == coverage.parity_total %}ok{% elif coverage.parity_present_count == 0 %}bad{% else %}warn{% endif %}">{{ pct }}%</span>
+    · Every integer: <strong>{{ coverage.int_present_count }} / {{ coverage.int_total }}</strong>
+  </div>
+  <div style="margin-top:.5rem; display:flex; flex-wrap:wrap; gap:.25rem;">
+    {% for it in coverage.parity_items %}
+      {% if it.present %}
+        <span class="pill ok" title="{{ it.address_full or '' }}{% if it.lat %} · {{ '%.5f' % it.lat }}, {{ '%.5f' % it.lon }}{% endif %}">{{ it.num }}</span>
+      {% else %}
+        <span class="pill bad" title="not present as a single-row source address">{{ it.num }}</span>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% set missing_items = coverage.parity_items | rejectattr('present') | list %}
+  {% if missing_items and missing_items|length < coverage.parity_total %}
+    <div class="muted" style="margin-top:.35rem; font-size:.85rem;">
+      Missing singles ({{ missing_items|length }}): {{ missing_items | map(attribute='num') | join(', ') }}
+    </div>
+  {% endif %}
+</div>
+{% else %}
+<p class="muted">No coverage data (missing lo_num/hi_num or snapshot).</p>
+{% endif %}
+
 {% if candidate.lat and candidate.lon %}
 <div id="leaflet-map"></div>
 <p class="muted" style="margin-top:.25rem">
@@ -28,6 +59,7 @@
   · <span style="display:inline-block;width:.7em;height:.7em;border:2px solid #7a3fc2;border-radius:50%;background:#fff"></span> OSM address
   · <span style="display:inline-block;width:.7em;height:.7em;border:2px solid #6b7280;border-radius:50%;background:#fff"></span> OSM POI
   · <span style="display:inline-block;width:1.4em;height:.25em;background:#c026d3;vertical-align:middle"></span> addr:interpolation way
+  · <span style="display:inline-block;width:.7em;height:.7em;background:#16a34a;border-radius:50%;border:1px solid #fff"></span> source single in range
 </p>
 <div id="interp-summary" class="muted" style="margin:.4rem 0 .6rem; font-size:.9rem;">Loading interpolation ways…</div>
 <script>
@@ -46,6 +78,23 @@
     const siblingCands = L.layerGroup().addTo(map);
     const siblingOsm   = L.layerGroup().addTo(map);
     const interpLayer  = L.layerGroup().addTo(map);
+    const sourceSingles = L.layerGroup().addTo(map);
+    const singlesData = {{ coverage.singles_geo|tojson }};
+    const sourceSingleIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:10px;height:10px;background:#16a34a;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>',
+      iconSize: [12,12], iconAnchor: [6,6]
+    });
+    for (const s of singlesData) {
+      if (s.lat == null || s.lon == null) continue;
+      const m = L.marker([s.lat, s.lon], {icon: sourceSingleIcon, title: s.address_full || `#${s.num}`});
+      m.bindPopup(`<strong>${String(s.address_full || s.num).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]))}</strong><div class="muted" style="margin-top:.2rem">source single · address_point_id ${s.address_point_id}</div>`);
+      sourceSingles.addLayer(m);
+    }
+    if (singlesData.length) {
+      const bounds = L.latLngBounds(singlesData.map(s => [s.lat, s.lon]).concat([candLL]));
+      map.fitBounds(bounds.pad(0.3));
+    }
     const blue = L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#2d6cdf;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>', iconSize:[14,14], iconAnchor:[7,7]});
     L.marker(candLL, {icon: blue, title: 'range candidate', zIndexOffset: 1000}).addTo(map);
 

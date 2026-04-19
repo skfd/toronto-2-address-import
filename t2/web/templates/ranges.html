@@ -2,34 +2,48 @@
 {% block title %}Ranges{% endblock %}
 {% block content %}
 <div class="card">
-  <h2>Ranges <span class="muted">(run #{{ run_id }}, {{ items|length }})</span></h2>
+  <h2>Ranges <span class="muted">(run #{{ run_id }}, {{ items|length }} shown)</span></h2>
   <p><a href="/runs/{{ run_id }}">← run</a></p>
-  <p class="muted">Source rows where <code>lo_num != hi_num</code> — a housenumber range (e.g. <code>100–110 Main St</code>) rather than a single address. Ranges are skipped by conflation; this view shows them alongside the OSM <code>addr:interpolation</code> ways and individual housenumbers that cover the same stretch. Read-only.</p>
+  <p class="muted">Source rows where <code>lo_num != hi_num</code> — a housenumber range (e.g. <code>100–110 Main St</code>) rather than a single address. Ranges are skipped by conflation; this view shows them alongside the OSM <code>addr:interpolation</code> ways and individual housenumbers that cover the same stretch. Coverage compares the range to single-row source addresses on the same street + municipality (parity-stepped). Read-only.</p>
+  <form id="ranges-filters"
+        hx-get="/runs/{{ run_id }}/ranges"
+        hx-trigger="change"
+        hx-target="#ranges-list"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        hx-include="this"
+        hx-vals='{"partial": "1"}'>
+    <span class="muted" style="margin-right:.4rem;">Coverage:</span>
+    <label><input type="checkbox" name="coverage" value="uncovered"
+                  {% if 'uncovered' in active_cats %}checked{% endif %}>
+      Uncovered <span class="muted">({{ counts.uncovered }})</span></label>
+    <label><input type="checkbox" name="coverage" value="partial"
+                  {% if 'partial' in active_cats %}checked{% endif %}>
+      Partial <span class="muted">({{ counts.partial }})</span></label>
+    <label><input type="checkbox" name="coverage" value="full"
+                  {% if 'full' in active_cats %}checked{% endif %}>
+      Full <span class="muted">({{ counts.full }})</span></label>
+    {% if counts.unknown %}
+    <label><input type="checkbox" name="coverage" value="unknown"
+                  {% if 'unknown' in active_cats %}checked{% endif %}>
+      Unknown <span class="muted">({{ counts.unknown }})</span></label>
+    {% endif %}
+  </form>
+  <script>
+    (function(){
+      const form = document.getElementById('ranges-filters');
+      if (!form) return;
+      form.addEventListener('htmx:configRequest', function(evt){
+        const p = evt.detail.parameters;
+        const boxes = form.querySelectorAll('input[name="coverage"]:checked');
+        p.coverage = Array.from(boxes).map(b => b.value).join(',');
+      });
+    })();
+  </script>
 </div>
 
 <div class="grid-2">
-  <div class="card" id="ranges-list" style="max-height: 70vh; overflow: auto;">
-    {% for it in items %}
-      <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
-           hx-get="/runs/{{ run_id }}/ranges/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
-           onclick="this.parentNode.querySelectorAll('div[hx-get]').forEach(function(r){r.style.background='';});this.style.background='#eef6ff';">
-        <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
-        {% if it.address_class and it.address_class != 'Land' %}
-          <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ it.address_class }}</span>
-        {% endif %}
-        <span class="muted">({{ it.lo_num }}{{ it.lo_num_suf or '' }}–{{ it.hi_num }}{{ it.hi_num_suf or '' }})</span>
-        {% if it.lat and it.lon %}
-        <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
-           target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
-           title="Open in OpenStreetMap">OSM↗</a>
-        {% endif %}
-        <br>
-        <span class="pill" data-tip="{{ tip('reason.range') }}">range</span>
-      </div>
-    {% else %}
-      <p class="muted">No range rows in this run.</p>
-    {% endfor %}
-  </div>
+  {% include "_ranges_list.html" %}
 
   <div class="card" id="detail">
     <p class="muted">Select a range on the left.</p>

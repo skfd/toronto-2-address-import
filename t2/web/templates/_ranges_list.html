@@ -1,0 +1,31 @@
+<div class="card" id="ranges-list" style="max-height: 70vh; overflow: auto;">
+  {% for it in items %}
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
+         hx-get="/runs/{{ run_id }}/ranges/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
+         onclick="this.parentNode.querySelectorAll('div[hx-get]').forEach(function(r){r.style.background='';});this.style.background='#eef6ff';">
+      <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
+      {% if it.address_class and it.address_class != 'Land' %}
+        <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ it.address_class }}</span>
+      {% endif %}
+      <span class="muted">({{ it.lo_num }}{{ it.lo_num_suf or '' }}–{{ it.hi_num }}{{ it.hi_num_suf or '' }})</span>
+      {% if it.lat and it.lon %}
+      <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      {% endif %}
+      <br>
+      <span class="pill" data-tip="{{ tip('reason.range') }}">range</span>
+      {% if it.coverage_cat == 'full' %}
+        <span class="pill ok" title="every parity-stepped integer has a single-row counterpart">full {{ it.parity_present_count }}/{{ it.parity_total }}</span>
+      {% elif it.coverage_cat == 'partial' %}
+        <span class="pill warn" title="some integers in the range have no single-row counterpart">partial {{ it.parity_present_count }}/{{ it.parity_total }}</span>
+      {% elif it.coverage_cat == 'uncovered' %}
+        <span class="pill bad" title="no integers in this range appear as single-row addresses">uncovered 0/{{ it.parity_total }}</span>
+      {% else %}
+        <span class="pill" title="coverage not computed (missing snapshot or lo/hi)">unknown</span>
+      {% endif %}
+    </div>
+  {% else %}
+    <p class="muted">No ranges match the current filter.</p>
+  {% endfor %}
+</div>
