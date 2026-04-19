@@ -16,6 +16,25 @@ _TRANSITION_STAGE = {
 }
 
 _VALID_FILTER_STATUSES = {"OPEN", "APPROVED", "REJECTED", "DEFERRED"}
+_VALID_FILTER_VERDICTS = {"MATCH", "MATCH_FAR", "MISSING", "SKIPPED"}
+
+
+def _poi_where(poi_ack: bool, postcode_from_poi: bool, verdicts: tuple[str, ...]) -> tuple[str, list]:
+    """Build shared WHERE predicates for the POI / verdict filters used by
+    review.queue, approved_page, and skipped_page. Predicates reference the
+    `cf` (conflation) alias, so callers must LEFT JOIN conflation AS cf.
+    """
+    clauses: list[str] = []
+    params: list = []
+    if poi_ack:
+        clauses.append("cf.poi_osm_id IS NOT NULL")
+    if postcode_from_poi:
+        clauses.append("cf.proposed_postcode IS NOT NULL AND cf.proposed_postcode != ''")
+    if verdicts:
+        placeholders = ",".join("?" for _ in verdicts)
+        clauses.append(f"cf.verdict IN ({placeholders})")
+        params.extend(verdicts)
+    return (" AND ".join(clauses), params)
 
 
 def resolve(run_id: int, candidate_id: int, new_status: str, actor: str = "operator", note: str | None = None) -> None:
@@ -86,6 +105,9 @@ def queue(
     run_id: int,
     statuses: tuple[str, ...] | list[str] | None = None,
     include_auto: bool = False,
+    verdicts: tuple[str, ...] | list[str] | None = None,
+    poi_ack: bool = False,
+    postcode_from_poi: bool = False,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict]:
@@ -93,11 +115,15 @@ def queue(
 
     Auto-approved candidates (stage='APPROVED' with no review_items row) are
     included as synthetic rows with status='AUTO_APPROVED' when
-    include_auto=True.
+    include_auto=True. `verdicts`/`poi_ack`/`postcode_from_poi` narrow the
+    result to rows whose conflation row matches those predicates.
     """
     if statuses is None:
         statuses = ("OPEN",)
     statuses = tuple(s for s in statuses if s in _VALID_FILTER_STATUSES)
+    verdicts_t = tuple(v for v in (verdicts or ()) if v in _VALID_FILTER_VERDICTS)
+    extra_where, extra_params = _poi_where(poi_ack, postcode_from_poi, verdicts_t)
+    and_extra = (" AND " + extra_where) if extra_where else ""
 
     conn = _db.connect()
     try:
@@ -110,19 +136,20 @@ def queue(
                        r.prior_auto_approved,
                        c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
                        c.lo_num, c.hi_num, c.stage,
-                       cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m
+                       cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
+                       cf.poi_osm_id, cf.proposed_postcode
                 FROM review_items r
                 JOIN candidates c USING (run_id, candidate_id)
                 LEFT JOIN conflation cf USING (run_id, candidate_id)
-                WHERE r.run_id = ? AND r.status IN ({placeholders})
+                WHERE r.run_id = ? AND r.status IN ({placeholders}){and_extra}
                 """,
-                (run_id, *statuses),
+                (run_id, *statuses, *extra_params),
             ).fetchall()
             results.extend(dict(r) for r in rows)
 
         if include_auto:
             rows = conn.execute(
-                """
+                f"""
                 SELECT c.candidate_id,
                        'auto_clean' AS reason_code,
                        'AUTO_APPROVED' AS status,
@@ -131,13 +158,14 @@ def queue(
                        0 AS prior_auto_approved,
                        c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
                        c.lo_num, c.hi_num, c.stage,
-                       cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m
+                       cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
+                       cf.poi_osm_id, cf.proposed_postcode
                 FROM candidates c
                 LEFT JOIN review_items r USING (run_id, candidate_id)
                 LEFT JOIN conflation cf USING (run_id, candidate_id)
-                WHERE c.run_id = ? AND c.stage = 'APPROVED' AND r.candidate_id IS NULL
+                WHERE c.run_id = ? AND c.stage = 'APPROVED' AND r.candidate_id IS NULL{and_extra}
                 """,
-                (run_id,),
+                (run_id, *extra_params),
             ).fetchall()
             results.extend(dict(r) for r in rows)
 

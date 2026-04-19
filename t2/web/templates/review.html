@@ -4,25 +4,12 @@
 <div class="card">
   <h2>Review queue <span class="muted">(run #{{ run_id }}, {{ items|length }} shown)</span></h2>
   <p><a href="/runs/{{ run_id }}">← run</a></p>
-  <form id="review-filters"
-        hx-get="/runs/{{ run_id }}/review"
-        hx-trigger="change"
-        hx-target="#review-list"
-        hx-swap="outerHTML"
-        hx-push-url="true"
-        hx-include="this"
-        hx-vals='{"partial": "1"}'>
-    <label><input type="checkbox" name="statuses" value="OPEN"
-                  {% if 'OPEN' in active_statuses %}checked{% endif %}> Open</label>
-    <label><input type="checkbox" name="statuses" value="APPROVED"
-                  {% if 'APPROVED' in active_statuses %}checked{% endif %}> Approved</label>
-    <label><input type="checkbox" name="statuses" value="REJECTED"
-                  {% if 'REJECTED' in active_statuses %}checked{% endif %}> Rejected</label>
-    <label><input type="checkbox" name="statuses" value="DEFERRED"
-                  {% if 'DEFERRED' in active_statuses %}checked{% endif %}> Deferred</label>
-    <label><input type="checkbox" name="auto" value="1"
-                  {% if include_auto %}checked{% endif %}> Auto-approved</label>
-  </form>
+  {% with form_id="review-filters",
+          endpoint_url="/runs/" ~ run_id ~ "/review",
+          list_target="#review-list",
+          statuses_form=True %}
+    {% include "_poi_filters.html" %}
+  {% endwith %}
 </div>
 
 <div class="grid-2">
@@ -32,22 +19,4 @@
     <p class="muted">Select an item on the left.</p>
   </div>
 </div>
-
-<script>
-  // Flatten the checkbox group into a comma-separated "statuses" param so the
-  // server gets "statuses=OPEN,APPROVED" rather than repeated keys.
-  (function(){
-    const form = document.getElementById('review-filters');
-    if (!form) return;
-    form.addEventListener('htmx:configRequest', function(evt){
-      const params = evt.detail.parameters;
-      const boxes = form.querySelectorAll('input[name="statuses"]:checked');
-      const vals = Array.from(boxes).map(b => b.value);
-      params.statuses = vals.join(',');
-      if (!form.querySelector('input[name="auto"]:checked')) {
-        params.auto = '0';
-      }
-    });
-  })();
-</script>
 {% endblock %}

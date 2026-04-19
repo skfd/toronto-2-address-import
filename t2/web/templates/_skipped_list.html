@@ -23,6 +23,12 @@
       {% if it.nearest_osm_id %}
         <span class="muted">· {{ it.nearest_osm_type }} #{{ it.nearest_osm_id }}{% if it.nearest_dist_m is not none %} · <span data-tip="{{ tip('metric.nearest_dist_m') }}">{{ '%.1f' % it.nearest_dist_m }} m</span>{% endif %}</span>
       {% endif %}
+      {% if it.poi_osm_id %}
+        <span class="pill" data-tip="{{ tip('pill.poi_acknowledged') }}">POI</span>
+      {% endif %}
+      {% if it.proposed_postcode %}
+        <span class="pill" data-tip="{{ tip('pill.postcode_from_poi') }}">+postcode</span>
+      {% endif %}
     </div>
   {% else %}
     <p class="muted">Nothing skipped.</p>

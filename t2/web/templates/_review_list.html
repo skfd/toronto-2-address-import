@@ -27,6 +27,12 @@
         <span class="pill {% if it.verdict == 'MATCH_FAR' %}bad{% else %}warn{% endif %}" data-tip="{{ tip('verdict.' ~ it.verdict) }}">{{ it.verdict }}</span>
       {% endif %}
       {% if it.reason_code %}<span class="muted" data-tip="{{ tip('reason.' ~ it.reason_code) }}">{{ it.reason_code }}</span>{% endif %}
+      {% if it.poi_osm_id %}
+        <span class="pill" data-tip="{{ tip('pill.poi_acknowledged') }}">POI</span>
+      {% endif %}
+      {% if it.proposed_postcode %}
+        <span class="pill" data-tip="{{ tip('pill.postcode_from_poi') }}">+postcode</span>
+      {% endif %}
     </div>
   {% else %}
     <p class="muted">No items match the current filter.</p>

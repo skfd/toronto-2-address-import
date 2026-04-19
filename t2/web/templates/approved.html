@@ -5,6 +5,11 @@
   <h2>Approved <span class="muted">(run #{{ run_id }}, {{ items|length }})</span></h2>
   <p><a href="/runs/{{ run_id }}">← run</a></p>
   <p class="muted">Candidates staged for upload. <span class="pill ok">auto</span> = approved by pipeline (clean MISSING, no flags); <span class="pill warn">operator</span> = approved via review; <span class="pill warn">operator (override)</span> = operator overrode a prior auto-approval. Click an item to review details and override the decision.</p>
+  {% with form_id="approved-filters",
+          endpoint_url="/runs/" ~ run_id ~ "/approved",
+          list_target="#approved-list" %}
+    {% include "_poi_filters.html" %}
+  {% endwith %}
 </div>
 
 <div class="grid-2">
