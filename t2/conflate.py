@@ -86,7 +86,18 @@ def build_osm_index(elements: list[dict]) -> tuple[GridIndex, GridIndex]:
 
     match_idx holds pure-address nodes and polygons — valid conflation targets.
     poi_idx holds amenity/shop/etc. nodes, acknowledged but ignored for matching.
+    Nodes that are members of an addr:interpolation way are dropped entirely:
+    they're endpoints of an interpolated range, not standalone addresses.
     """
+    interp_node_ids: set[int] = set()
+    for el in elements:
+        if el.get("type") != "way":
+            continue
+        if "addr:interpolation" not in (el.get("tags") or {}):
+            continue
+        for nid in el.get("nodes") or ():
+            interp_node_ids.add(nid)
+
     match_idx = GridIndex()
     poi_idx = GridIndex()
     for el in elements:
@@ -94,6 +105,8 @@ def build_osm_index(elements: list[dict]) -> tuple[GridIndex, GridIndex]:
         if "addr:housenumber" not in tags:
             continue
         if el.get("type") == "node":
+            if el.get("id") in interp_node_ids:
+                continue
             lat, lon = el.get("lat"), el.get("lon")
         elif "center" in el:
             lat = el["center"].get("lat")

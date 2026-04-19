@@ -18,7 +18,14 @@ def _build_query(bbox: tuple[float, float, float, float], check_count: bool = Fa
     q += f'way["addr:housenumber"]({bbox_str});'
     q += f'relation["addr:housenumber"]({bbox_str});'
     q += ");"
-    q += "out count;" if check_count else "out center;"
+    if check_count:
+        q += "out count;"
+    else:
+        # addr:interpolation ways pull in their member-node IDs (out body) so
+        # conflation can exclude interpolation endpoints from matching.
+        q += "out center;"
+        q += f'way["addr:interpolation"]({bbox_str});'
+        q += "out body;"
     return q
 
 
