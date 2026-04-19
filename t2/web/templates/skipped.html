@@ -5,6 +5,11 @@
   <h2>Skipped <span class="muted">(run #{{ run_id }}, {{ items|length }})</span></h2>
   <p><a href="/runs/{{ run_id }}">← run</a></p>
   <p class="muted">Not uploaded. <code>MATCH</code> = already in OSM. <code>SKIPPED</code> = address range (kept for reference only). Click an item to review details and override the decision.</p>
+  {% with form_id="skipped-filters",
+          endpoint_url="/runs/" ~ run_id ~ "/skipped",
+          list_target="#skipped-list" %}
+    {% include "_poi_filters.html" %}
+  {% endwith %}
 </div>
 
 <div class="grid-2">

@@ -1,11 +1,23 @@
-<h3>{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}</h3>
-<p class="muted">candidate_id <code>{{ candidate.candidate_id }}</code> ·
+<h3>{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}
+  {% if candidate.address_class and candidate.address_class != 'Land' %}
+    <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ candidate.address_class }}</span>
+  {% endif %}
+</h3>
+<p class="muted">candidate_id <code>{{ candidate.candidate_id }}</code>
+  · <a href="/runs/{{ run_id }}/review/{{ candidate.candidate_id }}" title="Permalink to this candidate">permalink</a> ·
   lat <code>{{ candidate.lat }}</code> lon <code>{{ candidate.lon }}</code>
   {% if candidate.lat and candidate.lon %}
   · <a href="https://www.openstreetmap.org/?mlat={{ candidate.lat }}&mlon={{ candidate.lon }}#map=19/{{ candidate.lat }}/{{ candidate.lon }}" target="_blank" rel="noopener">open in OSM</a>
   {% endif %}
   · verdict <span class="pill" data-tip="{{ tip('verdict.' ~ candidate.verdict) if candidate.verdict else '' }}">{{ candidate.verdict or '—' }}</span>
   {% if candidate.nearest_dist_m %}· nearest <a href="https://www.openstreetmap.org/{{ candidate.nearest_osm_type }}/{{ candidate.nearest_osm_id }}" target="_blank" rel="noopener">{{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }}</a> at <span data-tip="{{ tip('metric.nearest_dist_m') }}">{{ '%.1fm' % candidate.nearest_dist_m }}</span>{% endif %}
+  {% if candidate.poi_osm_id %}
+  · <span class="pill" data-tip="{{ tip('pill.poi_acknowledged') }}">POI acknowledged:
+    <a href="https://www.openstreetmap.org/{{ candidate.poi_osm_type }}/{{ candidate.poi_osm_id }}" target="_blank" rel="noopener">{{ candidate.poi_osm_type }} #{{ candidate.poi_osm_id }}</a>{% if candidate.poi_tags and candidate.poi_tags.name %} — {{ candidate.poi_tags.name }}{% endif %}</span>
+  {% endif %}
+  {% if candidate.proposed_postcode %}
+  · <span class="pill" data-tip="{{ tip('pill.postcode_from_poi') }}">postcode from POI: {{ candidate.proposed_postcode }}</span>
+  {% endif %}
 </p>
 {% if candidate.lo_num is not none and candidate.hi_num is not none and candidate.lo_num != candidate.hi_num %}
 <p class="muted">Range: <strong>{{ candidate.lo_num }}{{ candidate.lo_num_suf or '' }}–{{ candidate.hi_num }}{{ candidate.hi_num_suf or '' }}</strong> (reference only — not conflated)</p>

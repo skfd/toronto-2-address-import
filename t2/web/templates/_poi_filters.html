@@ -1,0 +1,59 @@
+{# Shared verdict / POI filter controls.
+   Caller sets: form_id, endpoint_url, list_target (CSS selector), and may
+   optionally set statuses_form=True to enable the status + auto checkbox row
+   (review page only). Booleans poi_ack / postcode_from_poi and sets
+   active_verdicts / all_verdicts / active_statuses / all_statuses come from
+   the route. #}
+<form id="{{ form_id }}"
+      hx-get="{{ endpoint_url }}"
+      hx-trigger="change"
+      hx-target="{{ list_target }}"
+      hx-swap="outerHTML"
+      hx-push-url="true"
+      hx-include="this"
+      hx-vals='{"partial": "1"}'>
+  {% if statuses_form %}
+    <div style="margin-bottom:.3rem;">
+      <span class="muted" style="margin-right:.4rem;">Status:</span>
+      {% for s in all_statuses %}
+        <label><input type="checkbox" name="statuses" value="{{ s }}"
+                      {% if s in active_statuses %}checked{% endif %}> {{ s|capitalize }}</label>
+      {% endfor %}
+      <label><input type="checkbox" name="auto" value="1"
+                    {% if include_auto %}checked{% endif %}> Auto-approved</label>
+    </div>
+  {% endif %}
+  <div>
+    <span class="muted" style="margin-right:.4rem;">Verdict:</span>
+    {% for v in all_verdicts %}
+      <label><input type="checkbox" name="verdicts" value="{{ v }}"
+                    {% if v in active_verdicts %}checked{% endif %}> {{ v }}</label>
+    {% endfor %}
+    <label style="margin-left:.6rem;"><input type="checkbox" name="poi_ack" value="1"
+                  {% if poi_ack %}checked{% endif %}> POI acknowledged</label>
+    <label><input type="checkbox" name="postcode_from_poi" value="1"
+                  {% if postcode_from_poi %}checked{% endif %}> Postcode from POI</label>
+  </div>
+</form>
+
+<script>
+  (function(){
+    const form = document.getElementById({{ form_id|tojson }});
+    if (!form) return;
+    form.addEventListener('htmx:configRequest', function(evt){
+      const p = evt.detail.parameters;
+      for (const field of ['statuses', 'verdicts']) {
+        const boxes = form.querySelectorAll('input[name="' + field + '"]:checked');
+        if (boxes.length || form.querySelector('input[name="' + field + '"]')) {
+          p[field] = Array.from(boxes).map(b => b.value).join(',');
+        }
+      }
+      for (const field of ['auto', 'poi_ack', 'postcode_from_poi']) {
+        if (form.querySelector('input[name="' + field + '"]') &&
+            !form.querySelector('input[name="' + field + '"]:checked')) {
+          p[field] = '0';
+        }
+      }
+    });
+  })();
+</script>

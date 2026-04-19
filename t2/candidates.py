@@ -25,6 +25,11 @@ def ingest(run_id: int, bbox: tuple[float, float, float, float], snapshot_id: in
         for row in source_db.iter_active_addresses_in_bbox(bbox, snapshot_id):
             street_raw = _street_from_row(row)
             housenumber = row.get("address_number") or ""
+            extra_raw = row.get("extra")
+            try:
+                address_class = (json.loads(extra_raw) if extra_raw else {}).get("ADDRESS_CLASS_DESC")
+            except (ValueError, TypeError):
+                address_class = None
             values = (
                 run_id,
                 row["address_point_id"],
@@ -38,7 +43,8 @@ def ingest(run_id: int, bbox: tuple[float, float, float, float], snapshot_id: in
                 row.get("lo_num_suf"),
                 row.get("hi_num"),
                 row.get("hi_num_suf"),
-                row.get("extra"),
+                extra_raw,
+                address_class,
                 "INGESTED",
                 now,
             )
@@ -46,8 +52,9 @@ def ingest(run_id: int, bbox: tuple[float, float, float, float], snapshot_id: in
                 """
                 INSERT OR IGNORE INTO candidates
                   (run_id, candidate_id, address_full, housenumber, street_raw, street_norm,
-                   lat, lon, lo_num, lo_num_suf, hi_num, hi_num_suf, extra_json, stage, stage_updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   lat, lon, lo_num, lo_num_suf, hi_num, hi_num_suf, extra_json,
+                   address_class, stage, stage_updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 values,
             )
