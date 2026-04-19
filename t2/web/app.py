@@ -1,10 +1,13 @@
 """Flask app factory + routes + HTMX endpoints."""
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
-from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, pipeline, review, tag_diff
+from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, review, tag_diff
 from ..conflate import _proposed_tags
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -262,6 +265,53 @@ def create_app() -> Flask:
             except Exception:
                 e["payload"] = {}
         return render_template("audit.html", run_id=run_id, events=events, event_type=event_type)
+
+    # ---- Local OSM extract ----
+
+    @app.get("/osm")
+    def osm_view():
+        meta = osm_refresh.read_meta(cfg)
+        running, pid = osm_refresh.is_refresh_running(cfg)
+        status = osm_refresh.extract_status(cfg)
+        log_tail = osm_refresh.tail_log(cfg, lines=30)
+        return render_template(
+            "osm.html",
+            cfg=cfg,
+            meta=meta,
+            running=running,
+            pid=pid,
+            status=status,
+            log_tail=log_tail,
+        )
+
+    @app.post("/osm/refresh")
+    def osm_refresh_start():
+        running, pid = osm_refresh.is_refresh_running(cfg)
+        if running:
+            flash(f"Refresh is already running (pid {pid}). Reload to see progress.")
+            return redirect(url_for("osm_view"))
+        force = request.form.get("force") == "1"
+        args = [sys.executable, "-m", "t2.osm_refresh"]
+        if force:
+            args.append("--force")
+        osm_refresh.extract_dir(cfg).mkdir(parents=True, exist_ok=True)
+        log_file = open(osm_refresh.log_path(cfg), "wb")
+        popen_kwargs: dict = {
+            "stdout": log_file,
+            "stderr": subprocess.STDOUT,
+            "stdin": subprocess.DEVNULL,
+            "close_fds": True,
+            "cwd": str(_config.ROOT),
+        }
+        if os.name == "nt":
+            popen_kwargs["creationflags"] = (
+                subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+            )
+        else:
+            popen_kwargs["start_new_session"] = True
+        subprocess.Popen(args, **popen_kwargs)
+        flash("OSM extract refresh started. Reload the page to watch progress.")
+        return redirect(url_for("osm_view"))
 
     # ---- OAuth ----
 

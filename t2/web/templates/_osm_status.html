@@ -1,0 +1,69 @@
+{# Card summarising the local OSM extract. Expects: cfg, meta, status, running, pid, log_tail. #}
+{% set pill_class = {'fresh': 'ok', 'stale': 'warn', 'missing': 'bad', 'running': 'pill'}.get(status, '') %}
+<div class="card" id="osm-status">
+  <h2>
+    Local OSM extract
+    <span class="pill {{ pill_class }}" data-tip="{{ tip('status.osm.' ~ status) }}">{{ status }}</span>
+  </h2>
+  <p class="muted">
+    source <span data-tip="{{ tip('field.osm_source') }}"><code>{{ cfg.osm_source }}</code></span>
+    · PBF <a href="{{ cfg.osm_pbf_url }}" target="_blank" rel="noopener" data-tip="{{ tip('field.osm_pbf_url') }}">{{ cfg.osm_pbf_url.split('/')[-1] }}</a>
+    · clip bbox <code data-tip="{{ tip('field.osm_toronto_bbox') }}">{{ '%.3f, %.3f → %.3f, %.3f' % (cfg.osm_toronto_bbox[0], cfg.osm_toronto_bbox[1], cfg.osm_toronto_bbox[2], cfg.osm_toronto_bbox[3]) }}</code>
+  </p>
+
+  {% if meta %}
+  <table>
+    <tr>
+      <th>Geofabrik Last-Modified</th>
+      <td data-tip="{{ tip('field.osm_source_last_modified') }}"><code>{{ meta.source_last_modified or '—' }}</code></td>
+    </tr>
+    <tr>
+      <th>Downloaded</th>
+      <td data-tip="{{ tip('field.osm_downloaded_at') }}"><code>{{ meta.downloaded_at }}</code></td>
+    </tr>
+    <tr>
+      <th>PBF</th>
+      <td>{{ (meta.source_bytes / 1048576) | round(1) }} MiB · sha256 <code data-tip="{{ tip('field.osm_pbf_sha256') }}">{{ meta.pbf_sha256[:16] }}…</code></td>
+    </tr>
+    <tr>
+      <th>JSON</th>
+      <td>{{ (meta.json_bytes / 1048576) | round(2) }} MiB · sha256 <code data-tip="{{ tip('field.osm_json_sha256') }}">{{ meta.json_sha256[:16] }}…</code></td>
+    </tr>
+    <tr>
+      <th>Elements</th>
+      <td data-tip="{{ tip('field.osm_element_counts') }}">
+        nodes <strong>{{ meta.element_counts.nodes }}</strong> ·
+        ways <strong>{{ meta.element_counts.ways }}</strong> ·
+        relations skipped {{ meta.element_counts.relations_skipped }} ·
+        outside bbox {{ meta.element_counts.outside_bbox }}
+      </td>
+    </tr>
+    <tr>
+      <th>Filter time</th>
+      <td data-tip="{{ tip('field.osm_filter_duration') }}">{{ meta.filter_duration_s }}s <span class="muted">(total {{ meta.total_duration_s }}s)</span></td>
+    </tr>
+  </table>
+  {% else %}
+  <p class="muted">No extract on disk yet. Click Refresh to download and filter the Geofabrik PBF.</p>
+  {% endif %}
+
+  <p>
+    <form method="post" action="{{ url_for('osm_refresh_start') }}" class="inline">
+      <button {% if running %}disabled{% endif %} title="{{ tip('btn.osm_refresh') }}">
+        {% if running %}Refresh running (pid {{ pid }})…{% else %}Refresh{% endif %}
+      </button>
+    </form>
+    <form method="post" action="{{ url_for('osm_refresh_start') }}" class="inline">
+      <input type="hidden" name="force" value="1" />
+      <button class="secondary" {% if running %}disabled{% endif %} title="{{ tip('btn.osm_refresh_force') }}">Force refresh</button>
+    </form>
+    <span class="muted">&nbsp;CLI equivalent: <code>python -m t2.osm_refresh{% if running %}{% else %} [--force]{% endif %}</code></span>
+  </p>
+</div>
+
+{% if log_tail %}
+<div class="card">
+  <h3>Last refresh log</h3>
+  <pre style="max-height: 20rem; overflow: auto; background: #f3f4f6; padding: .6rem; border-radius: 4px; font-size: .8rem;">{{ log_tail }}</pre>
+</div>
+{% endif %}

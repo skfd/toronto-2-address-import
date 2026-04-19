@@ -42,6 +42,34 @@ python run.py
 
 Then visit <http://localhost:5000/>.
 
+## Local OSM extract (default source)
+
+Stage 2 reads addresses from a locally-cached Toronto extract instead of
+querying Overpass every time. First-time setup:
+
+```bash
+python -m t2.osm_refresh
+```
+
+This downloads the latest Ontario PBF from Geofabrik (~600 MB) into
+`data/osm/ontario-latest.osm.pbf`, filters it to `addr:housenumber`-tagged
+features clipped to the City-of-Toronto bbox in `config.toml`, and writes
+`data/osm/toronto-addresses.json` + a `meta.json` sidecar. Stage 2 then just
+bbox-clips that JSON per run — no network, sub-second.
+
+Re-run whenever you want a fresher snapshot. The tool HEAD-checks Geofabrik
+and skips the download if `Last-Modified` hasn't changed; pass `--force` to
+re-download regardless. `--dry-run` does only the HEAD check.
+
+You can also trigger a refresh from the web UI at <http://localhost:5000/osm>.
+The page shows the extract's freshness, element counts, sha256s, and tails
+`data/osm/refresh.log` so you can watch progress. The button spawns the same
+CLI as a detached subprocess, so Flask stays responsive while the download
+runs.
+
+To fall back to live Overpass queries (e.g. bbox experiments outside
+Toronto), set `[osm] source = "overpass"` in `config.toml`.
+
 ## First end-to-end run
 
 1. **Create a run** from the dashboard. A small downtown rectangle like
