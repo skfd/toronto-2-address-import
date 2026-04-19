@@ -85,7 +85,13 @@ def extract_status(cfg=None, stale_after_days: int = 14) -> str:
         dt = datetime.fromisoformat(ts)
     except ValueError:
         return "stale"
-    age_days = (datetime.now(timezone.utc) - dt).total_seconds() / 86400
+    if dt.tzinfo is None:
+        # meta written by an older refresh may lack tz info; treat as UTC.
+        dt = dt.replace(tzinfo=timezone.utc)
+    try:
+        age_days = (datetime.now(timezone.utc) - dt).total_seconds() / 86400
+    except TypeError:
+        return "stale"
     return "stale" if age_days > stale_after_days else "fresh"
 
 
