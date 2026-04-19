@@ -51,6 +51,27 @@ def _in_bbox(lat: float | None, lon: float | None, bbox: tuple[float, float, flo
     return bbox[0] <= lat <= bbox[2] and bbox[1] <= lon <= bbox[3]
 
 
+def _element_in_bbox(el: dict, bbox: tuple[float, float, float, float]) -> bool:
+    """Clip to run bbox using Overpass `(bbox)` semantics.
+
+    Nodes are point-in-bbox. Ways use their stored ``bounds`` (from the refresh
+    step) and pass if that rectangle intersects the run bbox — a way whose
+    center is just outside the bbox can still intersect it. If a cached extract
+    predates the ``bounds`` field we fall back to center-in-bbox.
+    """
+    if el.get("type") == "way":
+        b = el.get("bounds")
+        if b:
+            return (
+                b["minlat"] <= bbox[2]
+                and b["maxlat"] >= bbox[0]
+                and b["minlon"] <= bbox[3]
+                and b["maxlon"] >= bbox[1]
+            )
+    lat, lon = _element_latlon(el)
+    return _in_bbox(lat, lon, bbox)
+
+
 def _fetch_from_local(
     run_id: int, bbox: tuple[float, float, float, float], force: bool
 ) -> tuple[Path, str]:
@@ -66,7 +87,7 @@ def _fetch_from_local(
             "Run `python -m t2.osm_refresh` (or click Refresh at /osm) first."
         )
     all_elements = json.loads(shared.read_text(encoding="utf-8"))
-    clipped = [el for el in all_elements if _in_bbox(*_element_latlon(el), bbox)]
+    clipped = [el for el in all_elements if _element_in_bbox(el, bbox)]
     body = json.dumps(clipped)
     path.write_text(body, encoding="utf-8")
     digest = hashlib.sha256(body.encode("utf-8")).hexdigest()

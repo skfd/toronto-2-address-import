@@ -182,12 +182,29 @@ def _in_bbox(lat: float, lon: float, bbox: tuple[float, float, float, float]) ->
     return bbox[0] <= lat <= bbox[2] and bbox[1] <= lon <= bbox[3]
 
 
+def _bounds_intersect_bbox(
+    bounds: dict, bbox: tuple[float, float, float, float]
+) -> bool:
+    """True if a bounds rectangle overlaps bbox (minlat, minlon, maxlat, maxlon)."""
+    return (
+        bounds["minlat"] <= bbox[2]
+        and bounds["maxlat"] >= bbox[0]
+        and bounds["minlon"] <= bbox[3]
+        and bounds["maxlon"] >= bbox[1]
+    )
+
+
 def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[list[dict], dict[str, int]]:
     """Scan the PBF and return (elements, counts) for addr:housenumber features in bbox.
 
-    Element shape matches Overpass `out center;`:
-      node:     {"type": "node",     "id": N, "lat": L, "lon": L, "tags": {...}}
-      way:      {"type": "way",      "id": N, "center": {"lat": L, "lon": L}, "tags": {...}}
+    Element shape matches Overpass `out center;`, plus a per-way ``bounds``
+    (min/max lat/lon) so downstream clipping can use bbox intersection rather
+    than center-in-bbox (Overpass `way(...)(bbox)` returns ways that intersect
+    the bbox — the center may fall outside):
+      node:  {"type": "node", "id": N, "lat": L, "lon": L, "tags": {...}}
+      way:   {"type": "way",  "id": N, "center": {"lat": L, "lon": L},
+              "bounds": {"minlat": .., "minlon": .., "maxlat": .., "maxlon": ..},
+              "tags": {...}}
 
     Relations with addr:housenumber are counted but not emitted — we can't
     compute a centroid without resolving member geometries, and Overpass's
@@ -229,15 +246,23 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
                 lons.append(wn.location.lon)
             if not lats:
                 return
-            c_lat = (min(lats) + max(lats)) / 2
-            c_lon = (min(lons) + max(lons)) / 2
-            if not _in_bbox(c_lat, c_lon, bbox):
+            minlat, maxlat = min(lats), max(lats)
+            minlon, maxlon = min(lons), max(lons)
+            bounds = {"minlat": minlat, "minlon": minlon,
+                      "maxlat": maxlat, "maxlon": maxlon}
+            # Match Overpass `way(...)(bbox)` semantics: keep the way if its
+            # bounding box intersects the Toronto bbox, not just if its center
+            # falls inside.
+            if not _bounds_intersect_bbox(bounds, bbox):
                 counts["outside_bbox"] += 1
                 return
+            c_lat = (minlat + maxlat) / 2
+            c_lon = (minlon + maxlon) / 2
             elements.append({
                 "type": "way",
                 "id": w.id,
                 "center": {"lat": c_lat, "lon": c_lon},
+                "bounds": bounds,
                 "tags": {t.k: t.v for t in w.tags},
             })
             counts["ways"] += 1
