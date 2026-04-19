@@ -520,6 +520,13 @@ def create_app() -> Flask:
                 e["payload"] = {}
         return render_template("audit.html", run_id=run_id, events=events, event_type=event_type)
 
+    # ---- Data stats ----
+
+    @app.get("/data")
+    def data_view():
+        stats = _collect_data_stats(cfg)
+        return render_template("data.html", stats=stats)
+
     # ---- Local OSM extract ----
 
     @app.get("/osm")
@@ -613,3 +620,80 @@ def _get_toggles(run_id: int) -> dict[str, bool]:
     finally:
         conn.close()
     return {r["check_id"]: bool(r["enabled"]) for r in rows}
+
+
+_TOOL_DB_TABLES = (
+    "runs", "candidates", "conflation", "check_results", "check_toggles",
+    "review_items", "batches", "batch_items", "changesets", "events",
+)
+
+
+def _file_size(path: Path) -> int | None:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return None
+
+
+def _collect_data_stats(cfg) -> dict:
+    tool_db_main = _file_size(cfg.tool_db_path) or 0
+    tool_db_wal = _file_size(cfg.tool_db_path.with_suffix(cfg.tool_db_path.suffix + "-wal")) or 0
+    tool_db_shm = _file_size(cfg.tool_db_path.with_suffix(cfg.tool_db_path.suffix + "-shm")) or 0
+
+    source_path = Path(cfg.source_sqlite_path)
+    source_size = _file_size(source_path)
+
+    extract_dir = cfg.osm_extract_dir
+    pbf_path = extract_dir / "ontario-latest.osm.pbf"
+    json_path = extract_dir / "toronto-addresses.json"
+
+    run_json_files: list[dict] = []
+    run_json_total = 0
+    if cfg.data_dir.exists():
+        for p in sorted(cfg.data_dir.glob("osm_current_run*.json")):
+            size = _file_size(p) or 0
+            run_json_total += size
+            run_json_files.append({"name": p.name, "bytes": size})
+
+    conn = _db.connect()
+    try:
+        table_counts: list[dict] = []
+        for name in _TOOL_DB_TABLES:
+            try:
+                row = conn.execute(f"SELECT COUNT(*) AS n FROM {name}").fetchone()
+                table_counts.append({"name": name, "rows": int(row["n"])})
+            except Exception as e:
+                table_counts.append({"name": name, "rows": None, "error": str(e)})
+        schema_row = conn.execute(
+            "SELECT MAX(version) AS v FROM schema_version"
+        ).fetchone()
+        schema_version = schema_row["v"] if schema_row else None
+    finally:
+        conn.close()
+
+    return {
+        "tool_db": {
+            "path": str(cfg.tool_db_path),
+            "main_bytes": tool_db_main,
+            "wal_bytes": tool_db_wal,
+            "shm_bytes": tool_db_shm,
+            "total_bytes": tool_db_main + tool_db_wal + tool_db_shm,
+            "schema_version": schema_version,
+            "tables": table_counts,
+        },
+        "source_db": {
+            "path": str(source_path),
+            "bytes": source_size,
+            "exists": source_size is not None,
+        },
+        "osm_extract": {
+            "dir": str(extract_dir),
+            "pbf_bytes": _file_size(pbf_path),
+            "json_bytes": _file_size(json_path),
+        },
+        "run_json": {
+            "count": len(run_json_files),
+            "total_bytes": run_json_total,
+            "files": run_json_files,
+        },
+    }

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Data{% endblock %}
+{% block content %}
+{% macro bytes(n) -%}
+  {%- if n is none -%}—
+  {%- elif n >= 1073741824 -%}{{ (n / 1073741824) | round(2) }} GiB
+  {%- elif n >= 1048576 -%}{{ (n / 1048576) | round(1) }} MiB
+  {%- elif n >= 1024 -%}{{ (n / 1024) | round(1) }} KiB
+  {%- else -%}{{ n }} B
+  {%- endif -%}
+{%- endmacro %}
+
+<div class="card">
+  <h2>Tool DB <span class="pill">{{ bytes(stats.tool_db.total_bytes) }}</span></h2>
+  <p class="muted"><code>{{ stats.tool_db.path }}</code> · schema v{{ stats.tool_db.schema_version or '?' }}</p>
+  <table>
+    <tr><th>main (.db)</th><td>{{ bytes(stats.tool_db.main_bytes) }}</td></tr>
+    <tr><th>WAL</th><td>{{ bytes(stats.tool_db.wal_bytes) }}</td></tr>
+    <tr><th>SHM</th><td>{{ bytes(stats.tool_db.shm_bytes) }}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Tool DB rows</h2>
+  <table>
+    <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+    <tbody>
+      {% for t in stats.tool_db.tables %}
+      <tr>
+        <td><code>{{ t.name }}</code></td>
+        <td>{% if t.rows is none %}<span class="muted">{{ t.error }}</span>{% else %}{{ '{:,}'.format(t.rows) }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Source DB</h2>
+  <p class="muted"><code>{{ stats.source_db.path }}</code></p>
+  {% if stats.source_db.exists %}
+    <p>Size: <strong>{{ bytes(stats.source_db.bytes) }}</strong></p>
+  {% else %}
+    <p><span class="pill bad">missing</span></p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>OSM extract</h2>
+  <p class="muted"><code>{{ stats.osm_extract.dir }}</code></p>
+  <table>
+    <tr><th>ontario-latest.osm.pbf</th><td>{{ bytes(stats.osm_extract.pbf_bytes) }}</td></tr>
+    <tr><th>toronto-addresses.json</th><td>{{ bytes(stats.osm_extract.json_bytes) }}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Per-run OSM caches <span class="pill">{{ stats.run_json.count }} files · {{ bytes(stats.run_json.total_bytes) }}</span></h2>
+  {% if stats.run_json.files %}
+  <table>
+    <thead><tr><th>File</th><th>Size</th></tr></thead>
+    <tbody>
+      {% for f in stats.run_json.files %}
+      <tr><td><code>{{ f.name }}</code></td><td>{{ bytes(f.bytes) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No per-run OSM JSON files on disk yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
