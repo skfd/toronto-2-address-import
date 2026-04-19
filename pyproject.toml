@@ -2,7 +2,10 @@
 name = "toronto-2-address-import"
 version = "0.1.0"
 description = "Local tool to import Toronto Open Data addresses into OpenStreetMap (dev sandbox)"
+readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "skfd", email = "kk@comentality.com" }]
 dependencies = [
     "flask>=3.0",
     "requests>=2.31",
@@ -11,6 +14,11 @@ dependencies = [
     "tomli>=2.0; python_version<'3.11'",
     "osmium>=4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/skfd/toronto-2-address-import"
+Repository = "https://github.com/skfd/toronto-2-address-import"
+Issues = "https://github.com/skfd/toronto-2-address-import/issues"
 
 [project.optional-dependencies]
 dev = [

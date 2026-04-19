@@ -1,7 +1,9 @@
 # t2-address-import
 
+[GitHub](https://github.com/skfd/toronto-2-address-import) · MIT licensed
+
 Local tool that reads Toronto address points from the sibling
-[`toronto-addresses-import`](../toronto-addresses-import) project's SQLite DB,
+[`toronto-addresses-import`](https://github.com/skfd/toronto-addresses-import) project's SQLite DB,
 conflates them against live OSM data, routes questionable items to a human
 reviewer via a web UI, and uploads approved batches to the OpenStreetMap
 **dev sandbox** (`master.apis.dev.openstreetmap.org`). Every auto and manual
@@ -197,3 +199,15 @@ deserve their own pipelines when we get to them.
    protocol in `t2/checks/base.py`.
 2. Register it in `t2/checks/__init__.py`.
 3. Restart the app. The new check appears in the run's toggle list.
+
+## Data sources & attribution
+
+This tool moves data between three open datasets. Downstream uploads inherit OSM's licence, but the upstream sources each have their own terms:
+
+- **Toronto Open Data** — "Address Points (Municipal) – Toronto One Address Repository", published under the [Open Government Licence – Toronto](https://open.toronto.ca/open-data-license/). Consumed indirectly via the sibling [`toronto-addresses-import`](https://github.com/skfd/toronto-addresses-import) project.
+- **OpenStreetMap** — © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). All uploads target the OSM **dev sandbox** (`master.apis.dev.openstreetmap.org`); any future production import must separately comply with the OSMF [import guidelines](https://wiki.openstreetmap.org/wiki/Import/Guidelines) and [contributor terms](https://osmfoundation.org/wiki/Licence/Contributor_Terms).
+- **Geofabrik** — Ontario `.osm.pbf` extracts, redistributed under ODbL from OSM.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
