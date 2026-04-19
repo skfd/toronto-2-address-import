@@ -1,0 +1,184 @@
+<h3>{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}
+  {% if candidate.address_class and candidate.address_class != 'Land' %}
+    <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ candidate.address_class }}</span>
+  {% endif %}
+  <span class="pill" data-tip="{{ tip('reason.range') }}">range</span>
+</h3>
+<p class="muted">candidate_id <code>{{ candidate.candidate_id }}</code>
+  · <a href="/runs/{{ run_id }}/ranges/{{ candidate.candidate_id }}" title="Permalink">permalink</a>
+  · lat <code>{{ candidate.lat }}</code> lon <code>{{ candidate.lon }}</code>
+  {% if candidate.lat and candidate.lon %}
+  · <a href="https://www.openstreetmap.org/?mlat={{ candidate.lat }}&mlon={{ candidate.lon }}#map=19/{{ candidate.lat }}/{{ candidate.lon }}" target="_blank" rel="noopener">open in OSM</a>
+  {% endif %}
+</p>
+<p>Range: <strong>{{ candidate.lo_num }}{{ candidate.lo_num_suf or '' }}–{{ candidate.hi_num }}{{ candidate.hi_num_suf or '' }} {{ candidate.street_raw or '' }}</strong>
+  {% if candidate.municipality_name %}<span class="muted">· {{ candidate.municipality_name }}</span>{% endif %}
+</p>
+
+{% if candidate.lat and candidate.lon %}
+<div id="leaflet-map"></div>
+<p class="muted" style="margin-top:.25rem">
+  <span style="display:inline-block;width:.8em;height:.8em;background:#2d6cdf;border-radius:50%"></span> range candidate
+  <br/>
+  <span class="muted">Siblings in view —</span>
+  <span style="display:inline-block;width:.7em;height:.7em;background:#2ca02c;border-radius:50%;border:1px solid #fff"></span> MATCH
+  · <span style="display:inline-block;width:.7em;height:.7em;background:#e0a81c;border-radius:50%;border:1px solid #fff"></span> MATCH_FAR
+  · <span style="display:inline-block;width:.7em;height:.7em;background:#e36c1d;border-radius:50%;border:1px solid #fff"></span> MISSING
+  · <span style="display:inline-block;width:.7em;height:.7em;background:#888;border-radius:50%;border:1px solid #fff"></span> SKIPPED
+  · <span style="display:inline-block;width:.7em;height:.7em;border:2px solid #7a3fc2;border-radius:50%;background:#fff"></span> OSM address
+  · <span style="display:inline-block;width:.7em;height:.7em;border:2px solid #6b7280;border-radius:50%;background:#fff"></span> OSM POI
+  · <span style="display:inline-block;width:1.4em;height:.25em;background:#c026d3;vertical-align:middle"></span> addr:interpolation way
+</p>
+<div id="interp-summary" class="muted" style="margin:.4rem 0 .6rem; font-size:.9rem;">Loading interpolation ways…</div>
+<script>
+  (function(){
+    const el = document.getElementById('leaflet-map');
+    if (el._leaflet_id) { el._leaflet_id = null; el.innerHTML = ''; }
+    if (el._sibFetch) { el._sibFetch.abort(); el._sibFetch = null; }
+    if (el._sibTimer) { clearTimeout(el._sibTimer); el._sibTimer = null; }
+    const runId = {{ run_id }};
+    const focusId = {{ candidate.candidate_id }};
+    const candLL = [{{ candidate.lat }}, {{ candidate.lon }}];
+    const streetNorm = {{ (candidate.street_norm or '')|tojson }};
+    const map = L.map('leaflet-map').setView(candLL, 18);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '© OSM' }).addTo(map);
+    const siblingCands = L.layerGroup().addTo(map);
+    const siblingOsm   = L.layerGroup().addTo(map);
+    const interpLayer  = L.layerGroup().addTo(map);
+    const blue = L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#2d6cdf;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>', iconSize:[14,14], iconAnchor:[7,7]});
+    L.marker(candLL, {icon: blue, title: 'range candidate', zIndexOffset: 1000}).addTo(map);
+
+    const VERDICT_COLOR = {
+      'MATCH': '#2ca02c', 'MATCH_FAR': '#e0a81c',
+      'MISSING': '#e36c1d', 'SKIPPED': '#888'
+    };
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+      {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+    ));
+    function candIcon(verdict) {
+      const color = VERDICT_COLOR[verdict] || '#9aa0a6';
+      return L.divIcon({
+        className: '',
+        html: `<div style="width:10px;height:10px;background:${color};border:1.5px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>`,
+        iconSize: [10,10], iconAnchor: [5,5]
+      });
+    }
+    const osmAddrIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:8px;height:8px;background:#fff;border:2px solid #7a3fc2;border-radius:50%"></div>',
+      iconSize: [12,12], iconAnchor: [6,6]
+    });
+    const osmPoiIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:8px;height:8px;background:#fff;border:2px solid #6b7280;border-radius:50%"></div>',
+      iconSize: [12,12], iconAnchor: [6,6]
+    });
+    const interpEndIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:9px;height:9px;background:#c026d3;border:1.5px solid #fff;border-radius:50%"></div>',
+      iconSize: [12,12], iconAnchor: [6,6]
+    });
+
+    function candPopup(c) {
+      const addr = c.address || [c.housenumber, c.street].filter(Boolean).join(' ') || `#${c.candidate_id}`;
+      const parts = [`<strong>${esc(addr)}</strong>`];
+      const meta = [];
+      if (c.verdict) meta.push(`<span class="pill">verdict: ${esc(c.verdict)}</span>`);
+      if (c.review_status) meta.push(`<span class="pill">${esc(c.review_status)}</span>`);
+      else if (c.stage) meta.push(`<span class="pill">${esc(c.stage)}</span>`);
+      if (meta.length) parts.push(`<div style="margin-top:.25rem">${meta.join(' ')}</div>`);
+      if (c.address_class && c.address_class !== 'Land') {
+        parts.push(`<div class="muted" style="margin-top:.15rem">class: ${esc(c.address_class)}</div>`);
+      }
+      parts.push(`<div style="margin-top:.35rem"><a href="/runs/${runId}/review/${c.candidate_id}">Open candidate →</a></div>`);
+      return parts.join('');
+    }
+    function osmPopup(o) {
+      const head = [o.housenumber, o.street].filter(Boolean).join(' ') || `${o.type} #${o.id}`;
+      const parts = [`<strong>${esc(head)}</strong>`];
+      const kindPill = o.kind === 'poi'
+        ? `<span class="pill" style="background:#d1f5ec">POI${o.poi_tag ? ' · ' + esc(o.poi_tag) : ''}</span>`
+        : `<span class="pill" style="background:#ede3f7">address</span>`;
+      parts.push(`<div style="margin-top:.25rem">${kindPill}</div>`);
+      parts.push(`<div class="muted" style="margin-top:.25rem">${esc(o.type)} #${esc(o.id)}</div>`);
+      parts.push(`<div style="margin-top:.25rem"><a href="https://www.openstreetmap.org/${esc(o.type)}/${esc(o.id)}" target="_blank" rel="noopener">Open in OSM ↗</a></div>`);
+      return parts.join('');
+    }
+    function interpPopup(w) {
+      const nums = w.endpoints.map(e => e.housenumber).filter(Boolean).join('–') || '?';
+      const parts = [`<strong>${esc(nums)} ${esc(w.street || '')}</strong>`];
+      parts.push(`<div style="margin-top:.25rem"><span class="pill" style="background:#f5d0fe">interpolation: ${esc(w.interpolation || '?')}</span></div>`);
+      parts.push(`<div class="muted" style="margin-top:.25rem">way #${esc(w.id)}</div>`);
+      parts.push(`<div style="margin-top:.25rem"><a href="https://www.openstreetmap.org/way/${esc(w.id)}" target="_blank" rel="noopener">Open in OSM ↗</a></div>`);
+      return parts.join('');
+    }
+
+    function render(data) {
+      siblingCands.clearLayers();
+      siblingOsm.clearLayers();
+      interpLayer.clearLayers();
+      for (const c of (data.candidates || [])) {
+        if (c.lat == null || c.lon == null) continue;
+        const m = L.marker([c.lat, c.lon], {icon: candIcon(c.verdict), title: c.address || `#${c.candidate_id}`});
+        m.bindPopup(candPopup(c));
+        siblingCands.addLayer(m);
+      }
+      for (const o of (data.osm || [])) {
+        if (o.lat == null || o.lon == null) continue;
+        const icon = o.kind === 'poi' ? osmPoiIcon : osmAddrIcon;
+        const title = (o.kind === 'poi' ? 'POI: ' : '') + (`${o.housenumber || ''} ${o.street || ''}`.trim() || `${o.type} #${o.id}`);
+        const m = L.marker([o.lat, o.lon], {icon, title});
+        m.bindPopup(osmPopup(o));
+        siblingOsm.addLayer(m);
+      }
+      const interp = data.interp_ways || [];
+      for (const w of interp) {
+        if (!w.line || w.line.length < 2) continue;
+        const poly = L.polyline(w.line, {color: '#c026d3', weight: 4, opacity: 0.85});
+        poly.bindPopup(interpPopup(w));
+        interpLayer.addLayer(poly);
+        for (const ep of (w.endpoints || [])) {
+          if (ep.lat == null || ep.lon == null) continue;
+          const m = L.marker([ep.lat, ep.lon], {icon: interpEndIcon, title: `${ep.housenumber || ''} (way #${w.id})`});
+          m.bindPopup(interpPopup(w));
+          interpLayer.addLayer(m);
+        }
+      }
+      const summary = document.getElementById('interp-summary');
+      if (summary) {
+        if (interp.length === 0) {
+          summary.innerHTML = 'No <code>addr:interpolation</code> ways match this street in view.';
+        } else {
+          const rows = interp.map(w => {
+            const nums = w.endpoints.map(e => e.housenumber).filter(Boolean).join('–') || '?';
+            return `<li><a href="https://www.openstreetmap.org/way/${esc(w.id)}" target="_blank" rel="noopener">way #${esc(w.id)}</a> — ${esc(nums)} (<code>${esc(w.interpolation || '?')}</code>)</li>`;
+          }).join('');
+          summary.innerHTML = `<strong>${interp.length}</strong> interpolation way(s) in view: <ul style="margin:.3rem 0 0; padding-left:1.2rem;">${rows}</ul>`;
+        }
+      }
+    }
+
+    function refreshSiblings() {
+      const b = map.getBounds();
+      const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].join(',');
+      if (el._sibFetch) el._sibFetch.abort();
+      el._sibFetch = new AbortController();
+      const params = new URLSearchParams({bbox, focus: String(focusId)});
+      if (streetNorm) params.set('include_interp', streetNorm);
+      fetch(`/runs/${runId}/siblings?${params.toString()}`, {signal: el._sibFetch.signal})
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(render)
+        .catch(err => { if (err && err.name === 'AbortError') return; });
+    }
+    function scheduleRefresh() {
+      if (el._sibTimer) clearTimeout(el._sibTimer);
+      el._sibTimer = setTimeout(refreshSiblings, 250);
+    }
+    map.on('moveend', scheduleRefresh);
+    refreshSiblings();
+  })();
+</script>
+{% else %}
+<p class="muted">No coordinates on this candidate — can't render a map.</p>
+{% endif %}

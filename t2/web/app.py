@@ -8,7 +8,7 @@ from pathlib import Path
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
 from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, review, tag_diff
-from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS
+from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
 
@@ -333,6 +333,10 @@ def create_app() -> Flask:
 
         osm_path = cfg.data_dir / f"osm_current_run{run_id}.json"
         elements, interp_node_ids = _load_osm_for_run(osm_path)
+        # include_interp=<street_norm> opts the response into addr:interpolation
+        # ways whose normalized street matches and whose bounding box intersects
+        # the map bbox — used by the ranges view to overlay interp geometry.
+        interp_street = (request.args.get("include_interp") or "").strip()
         osm_out: list[dict] = []
         for el in elements:
             if el.get("type") == "node" and el.get("id") in interp_node_ids:
@@ -372,7 +376,69 @@ def create_app() -> Flask:
             if len(osm_out) >= _SIBLING_LIMIT:
                 break
 
-        return jsonify({"candidates": candidates_out, "osm": osm_out})
+        interp_out: list[dict] = []
+        if interp_street:
+            node_index = {
+                el["id"]: el for el in elements
+                if el.get("type") == "node" and el.get("id") is not None
+            }
+            for el in elements:
+                if el.get("type") != "way":
+                    continue
+                tags = el.get("tags") or {}
+                if "addr:interpolation" not in tags:
+                    continue
+                b = el.get("bounds") or {}
+                if not b:
+                    continue
+                if not (
+                    b.get("minlat", 90) <= max_lat
+                    and b.get("maxlat", -90) >= min_lat
+                    and b.get("minlon", 180) <= max_lon
+                    and b.get("maxlon", -180) >= min_lon
+                ):
+                    continue
+                node_ids = el.get("nodes") or []
+                ep_ids = node_ids[:1] + node_ids[-1:] if len(node_ids) >= 2 else list(node_ids)
+                endpoints: list[dict] = []
+                line: list[list[float]] = []
+                endpoint_streets: list[str] = []
+                for nid in ep_ids:
+                    n = node_index.get(nid)
+                    if not n:
+                        continue
+                    nlat, nlon = n.get("lat"), n.get("lon")
+                    if nlat is None or nlon is None:
+                        continue
+                    ntags = n.get("tags") or {}
+                    endpoints.append({
+                        "id": nid,
+                        "lat": nlat,
+                        "lon": nlon,
+                        "housenumber": ntags.get("addr:housenumber"),
+                    })
+                    line.append([nlat, nlon])
+                    if ntags.get("addr:street"):
+                        endpoint_streets.append(ntags["addr:street"])
+                # addr:interpolation ways usually carry no addr:street themselves —
+                # the street tag lives on the endpoint nodes. Match either source.
+                street_label = tags.get("addr:street") or (endpoint_streets[0] if endpoint_streets else None)
+                candidates_for_match = [tags.get("addr:street")] + endpoint_streets
+                if not any(normalize_street(s) == interp_street for s in candidates_for_match if s):
+                    continue
+                interp_out.append({
+                    "id": el.get("id"),
+                    "interpolation": tags.get("addr:interpolation"),
+                    "street": street_label,
+                    "endpoints": endpoints,
+                    "line": line,
+                })
+
+        return jsonify({
+            "candidates": candidates_out,
+            "osm": osm_out,
+            "interp_ways": interp_out,
+        })
 
     # ---- Approved / Skipped lists ----
 
@@ -452,6 +518,54 @@ def create_app() -> Flask:
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
             all_verdicts=_REVIEW_VERDICTS,
+        )
+
+    # ---- Ranges (read-only view of address-range candidates) ----
+
+    @app.get("/runs/<int:run_id>/ranges")
+    def ranges_page(run_id: int):
+        conn = _db.connect()
+        try:
+            rows = conn.execute(
+                """
+                SELECT candidate_id, address_full, housenumber, street_raw,
+                       lat, lon, lo_num, lo_num_suf, hi_num, hi_num_suf,
+                       address_class, stage_updated_at
+                FROM candidates
+                WHERE run_id = ?
+                  AND stage = 'SKIPPED'
+                  AND lo_num IS NOT NULL AND hi_num IS NOT NULL
+                  AND lo_num != hi_num
+                ORDER BY stage_updated_at DESC
+                """,
+                (run_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        items = [dict(r) for r in rows]
+        return render_template("ranges.html", run_id=run_id, items=items)
+
+    @app.get("/runs/<int:run_id>/ranges/<int:candidate_id>")
+    def ranges_detail(run_id: int, candidate_id: int):
+        conn = _db.connect()
+        try:
+            row = conn.execute(
+                """SELECT candidate_id, address_full, housenumber, street_raw,
+                          street_norm, lat, lon, lo_num, lo_num_suf, hi_num, hi_num_suf,
+                          address_class, municipality_name, stage
+                   FROM candidates
+                   WHERE run_id=? AND candidate_id=?""",
+                (run_id, candidate_id),
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row:
+            abort(404)
+        cand = dict(row)
+        return render_template(
+            "_ranges_detail.html",
+            run_id=run_id,
+            candidate=cand,
         )
 
     # ---- Batches ----
