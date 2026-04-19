@@ -148,12 +148,18 @@ def create_app() -> Flask:
             abort(404)
         if request.headers.get("HX-Request"):
             return render_template("_review_detail.html", **ctx)
-        items = review.queue(run_id, statuses=("OPEN",), include_auto=False, limit=500)
+        raw = request.args.get("statuses")
+        if raw is None:
+            statuses = ("OPEN",)
+        else:
+            statuses = tuple(s for s in raw.split(",") if s in _REVIEW_STATUSES)
+        include_auto = request.args.get("auto", "0") == "1"
+        items = review.queue(run_id, statuses=statuses, include_auto=include_auto, limit=500)
         return render_template(
             "review.html",
             items=items,
-            active_statuses={"OPEN"},
-            include_auto=False,
+            active_statuses=set(statuses),
+            include_auto=include_auto,
             all_statuses=_REVIEW_STATUSES,
             selected_candidate=True,
             selected_candidate_id=candidate_id,
