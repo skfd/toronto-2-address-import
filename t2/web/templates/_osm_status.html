@@ -47,7 +47,7 @@
   <p class="muted">No extract on disk yet. Click Refresh to download and filter the Geofabrik PBF.</p>
   {% endif %}
 
-  <p>
+  <div>
     <form method="post" action="{{ url_for('osm_refresh_start') }}" class="inline">
       <button {% if running %}disabled{% endif %} title="{{ tip('btn.osm_refresh') }}">
         {% if running %}Refresh running (pid {{ pid }})…{% else %}Refresh{% endif %}
@@ -58,7 +58,7 @@
       <button class="secondary" {% if running %}disabled{% endif %} title="{{ tip('btn.osm_refresh_force') }}">Force refresh</button>
     </form>
     <span class="muted">&nbsp;CLI equivalent: <code>python -m t2.osm_refresh{% if running %}{% else %} [--force]{% endif %}</code></span>
-  </p>
+  </div>
 </div>
 
 {% if log_tail %}
