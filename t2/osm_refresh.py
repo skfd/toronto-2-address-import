@@ -197,14 +197,16 @@ def _bounds_intersect_bbox(
 def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[list[dict], dict[str, int]]:
     """Scan the PBF and return (elements, counts) for addr:housenumber features in bbox.
 
-    Element shape matches Overpass `out center;`, plus a per-way ``bounds``
-    (min/max lat/lon) so downstream clipping can use bbox intersection rather
-    than center-in-bbox (Overpass `way(...)(bbox)` returns ways that intersect
-    the bbox — the center may fall outside):
-      node:  {"type": "node", "id": N, "lat": L, "lon": L, "tags": {...}}
-      way:   {"type": "way",  "id": N, "center": {"lat": L, "lon": L},
-              "bounds": {"minlat": .., "minlon": .., "maxlat": .., "maxlon": ..},
-              "tags": {...}}
+    Element shape matches Overpass `out center;` for address ways and
+    `out body;` for addr:interpolation ways (which carry their member node IDs
+    so downstream conflation can exclude interpolation endpoints from matching):
+
+      node:   {"type": "node", "id": N, "lat": L, "lon": L, "tags": {...}}
+      way:    {"type": "way",  "id": N, "center": {"lat": L, "lon": L},
+               "bounds": {"minlat": .., "minlon": .., "maxlat": .., "maxlon": ..},
+               "nodes": [n1, n2, ...], "tags": {...}}
+      interp: {"type": "way",  "id": N, "bounds": {...},
+               "nodes": [n1, n2, ...], "tags": {"addr:interpolation": ...}}
 
     Relations with addr:housenumber are counted but not emitted — we can't
     compute a centroid without resolving member geometries, and Overpass's
@@ -213,7 +215,13 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
     import osmium  # imported lazily so the web app doesn't pay the cost
 
     elements: list[dict] = []
-    counts = {"nodes": 0, "ways": 0, "relations_skipped": 0, "outside_bbox": 0}
+    counts = {
+        "nodes": 0,
+        "ways": 0,
+        "interp_ways": 0,
+        "relations_skipped": 0,
+        "outside_bbox": 0,
+    }
 
     class Handler(osmium.SimpleHandler):
         def node(self, n):
@@ -235,15 +243,18 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
             counts["nodes"] += 1
 
         def way(self, w):
-            if "addr:housenumber" not in w.tags:
+            has_hn = "addr:housenumber" in w.tags
+            has_interp = "addr:interpolation" in w.tags
+            if not has_hn and not has_interp:
                 return
+            node_ids: list[int] = []
             lats: list[float] = []
             lons: list[float] = []
             for wn in w.nodes:
-                if not wn.location.valid():
-                    continue
-                lats.append(wn.location.lat)
-                lons.append(wn.location.lon)
+                node_ids.append(wn.ref)
+                if wn.location.valid():
+                    lats.append(wn.location.lat)
+                    lons.append(wn.location.lon)
             if not lats:
                 return
             minlat, maxlat = min(lats), max(lats)
@@ -256,16 +267,20 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
             if not _bounds_intersect_bbox(bounds, bbox):
                 counts["outside_bbox"] += 1
                 return
-            c_lat = (minlat + maxlat) / 2
-            c_lon = (minlon + maxlon) / 2
-            elements.append({
+            out: dict = {
                 "type": "way",
                 "id": w.id,
-                "center": {"lat": c_lat, "lon": c_lon},
                 "bounds": bounds,
+                "nodes": node_ids,
                 "tags": {t.k: t.v for t in w.tags},
-            })
-            counts["ways"] += 1
+            }
+            if has_hn:
+                out["center"] = {"lat": (minlat + maxlat) / 2,
+                                 "lon": (minlon + maxlon) / 2}
+                counts["ways"] += 1
+            else:
+                counts["interp_ways"] += 1
+            elements.append(out)
 
         def relation(self, r):
             if "addr:housenumber" in r.tags:
