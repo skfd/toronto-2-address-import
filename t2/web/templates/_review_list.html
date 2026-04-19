@@ -24,7 +24,7 @@
         <span class="pill ok" data-tip="{{ tip('status.AUTO_APPROVED') }}">AUTO</span>
       {% endif %}
       {% if it.verdict %}
-        <span class="pill {% if it.verdict == 'CONFLICT' %}bad{% else %}warn{% endif %}" data-tip="{{ tip('verdict.' ~ it.verdict) }}">{{ it.verdict }}</span>
+        <span class="pill {% if it.verdict == 'MATCH_FAR' %}bad{% else %}warn{% endif %}" data-tip="{{ tip('verdict.' ~ it.verdict) }}">{{ it.verdict }}</span>
       {% endif %}
       {% if it.reason_code %}<span class="muted" data-tip="{{ tip('reason.' ~ it.reason_code) }}">{{ it.reason_code }}</span>{% endif %}
     </div>

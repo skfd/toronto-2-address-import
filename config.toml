@@ -7,11 +7,13 @@ bbox = [43.645, -79.42, 43.665, -79.39]
 overpass_url = "https://overpass-api.de/api/interpreter"
 
 [conflation]
-match_radius_m = 30
-close_neighbor_m = 10
+# Search radius for finding a matching OSM address (same housenumber + street).
+match_radius_m = 100
+# Matches within this distance auto-approve; beyond it they become MATCH_FAR and go to review.
+match_near_m = 15
 
 [checks]
-conflict_30m = true
+match_far = true
 suffix_range = true
 city_duplicate = true
 missing_sample = true

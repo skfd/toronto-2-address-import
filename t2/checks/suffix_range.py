@@ -12,8 +12,7 @@ class SuffixRangeCheck:
     description = "Flags suffixed or ranged housenumbers (10A, 10-14) that often duplicate a plain base number in OSM."
 
     def applies(self, cand: Candidate, ctx: CheckContext) -> bool:
-        # Only bother checking MISSING — CONFLICTs are already flagged elsewhere
-        return cand.verdict in ("MISSING", "CONFLICT")
+        return cand.verdict == "MISSING"
 
     def evaluate(self, cand: Candidate, ctx: CheckContext) -> Verdict:
         hn = (cand.housenumber or "").strip()

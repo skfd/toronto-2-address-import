@@ -12,8 +12,8 @@ GLOSSARY: dict[str, str] = {
 
     # conflation verdicts
     "verdict.MISSING": "Not found in OSM — eligible for upload.",
-    "verdict.MATCH": "Already in OSM with the same attributes — skip.",
-    "verdict.CONFLICT": "Near an OSM address with different attributes — needs review.",
+    "verdict.MATCH": "Same housenumber+street already in OSM within the near threshold — skip.",
+    "verdict.MATCH_FAR": "Same housenumber+street exists in OSM but unusually far from this candidate — needs review.",
     "verdict.SKIPPED": "Address range or duplicate — held for reference, not uploaded.",
 
     # tag-diff states
@@ -41,7 +41,7 @@ GLOSSARY: dict[str, str] = {
     "tag.addr:unit": "Unit or apartment number.",
 
     # check reason codes
-    "reason.conflict_30m": "Within 30 m of an existing OSM address with different tags.",
+    "reason.match_far": "Same housenumber+street exists in OSM, but the matched element is unusually far from the candidate coordinates.",
     "reason.range": "Address range (e.g. 10–14) — reference only, not uploaded.",
     "reason.suffix": "Suffixed number (e.g. 10A) — may duplicate a plain base number.",
     "reason.city_duplicate": "Another candidate in this run sits within a few metres.",

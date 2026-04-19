@@ -60,7 +60,7 @@ def start_run(name: str, bbox: tuple[float, float, float, float] | None = None) 
                     now,
                     json.dumps({
                         "match_radius_m": cfg.match_radius_m,
-                        "close_neighbor_m": cfg.close_neighbor_m,
+                        "match_near_m": cfg.match_near_m,
                         "checks_params": cfg.checks_params,
                     }),
                 ),
@@ -123,7 +123,7 @@ def conflate_stage(run_id: int, osm_hash: str | None = None) -> dict[str, int]:
     cfg = _config.load()
     if osm_hash is None:
         osm_hash = fetch_stage(run_id)
-    return conflate.run(run_id, osm_hash, cfg.match_radius_m, cfg.close_neighbor_m)
+    return conflate.run(run_id, osm_hash, cfg.match_radius_m, cfg.match_near_m)
 
 
 def _enabled_checks(run_id: int) -> list:
@@ -268,7 +268,8 @@ def run_checks(run_id: int) -> dict[str, int]:
                     (now, run_id, cand.candidate_id),
                 )
             else:
-                # Clean MISSING with no flags -> auto-approve; MATCH -> SKIPPED (already in OSM)
+                # Clean MISSING with no flags -> auto-approve; MATCH -> SKIPPED (already in OSM);
+                # MATCH_FAR falls through to CHECKED so it can't auto-clear without a decision.
                 new_stage = "APPROVED" if cand.verdict == "MISSING" else ("SKIPPED" if cand.verdict == "MATCH" else "CHECKED")
                 conn.execute(
                     "UPDATE candidates SET stage=?, stage_updated_at=? WHERE run_id=? AND candidate_id=?",

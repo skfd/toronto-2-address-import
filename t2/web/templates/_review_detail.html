@@ -13,14 +13,36 @@
 
 {% if candidate.lat and candidate.lon %}
 <div id="leaflet-map"></div>
+<p class="muted" style="margin-top:.25rem">
+  <span style="display:inline-block;width:.8em;height:.8em;background:#2d6cdf;border-radius:50%"></span> candidate
+  {% if candidate.matched_osm_lat and candidate.matched_osm_lon %}
+    · <span style="display:inline-block;width:.8em;height:.8em;background:#d94a4a;border-radius:50%"></span> matched OSM
+    {% if candidate.nearest_osm_type and candidate.nearest_osm_id %}
+      · <a href="https://www.openstreetmap.org/{{ candidate.nearest_osm_type }}/{{ candidate.nearest_osm_id }}" target="_blank" rel="noopener">open {{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }} in OSM</a>
+    {% endif %}
+  {% endif %}
+</p>
 <script>
   (function(){
     const el = document.getElementById('leaflet-map');
     if (el._leaflet_id) { el._leaflet_id = null; el.innerHTML = ''; }
-    const map = L.map('leaflet-map').setView([{{ candidate.lat }}, {{ candidate.lon }}], 18);
+    const candLL = [{{ candidate.lat }}, {{ candidate.lon }}];
+    {% if candidate.matched_osm_lat and candidate.matched_osm_lon %}
+    const osmLL = [{{ candidate.matched_osm_lat }}, {{ candidate.matched_osm_lon }}];
+    {% else %}
+    const osmLL = null;
+    {% endif %}
+    const map = L.map('leaflet-map').setView(candLL, 18);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       { maxZoom: 19, attribution: '© OSM' }).addTo(map);
-    L.marker([{{ candidate.lat }}, {{ candidate.lon }}]).addTo(map);
+    const blue = L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#2d6cdf;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>', iconSize:[14,14], iconAnchor:[7,7]});
+    const red  = L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#d94a4a;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>', iconSize:[14,14], iconAnchor:[7,7]});
+    L.marker(candLL, {icon: blue, title: 'candidate'}).addTo(map);
+    if (osmLL) {
+      L.marker(osmLL, {icon: red, title: 'matched OSM'}).addTo(map);
+      L.polyline([candLL, osmLL], {color:'#888', weight:1, dashArray:'4,4'}).addTo(map);
+      map.fitBounds(L.latLngBounds([candLL, osmLL]).pad(0.4));
+    }
   })();
 </script>
 {% endif %}

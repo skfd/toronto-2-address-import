@@ -12,7 +12,7 @@ class Config:
     default_bbox: tuple[float, float, float, float]
     overpass_url: str
     match_radius_m: float
-    close_neighbor_m: float
+    match_near_m: float
     checks_enabled: dict[str, bool]
     checks_params: dict[str, dict]
     batch_size: int
@@ -60,7 +60,7 @@ def load() -> Config:
         default_bbox=bbox,  # type: ignore
         overpass_url=cfg["run_defaults"]["overpass_url"],
         match_radius_m=float(cfg["conflation"]["match_radius_m"]),
-        close_neighbor_m=float(cfg["conflation"]["close_neighbor_m"]),
+        match_near_m=float(cfg["conflation"]["match_near_m"]),
         checks_enabled=checks_enabled,
         checks_params=checks_params,
         batch_size=int(cfg["upload"]["batch_size"]),

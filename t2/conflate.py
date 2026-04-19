@@ -85,10 +85,12 @@ def build_osm_index(elements: list[dict]) -> GridIndex:
     return idx
 
 
-def _classify(cand_row: dict, idx: GridIndex, match_radius_m: float, close_neighbor_m: float):
+def _classify(cand_row: dict, idx: GridIndex, match_radius_m: float, match_near_m: float):
     """Return (verdict, osm_id, osm_type, dist_m, matched_osm_el).
 
-    matched_osm_el is the nearest OSM element we picked (for MATCH/CONFLICT), or None.
+    Scans within match_radius_m for an OSM address with the same normalized
+    housenumber + street. If the nearest such match is within match_near_m it's
+    a MATCH; beyond that it's MATCH_FAR (operator review). No match → MISSING.
     """
     c_lat, c_lon = cand_row["lat"], cand_row["lon"]
     if c_lat is None or c_lon is None:
@@ -97,28 +99,21 @@ def _classify(cand_row: dict, idx: GridIndex, match_radius_m: float, close_neigh
     c_num = (cand_row.get("housenumber") or "").upper()
     c_street_norm = cand_row.get("street_norm") or ""
 
-    best = None  # (dist, osm_el)
-    match = False
+    best_match = None  # (dist, osm_el) for exact-attribute matches only
     for o_lat, o_lon, osm in idx.query(c_lat, c_lon):
         dist = haversine(c_lat, c_lon, o_lat, o_lon)
         if dist > match_radius_m:
             continue
-        if best is None or dist < best[0]:
-            best = (dist, osm)
         if osm["_norm_number"] == c_num and osm["_norm_street"] == c_street_norm:
-            match = True
-            break
+            if best_match is None or dist < best_match[0]:
+                best_match = (dist, osm)
 
-    if match:
-        el = best[1]
-        return "MATCH", el.get("id"), el.get("type"), best[0], el
+    if best_match is None:
+        return "MISSING", None, None, None, None
 
-    # within close radius but didn't match — CONFLICT
-    if best is not None and best[0] <= close_neighbor_m:
-        el = best[1]
-        return "CONFLICT", el.get("id"), el.get("type"), best[0], el
-
-    return "MISSING", None, None, None, None
+    dist, el = best_match
+    verdict = "MATCH" if dist <= match_near_m else "MATCH_FAR"
+    return verdict, el.get("id"), el.get("type"), dist, el
 
 
 def _proposed_tags(cand_row: dict) -> dict[str, str]:
@@ -131,6 +126,20 @@ def _proposed_tags(cand_row: dict) -> dict[str, str]:
     return {k: v for k, v in tags.items() if v}
 
 
+def _matched_latlon(el: dict | None) -> tuple[float | None, float | None]:
+    """Point location of the matched OSM element for map rendering.
+
+    For nodes that's lat/lon; for ways/relations we fall back to Overpass's
+    `center` output (build_osm_index already required one of the two).
+    """
+    if el is None:
+        return None, None
+    if el.get("type") == "node":
+        return el.get("lat"), el.get("lon")
+    c = el.get("center") or {}
+    return c.get("lat"), c.get("lon")
+
+
 def _is_range(row: dict) -> bool:
     """Return True when the candidate represents an address range (lo_num != hi_num)."""
     lo = row.get("lo_num")
@@ -138,7 +147,7 @@ def _is_range(row: dict) -> bool:
     return lo is not None and hi is not None and lo != hi
 
 
-def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, close_neighbor_m: float) -> dict[str, int]:
+def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m: float) -> dict[str, int]:
     """Iterate candidates at stage INGESTED, write conflation row, advance to CONFLATED."""
     from . import tag_diff  # local import avoids an import cycle at module load
 
@@ -146,7 +155,7 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, close_neighb
     idx = build_osm_index(elements)
     now = datetime.now(timezone.utc).isoformat()
 
-    counts = {"MATCH": 0, "MISSING": 0, "CONFLICT": 0, "SKIPPED": 0}
+    counts = {"MATCH": 0, "MATCH_FAR": 0, "MISSING": 0, "SKIPPED": 0}
     conn = _db.connect()
     try:
         rows = conn.execute(
@@ -165,26 +174,28 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, close_neighb
                 verdict, osm_id, osm_type, dist, matched = "SKIPPED", None, None, None, None
             else:
                 verdict, osm_id, osm_type, dist, matched = _classify(
-                    cand, idx, match_radius_m, close_neighbor_m
+                    cand, idx, match_radius_m, match_near_m
                 )
             counts[verdict] += 1
 
             osm_tags = (matched.get("tags") if matched else None) or None
             geom = tag_diff.geom_hint(matched) if matched else None
+            m_lat, m_lon = _matched_latlon(matched)
 
             conn.execute(
                 """
                 INSERT OR REPLACE INTO conflation
                   (run_id, candidate_id, verdict, nearest_osm_id, nearest_osm_type,
                    nearest_dist_m, osm_snapshot_hash, computed_at,
-                   matched_osm_tags_json, matched_osm_geom_hint)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   matched_osm_tags_json, matched_osm_geom_hint,
+                   matched_osm_lat, matched_osm_lon)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     run_id, cand["candidate_id"], verdict, osm_id, osm_type, dist,
                     osm_snapshot_hash, now,
                     json.dumps(osm_tags) if osm_tags else None,
-                    geom,
+                    geom, m_lat, m_lon,
                 ),
             )
             conn.execute(

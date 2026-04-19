@@ -21,7 +21,7 @@ class Candidate:
     lo_num_suf: str | None
     hi_num: int | None
     hi_num_suf: str | None
-    verdict: str  # MATCH / MISSING / CONFLICT from conflation
+    verdict: str  # MATCH / MATCH_FAR / MISSING / SKIPPED from conflation
     nearest_osm_id: int | None
     nearest_osm_type: str | None
     nearest_dist_m: float | None
