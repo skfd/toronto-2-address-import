@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
-from .. import audit, batcher, candidates, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, tag_diff, tiles_build
+from .. import audit, batcher, candidates, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, source_db, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -75,6 +75,10 @@ def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.secret_key = cfg.flask_secret_key
     app.jinja_env.globals["tip"] = lambda key: GLOSSARY.get(key, "")
+
+    @app.context_processor
+    def _inject_source_snapshot():
+        return {"source_snapshot_info": source_db.latest_snapshot_info()}
 
     # ---- Dashboard / runs ----
 

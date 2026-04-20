@@ -1,5 +1,6 @@
 """Read-only access to the sibling addresses.db."""
 import sqlite3
+from datetime import datetime, timezone
 
 from . import config as _config
 
@@ -25,6 +26,44 @@ def latest_snapshot_id(conn: sqlite3.Connection | None = None) -> int:
     finally:
         if own:
             conn.close()
+
+
+def latest_snapshot_info(stale_after_days: int = 14) -> dict | None:
+    """Return {id, downloaded, age_days, is_stale} for the newest non-skipped
+    snapshot, or None if the source DB is unavailable or empty.
+
+    Used by the run-create UI to warn when the upstream source hasn't been
+    refreshed recently. The upstream publishes daily, so >14d stale means
+    we're building candidates against outdated address data.
+    """
+    try:
+        conn = connect_readonly()
+    except sqlite3.Error:
+        return None
+    try:
+        row = conn.execute(
+            "SELECT id, downloaded FROM snapshots WHERE skipped = 0 ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    ts = row["downloaded"]
+    age_days: float | None = None
+    if ts:
+        try:
+            dt = datetime.fromisoformat(ts)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            age_days = (datetime.now(timezone.utc) - dt).total_seconds() / 86400
+        except (ValueError, TypeError):
+            age_days = None
+    return {
+        "id": int(row["id"]),
+        "downloaded": ts,
+        "age_days": age_days,
+        "is_stale": age_days is not None and age_days > stale_after_days,
+    }
 
 
 def iter_active_addresses_in_bbox(bbox: tuple[float, float, float, float], snapshot_id: int):

@@ -30,6 +30,13 @@
 
 <div class="card">
   <h3>Start new run on this tile</h3>
+  {% if source_snapshot_info and source_snapshot_info.is_stale %}
+  <p>
+    <span class="pill warn">Source snapshot stale</span>
+    {{ '%.1f' % source_snapshot_info.age_days }} days old (id {{ source_snapshot_info.id }}).
+    <span class="muted">Refresh the source DB before creating a run.</span>
+  </p>
+  {% endif %}
   <form method="post" action="{{ url_for('runs_new') }}">
     <label>Name <input name="name" value="{{ prefill_name }}" required size="40"/></label>
     <input type="hidden" name="min_lat" value="{{ tile.bbox[0] }}"/>

@@ -3,6 +3,13 @@
 {% block content %}
 <div class="card">
   <h2>New run</h2>
+  {% if source_snapshot_info and source_snapshot_info.is_stale %}
+  <p>
+    <span class="pill warn">Source snapshot stale</span>
+    {{ '%.1f' % source_snapshot_info.age_days }} days old (id {{ source_snapshot_info.id }}).
+    <span class="muted">Refresh the source DB before creating a run.</span>
+  </p>
+  {% endif %}
   <p>
     <a href="/map" class="btn" style="text-decoration:none">Pick on map</a>
     <span class="muted">or enter a bbox manually:</span>
