@@ -274,6 +274,7 @@ def create_app() -> Flask:
             active_reasons=set(reasons),
             selected_candidate_id=None,
             municipality_collisions=review.colliding_address_fulls(run_id),
+            view="review",
         )
 
     def _review_detail_context(run_id: int, candidate_id: int):
@@ -357,7 +358,7 @@ def create_app() -> Flask:
         if ctx is None:
             abort(404)
         if request.headers.get("HX-Request"):
-            return render_template("_review_detail.html", **ctx)
+            return render_template("_review_detail.html", view="review", **ctx)
         raw = request.args.get("statuses")
         if raw is None:
             statuses = ("OPEN",)
@@ -394,6 +395,7 @@ def create_app() -> Flask:
             selected_candidate=True,
             selected_candidate_id=candidate_id,
             municipality_collisions=review.colliding_address_fulls(run_id),
+            view="review",
             **ctx,
         )
 
@@ -592,8 +594,7 @@ def create_app() -> Flask:
 
     # ---- Approved / Skipped lists ----
 
-    @app.get("/runs/<int:run_id>/approved")
-    def approved_page(run_id: int):
+    def _approved_list_context(run_id: int) -> dict:
         verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
         poi_ack = request.args.get("poi_ack", "0") == "1"
         postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
@@ -618,22 +619,18 @@ def create_app() -> Flask:
             ).fetchall()
         finally:
             conn.close()
-        items = [dict(r) for r in rows]
-        partial = request.args.get("partial") == "1"
-        template = "_approved_list.html" if partial else "approved.html"
-        return render_template(
-            template,
-            run_id=run_id,
-            items=items,
-            active_verdicts=set(verdicts),
-            poi_ack=poi_ack,
-            postcode_from_poi=postcode_from_poi,
-            all_verdicts=_REVIEW_VERDICTS,
-            municipality_collisions=review.colliding_address_fulls(run_id),
-        )
+        return {
+            "run_id": run_id,
+            "items": [dict(r) for r in rows],
+            "active_verdicts": set(verdicts),
+            "poi_ack": poi_ack,
+            "postcode_from_poi": postcode_from_poi,
+            "all_verdicts": _REVIEW_VERDICTS,
+            "municipality_collisions": review.colliding_address_fulls(run_id),
+            "view": "approved",
+        }
 
-    @app.get("/runs/<int:run_id>/skipped")
-    def skipped_page(run_id: int):
+    def _skipped_list_context(run_id: int) -> dict:
         verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
         poi_ack = request.args.get("poi_ack", "0") == "1"
         postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
@@ -660,18 +657,61 @@ def create_app() -> Flask:
             ).fetchall()
         finally:
             conn.close()
-        items = [dict(r) for r in rows]
+        return {
+            "run_id": run_id,
+            "items": [dict(r) for r in rows],
+            "active_verdicts": set(verdicts),
+            "poi_ack": poi_ack,
+            "postcode_from_poi": postcode_from_poi,
+            "all_verdicts": _REVIEW_VERDICTS,
+            "municipality_collisions": review.colliding_address_fulls(run_id),
+            "view": "skipped",
+        }
+
+    @app.get("/runs/<int:run_id>/approved")
+    def approved_page(run_id: int):
+        ctx = _approved_list_context(run_id)
+        partial = request.args.get("partial") == "1"
+        template = "_approved_list.html" if partial else "approved.html"
+        return render_template(template, **ctx)
+
+    @app.get("/runs/<int:run_id>/approved/<int:candidate_id>")
+    def approved_detail(run_id: int, candidate_id: int):
+        detail_ctx = _review_detail_context(run_id, candidate_id)
+        if detail_ctx is None:
+            abort(404)
+        if request.headers.get("HX-Request"):
+            return render_template("_review_detail.html", view="approved", **detail_ctx)
+        list_ctx = _approved_list_context(run_id)
+        return render_template(
+            "approved.html",
+            selected_candidate=True,
+            selected_candidate_id=candidate_id,
+            **list_ctx,
+            **{k: v for k, v in detail_ctx.items() if k != "run_id"},
+        )
+
+    @app.get("/runs/<int:run_id>/skipped")
+    def skipped_page(run_id: int):
+        ctx = _skipped_list_context(run_id)
         partial = request.args.get("partial") == "1"
         template = "_skipped_list.html" if partial else "skipped.html"
+        return render_template(template, **ctx)
+
+    @app.get("/runs/<int:run_id>/skipped/<int:candidate_id>")
+    def skipped_detail(run_id: int, candidate_id: int):
+        detail_ctx = _review_detail_context(run_id, candidate_id)
+        if detail_ctx is None:
+            abort(404)
+        if request.headers.get("HX-Request"):
+            return render_template("_review_detail.html", view="skipped", **detail_ctx)
+        list_ctx = _skipped_list_context(run_id)
         return render_template(
-            template,
-            run_id=run_id,
-            items=items,
-            active_verdicts=set(verdicts),
-            poi_ack=poi_ack,
-            postcode_from_poi=postcode_from_poi,
-            all_verdicts=_REVIEW_VERDICTS,
-            municipality_collisions=review.colliding_address_fulls(run_id),
+            "skipped.html",
+            selected_candidate=True,
+            selected_candidate_id=candidate_id,
+            **list_ctx,
+            **{k: v for k, v in detail_ctx.items() if k != "run_id"},
         )
 
     # ---- Ranges (read-only view of address-range candidates) ----
@@ -730,6 +770,7 @@ def create_app() -> Flask:
             "counts": counts,
             "active_cats": set(active_cats),
             "all_cats": _RANGE_COVERAGE_CATS,
+            "view": "ranges",
         }
 
     @app.get("/runs/<int:run_id>/ranges")

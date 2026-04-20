@@ -1,7 +1,7 @@
 <div class="card" id="review-list" style="max-height: 70vh; overflow: auto;">
   {% for it in items %}
     <div {% if selected_candidate_id == it.candidate_id %}id="list-selected" {% endif %}style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;{% if selected_candidate_id == it.candidate_id %}background:#eef6ff;{% endif %}"
-         hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
+         hx-get="/runs/{{ run_id }}/{{ view }}/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
          hx-include="#review-filters"
          onclick="this.parentNode.querySelectorAll('div[hx-get]').forEach(function(r){r.style.background='';});this.style.background='#eef6ff';">
       <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
@@ -42,7 +42,7 @@
         <span class="pill" data-tip="{{ tip('pill.postcode_from_poi') }}">+postcode</span>
       {% endif %}
       {% if it.dup_sibling_candidate_id %}
-        <a href="/runs/{{ run_id }}/review/{{ it.dup_sibling_candidate_id }}"
+        <a href="/runs/{{ run_id }}/{{ view }}/{{ it.dup_sibling_candidate_id }}"
            class="pill" data-tip="{{ tip('pill.intra_source_duplicate') }}"
            onclick="event.stopPropagation()">↔ #{{ it.dup_sibling_candidate_id }}{% if it.dup_sibling_dist_m is not none %} ({{ '%.1f' % it.dup_sibling_dist_m }}m){% endif %}</a>
       {% endif %}

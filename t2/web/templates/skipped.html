@@ -16,7 +16,11 @@
   {% include "_skipped_list.html" %}
 
   <div class="card" id="detail">
-    <p class="muted">Select an item on the left.</p>
+    {% if selected_candidate %}
+      {% include "_review_detail.html" %}
+    {% else %}
+      <p class="muted">Select an item on the left.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

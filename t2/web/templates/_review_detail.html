@@ -4,7 +4,7 @@
   {% endif %}
 </h3>
 <p class="muted">candidate_id <code>{{ candidate.candidate_id }}</code>
-  · <a href="/runs/{{ run_id }}/review/{{ candidate.candidate_id }}" title="Permalink to this candidate">permalink</a> ·
+  · <a href="/runs/{{ run_id }}/{{ view }}/{{ candidate.candidate_id }}" title="Permalink to this candidate">permalink</a> ·
   lat <code>{{ candidate.lat }}</code> lon <code>{{ candidate.lon }}</code>
   {% if candidate.lat and candidate.lon %}
   · <a href="https://www.openstreetmap.org/?mlat={{ candidate.lat }}&mlon={{ candidate.lon }}#map=19/{{ candidate.lat }}/{{ candidate.lon }}" target="_blank" rel="noopener">open in OSM</a>
@@ -19,7 +19,7 @@
   · <span class="pill" data-tip="{{ tip('pill.postcode_from_poi') }}">postcode from POI: {{ candidate.proposed_postcode }}</span>
   {% endif %}
   {% if candidate.dup_sibling_candidate_id %}
-  · <a href="/runs/{{ run_id }}/review/{{ candidate.dup_sibling_candidate_id }}"
+  · <a href="/runs/{{ run_id }}/{{ view }}/{{ candidate.dup_sibling_candidate_id }}"
        class="pill" data-tip="{{ tip('pill.intra_source_duplicate') }}">↔ same-address Land sibling #{{ candidate.dup_sibling_candidate_id }}{% if candidate.dup_sibling_dist_m is not none %} ({{ '%.1f' % candidate.dup_sibling_dist_m }} m){% endif %}</a>
   {% endif %}
 </p>
@@ -56,6 +56,7 @@
     if (el._sibFetch) { el._sibFetch.abort(); el._sibFetch = null; }
     if (el._sibTimer) { clearTimeout(el._sibTimer); el._sibTimer = null; }
     const runId = {{ run_id }};
+    const view = {{ view|tojson }};
     const focusId = {{ candidate.candidate_id }};
     const candLL = [{{ candidate.lat }}, {{ candidate.lon }}];
     {% if candidate.matched_osm_lat and candidate.matched_osm_lon %}
@@ -97,7 +98,7 @@
         {% if candidate.dup_sibling_dist_m is not none %}
         '<div class="muted" style="margin-top:.15rem">{{ '%.1f' % candidate.dup_sibling_dist_m }} m from focus</div>' +
         {% endif %}
-        '<div style="margin-top:.35rem"><a href="/runs/' + runId + '/review/' + sibId + '">Open sibling →</a></div>'
+        '<div style="margin-top:.35rem"><a href="/runs/' + runId + '/' + view + '/' + sibId + '">Open sibling →</a></div>'
       );
       L.polyline([candLL, sibLL], {color:'#38bdf8', weight:1.5, dashArray:'2,4'}).addTo(map);
       boundsPoints.push(sibLL);
@@ -143,7 +144,7 @@
       if (c.address_class && c.address_class !== 'Land') {
         parts.push(`<div class="muted" style="margin-top:.15rem">class: ${esc(c.address_class)}</div>`);
       }
-      parts.push(`<div style="margin-top:.35rem"><a href="/runs/${runId}/review/${c.candidate_id}">Open candidate →</a></div>`);
+      parts.push(`<div style="margin-top:.35rem"><a href="/runs/${runId}/${view}/${c.candidate_id}">Open candidate →</a></div>`);
       return parts.join('');
     }
     function osmPopup(o) {
