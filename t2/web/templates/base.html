@@ -30,7 +30,31 @@
     button, .btn { background: #2563eb; color: #fff; border: 0; padding: .4rem .8rem; border-radius: 4px; cursor: pointer; font-size: .9rem; }
     button.secondary { background: #6b7280; }
     button.danger { background: #dc2626; }
+    button:disabled, button[disabled] { opacity: .55; cursor: wait; }
     form.inline { display: inline; }
+    /* Pipeline stepper */
+    .pipeline-header { display: flex; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+    .pipeline-header .run-all { background: #059669; font-weight: 600; }
+    .pipeline-header .run-all:hover:not(:disabled) { background: #047857; }
+    .pipeline-hint { font-size: .85rem; }
+    .pipeline-spinner { width: 14px; height: 14px; border: 2px solid #cbd5e1; border-top-color: #2563eb;
+                        border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .htmx-indicator { opacity: 0; transition: opacity .15s; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+    #pipeline.htmx-request button { opacity: .55; pointer-events: none; cursor: wait; }
+    .stepper { list-style: none; padding: 0; margin: 0 0 .6rem 0; display: flex; flex-wrap: wrap;
+               align-items: center; gap: .4rem; }
+    .stepper .step { display: inline-flex; align-items: center; gap: .4rem; }
+    .stepper .step + .step::before { content: "→"; color: #9ca3af; margin: 0 .2rem; }
+    .step-badge { display: inline-flex; align-items: center; justify-content: center;
+                  width: 22px; height: 22px; border-radius: 50%; font-size: .78rem; font-weight: 600;
+                  background: #e5e7eb; color: #374151; }
+    .step.done .step-badge { background: #059669; color: #fff; }
+    .step.done .stage-btn { background: #6b7280; }
+    .stage-msg { margin: .4rem 0 .2rem; }
+    .stage-msg.err { background: #fee2e2; color: #991b1b; padding: .4rem .6rem; border-radius: 4px; }
+    .stage-counts { margin: .2rem 0 0; }
     .flash { background: #fef3c7; padding: .5rem .8rem; border-radius: 4px; margin-bottom: 1rem; }
     .grid-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; }
     .muted { color: #6b7280; }

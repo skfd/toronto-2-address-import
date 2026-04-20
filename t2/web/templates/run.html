@@ -38,21 +38,9 @@
 
 <div class="card">
   <h3>Pipeline stages</h3>
-  <div id="stage-result">
-    {% include "_stage_result.html" %}
-  </div>
-  <form hx-post="/runs/{{ run.run_id }}/stage/ingest" hx-target="#stage-result" class="inline">
-    <button title="{{ tip('btn.ingest') }}">1. Ingest candidates</button>
-  </form>
-  <form hx-post="/runs/{{ run.run_id }}/stage/fetch" hx-target="#stage-result" class="inline">
-    <button title="{{ tip('btn.fetch') }}">2. Fetch OSM</button>
-  </form>
-  <form hx-post="/runs/{{ run.run_id }}/stage/conflate" hx-target="#stage-result" class="inline">
-    <button title="{{ tip('btn.conflate') }}">3. Conflate</button>
-  </form>
-  <form hx-post="/runs/{{ run.run_id }}/stage/checks" hx-target="#stage-result" class="inline">
-    <button title="{{ tip('btn.checks') }}">4. Run checks</button>
-  </form>
+  {% with run_id = run.run_id %}
+    {% include "_pipeline.html" %}
+  {% endwith %}
 </div>
 
 <div class="card">

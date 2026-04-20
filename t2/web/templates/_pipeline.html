@@ -1,0 +1,59 @@
+{% set labels = {'ingest': 'Ingest', 'fetch': 'Fetch OSM', 'conflate': 'Conflate', 'checks': 'Run checks'} %}
+<div id="pipeline" class="pipeline">
+  <div class="pipeline-header">
+    <form hx-post="/runs/{{ run_id }}/stage/all"
+          hx-target="#pipeline"
+          hx-swap="outerHTML"
+          hx-indicator="#pipeline"
+          class="inline">
+      <button class="run-all" title="{{ tip('btn.run_all') }}">Run all stages</button>
+    </form>
+    <span class="htmx-indicator pipeline-spinner" aria-hidden="true"></span>
+    <span class="htmx-indicator muted pipeline-hint">working…</span>
+  </div>
+
+  <ol class="stepper">
+    {% for key in stage_order %}
+    {% set done = status[key] %}
+    <li class="step {% if done %}done{% else %}pending{% endif %}">
+      <span class="step-badge"
+            data-tip="{{ tip('stage-status.done' if done else 'stage-status.pending') }}">
+        {% if done %}&#10003;{% else %}{{ loop.index }}{% endif %}
+      </span>
+      <form hx-post="/runs/{{ run_id }}/stage/{{ key }}"
+            hx-target="#pipeline"
+            hx-swap="outerHTML"
+            hx-indicator="#pipeline"
+            class="inline">
+        <button class="stage-btn {% if done %}secondary{% endif %}"
+                title="{{ tip('btn.' ~ key) }}">{{ labels[key] }}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ol>
+
+  {% if error %}
+  <p class="stage-msg err"><strong>Failed:</strong> {{ error }}</p>
+  {% elif msg %}
+  <p class="stage-msg"><em>{{ msg }}</em></p>
+  {% endif %}
+
+  {% if counts %}
+  {% set stage_links = {
+    'APPROVED': '/runs/' ~ run_id ~ '/approved',
+    'SKIPPED': '/runs/' ~ run_id ~ '/skipped',
+    'REVIEW_PENDING': '/runs/' ~ run_id ~ '/review',
+    'BATCHED': '/runs/' ~ run_id ~ '#batches',
+  } %}
+  <p class="stage-counts">
+    {% for stage, n in counts.items() %}
+      {% set href = stage_links.get(stage) %}
+      {% if href %}
+      <a class="pill" href="{{ href }}" data-tip="{{ tip('stage.' ~ stage) }}">{{ stage }}: {{ n }}</a>
+      {% else %}
+      <span class="pill" data-tip="{{ tip('stage.' ~ stage) }}">{{ stage }}: {{ n }}</span>
+      {% endif %}
+    {% endfor %}
+  </p>
+  {% endif %}
+</div>

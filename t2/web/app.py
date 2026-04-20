@@ -215,29 +215,54 @@ def create_app() -> Flask:
             round(run["bbox_max_lat"], 6), round(run["bbox_max_lon"], 6),
         )
         tile = next((t for t in tiles if tuple(t["bbox"]) == target), None)
+        status = pipeline.stage_status(run_id)
         return render_template("run.html", run=run, counts=counts, toggles=toggles,
-                               registry=REGISTRY, batches=batches, tile=tile)
+                               registry=REGISTRY, batches=batches, tile=tile,
+                               status=status, stage_order=("ingest", "fetch", "conflate", "checks"))
 
     # ---- Stage triggers (HTMX) ----
 
+    _STAGE_RUNNERS = {
+        "ingest":   lambda rid: f"Ingested {pipeline.ingest_stage(rid)} candidates.",
+        "fetch":    lambda rid: f"Fetched OSM snapshot: {pipeline.fetch_stage(rid)[:12]}",
+        "conflate": lambda rid: f"Conflated: {pipeline.conflate_stage(rid)}",
+        "checks":   lambda rid: f"Checks ran: {pipeline.run_checks(rid)}",
+    }
+    _STAGE_ORDER = ("ingest", "fetch", "conflate", "checks")
+
+    def _render_pipeline(run_id: int, msg: str | None = None, error: str | None = None):
+        return render_template(
+            "_pipeline.html",
+            run_id=run_id,
+            msg=msg,
+            error=error,
+            counts=pipeline.counts_by_stage(run_id),
+            status=pipeline.stage_status(run_id),
+            stage_order=_STAGE_ORDER,
+        )
+
     @app.post("/runs/<int:run_id>/stage/<stage>")
     def run_stage(run_id: int, stage: str):
-        if stage == "ingest":
-            n = pipeline.ingest_stage(run_id)
-            msg = f"Ingested {n} candidates."
-        elif stage == "fetch":
-            h = pipeline.fetch_stage(run_id)
-            msg = f"Fetched OSM snapshot: {h[:12]}"
-        elif stage == "conflate":
-            c = pipeline.conflate_stage(run_id)
-            msg = f"Conflated: {c}"
-        elif stage == "checks":
-            c = pipeline.run_checks(run_id)
-            msg = f"Checks ran: {c}"
-        else:
+        if stage == "all":
+            parts: list[str] = []
+            for s in _STAGE_ORDER:
+                try:
+                    parts.append(_STAGE_RUNNERS[s](run_id))
+                except Exception as exc:
+                    return _render_pipeline(
+                        run_id,
+                        msg=" · ".join(parts) if parts else None,
+                        error=f"{s}: {exc}",
+                    )
+            return _render_pipeline(run_id, msg=" · ".join(parts))
+        runner = _STAGE_RUNNERS.get(stage)
+        if runner is None:
             abort(400)
-        counts = pipeline.counts_by_stage(run_id)
-        return render_template("_stage_result.html", msg=msg, counts=counts, run_id=run_id)
+        try:
+            msg = runner(run_id)
+        except Exception as exc:
+            return _render_pipeline(run_id, error=f"{stage}: {exc}")
+        return _render_pipeline(run_id, msg=msg)
 
     @app.post("/runs/<int:run_id>/toggle/<check_id>")
     def run_toggle(run_id: int, check_id: str):

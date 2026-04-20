@@ -334,6 +334,31 @@ def counts_by_stage(run_id: int) -> dict[str, int]:
     return candidates.count_by_stage(run_id)
 
 
+def stage_status(run_id: int) -> dict[str, bool]:
+    """Per-stage 'has produced output' flags for the run UI's stepper."""
+    cfg = _config.load()
+    conn = _db.connect()
+    try:
+        has_candidates = conn.execute(
+            "SELECT 1 FROM candidates WHERE run_id = ? LIMIT 1", (run_id,)
+        ).fetchone() is not None
+        has_conflation = conn.execute(
+            "SELECT 1 FROM conflation WHERE run_id = ? LIMIT 1", (run_id,)
+        ).fetchone() is not None
+        has_checks = conn.execute(
+            "SELECT 1 FROM check_results WHERE run_id = ? LIMIT 1", (run_id,)
+        ).fetchone() is not None
+    finally:
+        conn.close()
+    osm_cache = cfg.data_dir / f"osm_current_run{run_id}.json"
+    return {
+        "ingest": has_candidates,
+        "fetch": osm_cache.exists(),
+        "conflate": has_conflation,
+        "checks": has_checks,
+    }
+
+
 def list_runs() -> list[dict]:
     conn = _db.connect()
     try:

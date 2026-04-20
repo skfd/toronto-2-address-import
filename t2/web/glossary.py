@@ -75,6 +75,11 @@ GLOSSARY: dict[str, str] = {
     "btn.fetch": "Download the OSM snapshot for this bbox and build the spatial index.",
     "btn.conflate": "Match candidates to OSM using distance + fuzzy name logic.",
     "btn.checks": "Run all enabled checks and flag candidates for review.",
+    "btn.run_all": "Run Ingest → Fetch → Conflate → Checks in one click. Each stage is idempotent; re-running is safe.",
+
+    # pipeline stepper status
+    "stage-status.pending": "This stage has not produced output yet for this run.",
+    "stage-status.done": "This stage has produced output. Re-running resumes or refreshes idempotently.",
 
     # buttons — batches
     "btn.compose_batch": "Bundle APPROVED candidates into an upload batch.",
