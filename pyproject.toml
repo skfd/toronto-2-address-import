@@ -13,6 +13,7 @@ dependencies = [
     "cryptography>=42.0",
     "tomli>=2.0; python_version<'3.11'",
     "osmium>=4.0",
+    "shapely>=2.0",
 ]
 
 [project.urls]
