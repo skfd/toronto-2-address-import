@@ -282,7 +282,10 @@ def upload(batch_id: int) -> None:
             conn.close()
         raise
 
-    # Fill osm_node_ids, mark items uploaded, close changeset
+    # Fill osm_node_ids, mark items uploaded, close changeset. If the server's
+    # diffResult didn't include a mapping for every batch item, flag the batch
+    # as needs_attention instead of uploaded — the successful items still
+    # transition to UPLOADED, but the operator must reconcile the rest.
     conn = _db.connect()
     try:
         conn.execute("BEGIN")
@@ -298,10 +301,27 @@ def upload(batch_id: int) -> None:
             " WHERE bi.batch_id = ? AND bi.upload_status = 'uploaded')",
             (now, batch_id),
         )
-        conn.execute("UPDATE batches SET status='uploaded', uploaded_at=? WHERE batch_id=?", (now, batch_id))
-        audit.log(actor="osm_client", event_type="CHANGESET_UPLOADED",
-                  run_id=run_id, batch_id=batch_id,
-                  payload={"changeset_id": changeset_id, "count": len(mapping)}, conn=conn)
+        pending_rows = conn.execute(
+            "SELECT local_node_id FROM batch_items WHERE batch_id=? AND upload_status='pending'",
+            (batch_id,),
+        ).fetchall()
+        unmapped = [int(r["local_node_id"]) for r in pending_rows]
+        if unmapped:
+            msg = f"partial upload: {len(unmapped)} of {len(unmapped) + len(mapping)} items unmapped"
+            conn.execute(
+                "UPDATE batches SET status='needs_attention', error_msg=? WHERE batch_id=?",
+                (msg, batch_id),
+            )
+            audit.log(actor="osm_client", event_type="UPLOAD_PARTIAL",
+                      run_id=run_id, batch_id=batch_id,
+                      payload={"changeset_id": changeset_id,
+                               "uploaded": len(mapping),
+                               "unmapped_local_node_ids": unmapped}, conn=conn)
+        else:
+            conn.execute("UPDATE batches SET status='uploaded', uploaded_at=? WHERE batch_id=?", (now, batch_id))
+            audit.log(actor="osm_client", event_type="CHANGESET_UPLOADED",
+                      run_id=run_id, batch_id=batch_id,
+                      payload={"changeset_id": changeset_id, "count": len(mapping)}, conn=conn)
         conn.execute("COMMIT")
     finally:
         conn.close()
