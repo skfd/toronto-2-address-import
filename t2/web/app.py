@@ -257,6 +257,7 @@ def create_app() -> Flask:
             all_reasons=all_reasons,
             active_reasons=set(reasons),
             selected_candidate_id=None,
+            municipality_collisions=review.colliding_address_fulls(run_id),
         )
 
     def _review_detail_context(run_id: int, candidate_id: int):
@@ -356,6 +357,7 @@ def create_app() -> Flask:
             active_reasons=set(reasons),
             selected_candidate=True,
             selected_candidate_id=candidate_id,
+            municipality_collisions=review.colliding_address_fulls(run_id),
             **ctx,
         )
 
@@ -566,7 +568,7 @@ def create_app() -> Flask:
             rows = conn.execute(
                 f"""
                 SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
-                       c.lat, c.lon, c.stage_updated_at, c.address_class,
+                       c.lat, c.lon, c.stage_updated_at, c.address_class, c.municipality_name,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode,
                        r.status AS review_status, r.prior_auto_approved
@@ -591,6 +593,7 @@ def create_app() -> Flask:
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
             all_verdicts=_REVIEW_VERDICTS,
+            municipality_collisions=review.colliding_address_fulls(run_id),
         )
 
     @app.get("/runs/<int:run_id>/skipped")
@@ -606,6 +609,7 @@ def create_app() -> Flask:
                 f"""
                 SELECT c.candidate_id, c.address_full, c.housenumber, c.street_raw,
                        c.lat, c.lon, c.lo_num, c.hi_num, c.stage_updated_at, c.address_class,
+                       c.municipality_name,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode,
                        cf.dup_sibling_candidate_id, cf.dup_sibling_dist_m,
@@ -631,6 +635,7 @@ def create_app() -> Flask:
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
             all_verdicts=_REVIEW_VERDICTS,
+            municipality_collisions=review.colliding_address_fulls(run_id),
         )
 
     # ---- Ranges (read-only view of address-range candidates) ----

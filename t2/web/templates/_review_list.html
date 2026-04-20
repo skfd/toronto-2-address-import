@@ -8,6 +8,9 @@
       {% if it.address_class and it.address_class != 'Land' %}
         <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ it.address_class }}</span>
       {% endif %}
+      {% if it.municipality_name and municipality_collisions and it.address_full in municipality_collisions %}
+        <span class="pill" data-tip="{{ tip('pill.municipality') }}">{{ it.municipality_name }}</span>
+      {% endif %}
       {% if it.lo_num is not none and it.hi_num is not none and it.lo_num != it.hi_num %}
         <span class="muted">(range {{ it.lo_num }}–{{ it.hi_num }})</span>
       {% endif %}

@@ -7,6 +7,9 @@
       {% if it.address_class and it.address_class != 'Land' %}
         <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ it.address_class }}</span>
       {% endif %}
+      {% if it.municipality_name and municipality_collisions and it.address_full in municipality_collisions %}
+        <span class="pill" data-tip="{{ tip('pill.municipality') }}">{{ it.municipality_name }}</span>
+      {% endif %}
       {% if it.lat and it.lon %}
       <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
          target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"

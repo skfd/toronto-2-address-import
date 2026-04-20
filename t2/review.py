@@ -151,7 +151,7 @@ def queue(
                 SELECT r.candidate_id, r.reason_code, r.status, r.opened_at, r.resolved_at,
                        r.prior_auto_approved,
                        c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
-                       c.lo_num, c.hi_num, c.stage, c.address_class,
+                       c.lo_num, c.hi_num, c.stage, c.address_class, c.municipality_name,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode,
                        cf.dup_sibling_candidate_id, cf.dup_sibling_dist_m
@@ -174,7 +174,7 @@ def queue(
                        c.stage_updated_at AS resolved_at,
                        0 AS prior_auto_approved,
                        c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
-                       c.lo_num, c.hi_num, c.stage, c.address_class,
+                       c.lo_num, c.hi_num, c.stage, c.address_class, c.municipality_name,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode,
                        cf.dup_sibling_candidate_id, cf.dup_sibling_dist_m
@@ -217,6 +217,29 @@ def get_review_state(run_id: int, candidate_id: int) -> dict:
         if c and c["stage"] == "APPROVED":
             return {"status": "AUTO_APPROVED", "note": None, "prior_auto_approved": 0}
         return {"status": None, "note": None, "prior_auto_approved": 0}
+    finally:
+        conn.close()
+
+
+def colliding_address_fulls(run_id: int) -> set[str]:
+    """address_full values that appear under more than one municipality in this
+    run. Post-amalgamation the same street name recurs across the six former
+    municipalities — surfacing the `municipality_name` on these rows in the
+    review UI is the only way an operator can tell `48 Victor Ave` in former
+    Toronto apart from `48 Victor Ave` in former East York.
+    """
+    conn = _db.connect()
+    try:
+        rows = conn.execute(
+            """
+            SELECT address_full FROM candidates
+            WHERE run_id = ? AND address_full IS NOT NULL AND municipality_name IS NOT NULL
+            GROUP BY address_full
+            HAVING COUNT(DISTINCT municipality_name) > 1
+            """,
+            (run_id,),
+        ).fetchall()
+        return {r["address_full"] for r in rows}
     finally:
         conn.close()
 
