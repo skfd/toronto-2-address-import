@@ -37,6 +37,9 @@
       · <a href="https://www.openstreetmap.org/{{ candidate.nearest_osm_type }}/{{ candidate.nearest_osm_id }}" target="_blank" rel="noopener">open {{ candidate.nearest_osm_type }} #{{ candidate.nearest_osm_id }} in OSM</a>
     {% endif %}
   {% endif %}
+  {% if candidate.dup_sibling_lat and candidate.dup_sibling_lon %}
+    · <span style="display:inline-block;width:.8em;height:.8em;background:#38bdf8;border-radius:50%"></span> same-address Land sibling #{{ candidate.dup_sibling_candidate_id }}
+  {% endif %}
   <br/>
   <span class="muted">Siblings in view —</span>
   <span style="display:inline-block;width:.7em;height:.7em;background:#2ca02c;border-radius:50%;border:1px solid #fff"></span> MATCH
@@ -60,6 +63,13 @@
     {% else %}
     const osmLL = null;
     {% endif %}
+    {% if candidate.dup_sibling_lat and candidate.dup_sibling_lon %}
+    const sibLL = [{{ candidate.dup_sibling_lat }}, {{ candidate.dup_sibling_lon }}];
+    const sibId = {{ candidate.dup_sibling_candidate_id }};
+    {% else %}
+    const sibLL = null;
+    const sibId = null;
+    {% endif %}
     const map = L.map('leaflet-map').setView(candLL, 18);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       { maxZoom: 19, attribution: '© OSM' }).addTo(map);
@@ -67,11 +77,33 @@
     const siblingOsm   = L.layerGroup().addTo(map);
     const blue = L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#2d6cdf;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>', iconSize:[14,14], iconAnchor:[7,7]});
     const red  = L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#d94a4a;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>', iconSize:[14,14], iconAnchor:[7,7]});
+    const dup  = L.divIcon({className:'', html:'<div style="width:14px;height:14px;background:#38bdf8;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px #0006"></div>', iconSize:[14,14], iconAnchor:[7,7]});
     L.marker(candLL, {icon: blue, title: 'focus candidate', zIndexOffset: 1000}).addTo(map);
+    const boundsPoints = [candLL];
     if (osmLL) {
       L.marker(osmLL, {icon: red, title: 'matched OSM', zIndexOffset: 900}).addTo(map);
       L.polyline([candLL, osmLL], {color:'#888', weight:1, dashArray:'4,4'}).addTo(map);
-      map.fitBounds(L.latLngBounds([candLL, osmLL]).pad(0.4));
+      boundsPoints.push(osmLL);
+    }
+    if (sibLL) {
+      const sibMarker = L.marker(sibLL, {icon: dup, title: 'same-address Land sibling #' + sibId, zIndexOffset: 950}).addTo(map);
+      {% set sib_addr = candidate.dup_sibling_address or ('#' ~ candidate.dup_sibling_candidate_id) %}
+      sibMarker.bindPopup(
+        '<strong>↔ same-address Land sibling</strong>' +
+        '<div style="margin-top:.25rem">{{ sib_addr | e }}</div>' +
+        {% if candidate.dup_sibling_verdict %}
+        '<div style="margin-top:.15rem"><span class="pill">verdict: {{ candidate.dup_sibling_verdict | e }}</span></div>' +
+        {% endif %}
+        {% if candidate.dup_sibling_dist_m is not none %}
+        '<div class="muted" style="margin-top:.15rem">{{ '%.1f' % candidate.dup_sibling_dist_m }} m from focus</div>' +
+        {% endif %}
+        '<div style="margin-top:.35rem"><a href="/runs/' + runId + '/review/' + sibId + '">Open sibling →</a></div>'
+      );
+      L.polyline([candLL, sibLL], {color:'#38bdf8', weight:1.5, dashArray:'2,4'}).addTo(map);
+      boundsPoints.push(sibLL);
+    }
+    if (boundsPoints.length > 1) {
+      map.fitBounds(L.latLngBounds(boundsPoints).pad(0.4));
     }
 
     const VERDICT_COLOR = {

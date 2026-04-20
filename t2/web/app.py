@@ -290,6 +290,15 @@ def create_app() -> Flask:
                    WHERE c.run_id=? AND c.candidate_id=?""",
                 (run_id, candidate_id),
             ).fetchone()
+            sibling_row = None
+            if row and row["dup_sibling_candidate_id"]:
+                sibling_row = conn.execute(
+                    """SELECT c.lat, c.lon, c.address_full, c.housenumber, c.street_raw,
+                              cf.verdict
+                       FROM candidates c LEFT JOIN conflation cf USING (run_id, candidate_id)
+                       WHERE c.run_id=? AND c.candidate_id=?""",
+                    (run_id, row["dup_sibling_candidate_id"]),
+                ).fetchone()
         finally:
             conn.close()
         if not row:
@@ -302,6 +311,17 @@ def create_app() -> Flask:
                 r["details"] = {}
 
         cand = dict(row)
+        if sibling_row is not None:
+            cand["dup_sibling_lat"] = sibling_row["lat"]
+            cand["dup_sibling_lon"] = sibling_row["lon"]
+            cand["dup_sibling_address"] = (
+                sibling_row["address_full"]
+                or " ".join(
+                    p for p in (sibling_row["housenumber"], sibling_row["street_raw"]) if p
+                )
+                or None
+            )
+            cand["dup_sibling_verdict"] = sibling_row["verdict"]
         try:
             osm_tags = json.loads(cand.get("matched_osm_tags_json") or "null")
         except Exception:
