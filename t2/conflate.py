@@ -143,30 +143,35 @@ def _classify(
     c_num = (cand_row.get("housenumber") or "").upper()
     c_street_norm = cand_row.get("street_norm") or ""
 
-    best_match = None
+    # Tiebreak on osm_id when distances are equal so equidistant candidates
+    # pick deterministically — GridIndex.query order depends on dict insertion
+    # and isn't stable across refactors.
+    best_match: tuple[float, int, dict] | None = None
     for o_lat, o_lon, osm in match_idx.query(c_lat, c_lon):
         dist = haversine(c_lat, c_lon, o_lat, o_lon)
         if dist > match_radius_m:
             continue
         if osm["_norm_number"] == c_num and osm["_norm_street"] == c_street_norm:
-            if best_match is None or dist < best_match[0]:
-                best_match = (dist, osm)
+            oid = osm.get("id") or 0
+            if best_match is None or (dist, oid) < (best_match[0], best_match[1]):
+                best_match = (dist, oid, osm)
 
     if best_match is not None:
-        dist, el = best_match
+        dist, _oid, el = best_match
         verdict = "MATCH" if dist <= match_near_m else "MATCH_FAR"
         return verdict, el.get("id"), el.get("type"), dist, el, None
 
-    best_poi = None
+    best_poi: tuple[float, int, dict] | None = None
     for o_lat, o_lon, poi in poi_idx.query(c_lat, c_lon):
         dist = haversine(c_lat, c_lon, o_lat, o_lon)
         if dist > match_radius_m:
             continue
         if poi["_norm_number"] == c_num and poi["_norm_street"] == c_street_norm:
-            if best_poi is None or dist < best_poi[0]:
-                best_poi = (dist, poi)
+            pid = poi.get("id") or 0
+            if best_poi is None or (dist, pid) < (best_poi[0], best_poi[1]):
+                best_poi = (dist, pid, poi)
 
-    poi_el = best_poi[1] if best_poi else None
+    poi_el = best_poi[2] if best_poi else None
     return "MISSING", None, None, None, None, poi_el
 
 
