@@ -54,6 +54,9 @@
       <span class="pill" data-tip="{{ tip('stage.' ~ stage) }}">{{ stage }}: {{ n }}</span>
       {% endif %}
     {% endfor %}
+    {% if ranges_count %}
+    <a class="pill" href="/runs/{{ run_id }}/ranges">RANGES: {{ ranges_count }}</a>
+    {% endif %}
   </p>
   {% endif %}
 </div>

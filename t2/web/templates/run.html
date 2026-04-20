@@ -2,9 +2,20 @@
 {% block title %}Run {{ run.name }}{% endblock %}
 {% block content %}
 <div class="card">
-  <h2>Run: {{ run.name }} <span class="muted">#{{ run.run_id }}</span></h2>
+  <div style="display: flex; align-items: center; gap: .6rem;">
+    <h2 style="margin: 0;">Run: {{ run.name }} <span class="muted">#{{ run.run_id }}</span></h2>
+    <form method="post" action="{{ url_for('runs_new') }}" class="inline" style="margin-left: auto;">
+      <input type="hidden" name="name" value="{{ new_run_name }}"/>
+      <input type="hidden" name="min_lat" value="{{ run.bbox_min_lat }}"/>
+      <input type="hidden" name="min_lon" value="{{ run.bbox_min_lon }}"/>
+      <input type="hidden" name="max_lat" value="{{ run.bbox_max_lat }}"/>
+      <input type="hidden" name="max_lon" value="{{ run.bbox_max_lon }}"/>
+      <button class="secondary" title="Start a new run with the same bbox">New run on this tile</button>
+    </form>
+  </div>
   <p class="muted"><span data-tip="{{ tip('field.bbox') }}">bbox {{ '%.5f, %.5f → %.5f, %.5f' % (run.bbox_min_lat, run.bbox_min_lon, run.bbox_max_lat, run.bbox_max_lon) }}</span>
-    · <span data-tip="{{ tip('field.source_snapshot') }}">source snapshot {{ run.source_snapshot_id }}</span></p>
+    · <span data-tip="{{ tip('field.source_snapshot') }}">source snapshot {{ run.source_snapshot_id }}</span>
+    · <a href="/runs/{{ run.run_id }}/audit">audit log</a></p>
   <div id="run-map" style="height: 320px; border-radius: 4px; margin: .6rem 0;"></div>
   <script>
     (function(){
@@ -27,13 +38,6 @@
     .run-label { background: rgba(37, 99, 235, 0.85); color: #fff; border: 0; font-weight: 600; padding: 4px 10px; }
     .leaflet-tooltip.run-label:before { display: none; }
   </style>
-  <p>
-    <a href="/runs/{{ run.run_id }}/review">Review queue</a> ·
-    <a href="/runs/{{ run.run_id }}/approved">Approved</a> ·
-    <a href="/runs/{{ run.run_id }}/skipped">Skipped</a> ·
-    <a href="/runs/{{ run.run_id }}/ranges">Ranges</a> ·
-    <a href="/runs/{{ run.run_id }}/audit">Audit log</a>
-  </p>
 </div>
 
 <div class="card">

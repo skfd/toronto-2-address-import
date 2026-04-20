@@ -61,6 +61,7 @@
     code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
     #leaflet-map { height: 280px; border-radius: 4px; }
     [data-tip] { position: relative; cursor: help; }
+    a[data-tip], button[data-tip] { cursor: pointer; }
     [data-tip]:hover::after {
       content: attr(data-tip);
       position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);

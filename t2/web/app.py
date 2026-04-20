@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
-from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, review, tag_diff, tiles_build
+from .. import audit, batcher, candidates, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, review, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -216,9 +216,14 @@ def create_app() -> Flask:
         )
         tile = next((t for t in tiles if tuple(t["bbox"]) == target), None)
         status = pipeline.stage_status(run_id)
+        from datetime import datetime
+        stamp = datetime.now().strftime("%Y-%m-%d-%H%M")
+        new_run_name = f"{tile['id']}-{stamp}" if tile else f"{run['name']}-rerun-{stamp}"
         return render_template("run.html", run=run, counts=counts, toggles=toggles,
                                registry=REGISTRY, batches=batches, tile=tile,
-                               status=status, stage_order=("ingest", "fetch", "conflate", "checks"))
+                               status=status, stage_order=("ingest", "fetch", "conflate", "checks"),
+                               ranges_count=candidates.count_ranges(run_id),
+                               new_run_name=new_run_name)
 
     # ---- Stage triggers (HTMX) ----
 
@@ -239,6 +244,7 @@ def create_app() -> Flask:
             counts=pipeline.counts_by_stage(run_id),
             status=pipeline.stage_status(run_id),
             stage_order=_STAGE_ORDER,
+            ranges_count=candidates.count_ranges(run_id),
         )
 
     @app.post("/runs/<int:run_id>/stage/<stage>")

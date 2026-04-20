@@ -87,3 +87,18 @@ def count_by_stage(run_id: int) -> dict[str, int]:
         return {r["stage"]: r["n"] for r in rows}
     finally:
         conn.close()
+
+
+def count_ranges(run_id: int) -> int:
+    conn = _db.connect()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM candidates WHERE run_id = ?"
+            " AND stage = 'SKIPPED'"
+            " AND lo_num IS NOT NULL AND hi_num IS NOT NULL"
+            " AND lo_num != hi_num",
+            (run_id,),
+        ).fetchone()
+        return int(row["n"]) if row else 0
+    finally:
+        conn.close()
