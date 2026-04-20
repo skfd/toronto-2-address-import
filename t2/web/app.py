@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
-from .. import audit, batcher, candidates, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, review, tag_diff, tiles_build
+from .. import audit, batcher, candidates, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -66,80 +66,6 @@ def _osm_element_latlon(el: dict) -> tuple[float | None, float | None]:
     return c.get("lat"), c.get("lon")
 
 
-def _range_coverage(cand: dict, snap_id: int | None, source_conn=None) -> dict:
-    """Look up which integers inside [lo_num, hi_num] appear as single-row
-    source addresses on the same street + municipality. Returns parity-aware
-    (step=2) and integer-aware summaries plus matched singles' coordinates.
-    """
-    from .. import source_db
-    lo, hi = cand.get("lo_num"), cand.get("hi_num")
-    if lo is None or hi is None or lo == hi or snap_id is None:
-        return {
-            "parity_items": [], "int_present_count": 0, "int_total": 0,
-            "parity_present_count": 0, "parity_total": 0,
-            "singles_geo": [],
-        }
-    lo_i, hi_i = (lo, hi) if lo <= hi else (hi, lo)
-    target_street = cand.get("street_norm") or ""
-    mun = cand.get("municipality_name")
-    own_conn = source_conn is None
-    conn = source_conn if source_conn is not None else source_db.connect_readonly()
-    try:
-        rows = conn.execute(
-            "SELECT lo_num, linear_name_full, address_full, latitude, longitude, "
-            "       address_point_id "
-            "FROM addresses "
-            "WHERE max_snapshot_id=? AND hi_num IS NULL "
-            "  AND municipality_name IS ? "
-            "  AND lo_num BETWEEN ? AND ?",
-            (snap_id, mun, lo_i, hi_i),
-        ).fetchall()
-    finally:
-        if own_conn:
-            conn.close()
-    present: dict[int, dict] = {}
-    for r in rows:
-        if normalize_street(r["linear_name_full"]) != target_street:
-            continue
-        present[int(r["lo_num"])] = {
-            "address_full": r["address_full"],
-            "lat": r["latitude"],
-            "lon": r["longitude"],
-            "address_point_id": r["address_point_id"],
-        }
-    parity_seq = list(range(lo_i, hi_i + 1, 2))
-    int_seq = list(range(lo_i, hi_i + 1))
-    parity_items = [
-        {"num": n, "present": n in present, **(present.get(n) or {})}
-        for n in parity_seq
-    ]
-    singles_geo = [
-        {"num": n, "lat": p["lat"], "lon": p["lon"],
-         "address_full": p["address_full"],
-         "address_point_id": p["address_point_id"]}
-        for n, p in sorted(present.items())
-        if p.get("lat") is not None and p.get("lon") is not None
-    ]
-    return {
-        "parity_items": parity_items,
-        "parity_present_count": sum(1 for it in parity_items if it["present"]),
-        "parity_total": len(parity_items),
-        "int_present_count": sum(1 for n in int_seq if n in present),
-        "int_total": len(int_seq),
-        "singles_geo": singles_geo,
-    }
-
-
-def _coverage_category(cov: dict) -> str:
-    total = cov.get("parity_total") or 0
-    if total == 0:
-        return "unknown"
-    present = cov.get("parity_present_count") or 0
-    if present == 0:
-        return "uncovered"
-    if present == total:
-        return "full"
-    return "partial"
 
 
 def create_app() -> Flask:
@@ -693,56 +619,55 @@ def create_app() -> Flask:
 
     # ---- Ranges (read-only view of address-range candidates) ----
 
-    _RANGE_COVERAGE_CATS = ("uncovered", "partial", "full", "unknown")
+    _RANGE_COVERAGE_CATS = _ranges.CATEGORIES
 
     @app.get("/runs/<int:run_id>/ranges")
     def ranges_page(run_id: int):
-        from .. import source_db
         raw = request.args.get("coverage")
         if raw is None:
             # Default: hide fully-covered ranges (they're the uninteresting case).
             active_cats: tuple[str, ...] = ("uncovered", "partial", "unknown")
         else:
             active_cats = tuple(c for c in raw.split(",") if c in _RANGE_COVERAGE_CATS)
-        conn = _db.connect()
-        try:
-            rows = conn.execute(
-                """
-                SELECT candidate_id, address_full, housenumber, street_raw, street_norm,
-                       lat, lon, lo_num, lo_num_suf, hi_num, hi_num_suf,
-                       address_class, municipality_name, stage_updated_at
-                FROM candidates
-                WHERE run_id = ?
-                  AND stage = 'SKIPPED'
-                  AND lo_num IS NOT NULL AND hi_num IS NOT NULL
-                  AND lo_num != hi_num
-                ORDER BY stage_updated_at DESC
-                """,
-                (run_id,),
-            ).fetchall()
-            run_row = conn.execute(
-                "SELECT source_snapshot_id FROM runs WHERE run_id=?", (run_id,)
-            ).fetchone()
-        finally:
-            conn.close()
-        snap_id = int(run_row["source_snapshot_id"]) if run_row and run_row["source_snapshot_id"] else None
-        src_conn = source_db.connect_readonly() if snap_id is not None else None
-        try:
-            items: list[dict] = []
-            counts = {c: 0 for c in _RANGE_COVERAGE_CATS}
-            for r in rows:
-                d = dict(r)
-                cov = _range_coverage(d, snap_id, src_conn) if snap_id is not None else {}
-                cat = _coverage_category(cov) if cov else "unknown"
-                d["coverage_cat"] = cat
-                d["parity_present_count"] = cov.get("parity_present_count", 0)
-                d["parity_total"] = cov.get("parity_total", 0)
-                counts[cat] += 1
-                if cat in active_cats:
-                    items.append(d)
-        finally:
-            if src_conn is not None:
-                src_conn.close()
+
+        def _fetch():
+            conn = _db.connect()
+            try:
+                return conn.execute(
+                    """
+                    SELECT candidate_id, address_full, housenumber, street_raw, street_norm,
+                           lat, lon, lo_num, lo_num_suf, hi_num, hi_num_suf,
+                           address_class, municipality_name, stage_updated_at,
+                           range_coverage_cat, range_parity_present, range_parity_total
+                    FROM candidates
+                    WHERE run_id = ?
+                      AND stage = 'SKIPPED'
+                      AND lo_num IS NOT NULL AND hi_num IS NOT NULL
+                      AND lo_num != hi_num
+                    ORDER BY stage_updated_at DESC
+                    """,
+                    (run_id,),
+                ).fetchall()
+            finally:
+                conn.close()
+
+        rows = _fetch()
+        # Lazy backfill for runs that predate the range_coverage cache columns.
+        if rows and any(r["range_coverage_cat"] is None for r in rows):
+            _ranges.compute_for_run(run_id)
+            rows = _fetch()
+
+        items: list[dict] = []
+        counts = {c: 0 for c in _RANGE_COVERAGE_CATS}
+        for r in rows:
+            d = dict(r)
+            cat = d["range_coverage_cat"] or "unknown"
+            d["coverage_cat"] = cat
+            d["parity_present_count"] = d["range_parity_present"] or 0
+            d["parity_total"] = d["range_parity_total"] or 0
+            counts[cat] += 1
+            if cat in active_cats:
+                items.append(d)
         partial = request.args.get("partial") == "1"
         template = "_ranges_list.html" if partial else "ranges.html"
         return render_template(
@@ -775,7 +700,7 @@ def create_app() -> Flask:
             abort(404)
         cand = dict(row)
         snap_id = int(run_row["source_snapshot_id"]) if run_row and run_row["source_snapshot_id"] else None
-        coverage = _range_coverage(cand, snap_id)
+        coverage = _ranges.coverage(cand, snap_id)
         return render_template(
             "_ranges_detail.html",
             run_id=run_id,

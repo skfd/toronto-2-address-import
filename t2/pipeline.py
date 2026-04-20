@@ -2,7 +2,7 @@
 import json
 from datetime import datetime, timezone
 
-from . import audit, candidates, conflate, config as _config, db as _db, osm_fetch, source_db
+from . import audit, candidates, conflate, config as _config, db as _db, osm_fetch, ranges as _ranges, source_db
 from .checks import REGISTRY, Candidate, CheckContext
 
 
@@ -308,6 +308,7 @@ def run_checks(run_id: int) -> dict[str, int]:
         raise
     finally:
         conn.close()
+    _ranges.compute_for_run(run_id)
     return counts
 
 
