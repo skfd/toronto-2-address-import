@@ -258,7 +258,8 @@ def create_app() -> Flask:
                           cf.nearest_dist_m, cf.matched_osm_tags_json, cf.matched_osm_geom_hint,
                           cf.matched_osm_lat, cf.matched_osm_lon,
                           cf.poi_osm_id, cf.poi_osm_type, cf.poi_tags_json,
-                          cf.proposed_postcode
+                          cf.proposed_postcode,
+                          cf.dup_sibling_candidate_id, cf.dup_sibling_dist_m
                    FROM candidates c LEFT JOIN conflation cf USING (run_id, candidate_id)
                    WHERE c.run_id=? AND c.candidate_id=?""",
                 (run_id, candidate_id),
@@ -593,6 +594,7 @@ def create_app() -> Flask:
                        c.lat, c.lon, c.lo_num, c.hi_num, c.stage_updated_at, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
                        cf.poi_osm_id, cf.proposed_postcode,
+                       cf.dup_sibling_candidate_id, cf.dup_sibling_dist_m,
                        r.status AS review_status
                 FROM candidates c
                 LEFT JOIN conflation cf USING (run_id, candidate_id)

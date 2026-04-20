@@ -18,6 +18,10 @@
   {% if candidate.proposed_postcode %}
   · <span class="pill" data-tip="{{ tip('pill.postcode_from_poi') }}">postcode from POI: {{ candidate.proposed_postcode }}</span>
   {% endif %}
+  {% if candidate.dup_sibling_candidate_id %}
+  · <a href="/runs/{{ run_id }}/review/{{ candidate.dup_sibling_candidate_id }}"
+       class="pill" data-tip="{{ tip('pill.intra_source_duplicate') }}">↔ same-address Land sibling #{{ candidate.dup_sibling_candidate_id }}{% if candidate.dup_sibling_dist_m is not none %} ({{ '%.1f' % candidate.dup_sibling_dist_m }} m){% endif %}</a>
+  {% endif %}
 </p>
 {% if candidate.lo_num is not none and candidate.hi_num is not none and candidate.lo_num != candidate.hi_num %}
 <p class="muted">Range: <strong>{{ candidate.lo_num }}{{ candidate.lo_num_suf or '' }}–{{ candidate.hi_num }}{{ candidate.hi_num_suf or '' }}</strong> (reference only — not conflated)</p>

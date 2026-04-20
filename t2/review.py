@@ -137,7 +137,8 @@ def queue(
                        c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
                        c.lo_num, c.hi_num, c.stage, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
-                       cf.poi_osm_id, cf.proposed_postcode
+                       cf.poi_osm_id, cf.proposed_postcode,
+                       cf.dup_sibling_candidate_id, cf.dup_sibling_dist_m
                 FROM review_items r
                 JOIN candidates c USING (run_id, candidate_id)
                 LEFT JOIN conflation cf USING (run_id, candidate_id)
@@ -159,7 +160,8 @@ def queue(
                        c.address_full, c.housenumber, c.street_raw, c.lat, c.lon,
                        c.lo_num, c.hi_num, c.stage, c.address_class,
                        cf.verdict, cf.nearest_osm_id, cf.nearest_osm_type, cf.nearest_dist_m,
-                       cf.poi_osm_id, cf.proposed_postcode
+                       cf.poi_osm_id, cf.proposed_postcode,
+                       cf.dup_sibling_candidate_id, cf.dup_sibling_dist_m
                 FROM candidates c
                 LEFT JOIN review_items r USING (run_id, candidate_id)
                 LEFT JOIN conflation cf USING (run_id, candidate_id)

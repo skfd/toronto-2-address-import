@@ -50,6 +50,7 @@ GLOSSARY: dict[str, str] = {
     "reason.colocated_land": "Non-Land row sits within 50 m of a Land sibling at the same address — the Land row is the canonical record.",
     "reason.suspicious_suffix": "Suffix letter looks like a digit (I↔1, O↔0, Q↔0) — likely a data-entry typo.",
     "reason.city_duplicate": "Another candidate in this run sits within a few metres.",
+    "reason.intra_source_duplicate": "Another Land row in the source has the same address_full + municipality but sits elsewhere. Unlike city_duplicate (3 m, any class), this is address-keyed and Land-only; <5 m pairs are silently deduped during conflation, so anything flagged here is 5 m or farther.",
     "reason.spot_check": "Randomly sampled MISSING address for manual QA.",
     "reason.plain_number": "Plain housenumber — no suffix or range.",
     "reason.unique_location": "No nearby duplicates in the input.",
@@ -61,6 +62,7 @@ GLOSSARY: dict[str, str] = {
     "pill.poi_acknowledged": "A shop/amenity node sits at this address but isn't a canonical address feature — ignored for matching.",
     "pill.postcode_from_poi": "Postal code copied from the nearby POI node; included in the proposed tags.",
     "pill.address_class": "Source address class. Non-Land rows (Structure, Structure Entrance, Land Entrance) mark building centroids, doors, or driveways rather than the parcel.",
+    "pill.intra_source_duplicate": "Another Land row in the source has the exact same address_full + municipality. Click to jump to the sibling.",
 
     # severities
     "severity.warn": "Likely problem — requires attention.",

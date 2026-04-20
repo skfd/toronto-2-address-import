@@ -2,6 +2,7 @@
 from .base import Candidate, Check, CheckContext, Verdict
 from .city_duplicate import CityDuplicateCheck
 from .conflict import ConflictCheck
+from .intra_source_duplicate import IntraSourceDuplicateCheck
 from .missing_sample import MissingSampleCheck
 from .potential_amenity import PotentialAmenityCheck
 from .suffix_range import SuffixRangeCheck
@@ -12,6 +13,7 @@ REGISTRY: dict[str, Check] = {
         ConflictCheck(),
         SuffixRangeCheck(),
         CityDuplicateCheck(),
+        IntraSourceDuplicateCheck(),
         MissingSampleCheck(),
         PotentialAmenityCheck(),
     )

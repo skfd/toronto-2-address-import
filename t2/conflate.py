@@ -223,6 +223,12 @@ def _is_range(row: dict) -> bool:
 # disambiguator.
 _LAND_SIBLING_RADIUS_M = 50.0
 
+# Two Land rows at the same (address_full, municipality_name) within this
+# distance are treated as a single logical record: conflation silently skips
+# the non-canonical one. Beyond this threshold both rows proceed through
+# conflation and the intra_source_duplicate check flags them for review.
+_INTRA_DUP_AUTO_SKIP_M = 5.0
+
 
 def _colocated_land_sibling(
     cand: dict, land_lookup: dict[tuple[str, str | None], list[tuple[float, float]]]
@@ -239,6 +245,57 @@ def _colocated_land_sibling(
     return False
 
 
+def _build_land_groups(
+    conn, run_id: int
+) -> dict[tuple[str, str | None], list[tuple[int, float, float]]]:
+    """(address_full, municipality_name) -> [(candidate_id, lat, lon), ...].
+
+    Ordered by candidate_id so the first entry of every group is the canonical
+    (lowest-id) row. Same key shape as land_lookup but carries candidate_id so
+    the sibling link can be persisted on the conflation row.
+    """
+    groups: dict[tuple[str, str | None], list[tuple[int, float, float]]] = defaultdict(list)
+    for r in conn.execute(
+        "SELECT candidate_id, address_full, municipality_name, lat, lon "
+        "FROM candidates WHERE run_id = ? AND address_class = 'Land' "
+        "  AND address_full IS NOT NULL AND lat IS NOT NULL AND lon IS NOT NULL "
+        "ORDER BY candidate_id",
+        (run_id,),
+    ):
+        groups[(r["address_full"], r["municipality_name"])].append(
+            (r["candidate_id"], r["lat"], r["lon"])
+        )
+    return groups
+
+
+def _intra_dup_status(
+    cand: dict,
+    land_groups: dict[tuple[str, str | None], list[tuple[int, float, float]]],
+) -> tuple[int, float, bool] | None:
+    """Return (nearest_sibling_cid, dist_m, is_canonical) for a Land candidate
+    that shares (address_full, municipality_name) with another Land row; None
+    otherwise. is_canonical is True when this row's candidate_id is the
+    lowest in the group (the keep-one tiebreak).
+    """
+    if cand.get("address_class") != "Land":
+        return None
+    addr, lat, lon = cand.get("address_full"), cand.get("lat"), cand.get("lon")
+    if not addr or lat is None or lon is None:
+        return None
+    group = land_groups.get((addr, cand.get("municipality_name")), ())
+    if len(group) < 2:
+        return None
+    siblings = [s for s in group if s[0] != cand["candidate_id"]]
+    if not siblings:
+        return None
+    sib_cid, _, sib_dist = min(
+        ((s[0], s, haversine(lat, lon, s[1], s[2])) for s in siblings),
+        key=lambda t: t[2],
+    )
+    canonical_cid = min(s[0] for s in group)
+    return sib_cid, sib_dist, cand["candidate_id"] == canonical_cid
+
+
 def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m: float) -> dict[str, int]:
     """Iterate candidates at stage INGESTED, write conflation row, advance to CONFLATED."""
     from . import tag_diff  # local import avoids an import cycle at module load
@@ -250,16 +307,11 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
     counts = {"MATCH": 0, "MATCH_FAR": 0, "MISSING": 0, "SKIPPED": 0}
     conn = _db.connect()
     try:
-        land_lookup: dict[tuple[str, str | None], list[tuple[float, float]]] = {}
-        for lr in conn.execute(
-            "SELECT address_full, municipality_name, lat, lon FROM candidates "
-            "WHERE run_id = ? AND address_class = 'Land' "
-            "  AND address_full IS NOT NULL AND lat IS NOT NULL AND lon IS NOT NULL",
-            (run_id,),
-        ):
-            land_lookup.setdefault(
-                (lr["address_full"], lr["municipality_name"]), []
-            ).append((lr["lat"], lr["lon"]))
+        land_groups = _build_land_groups(conn, run_id)
+        land_lookup: dict[tuple[str, str | None], list[tuple[float, float]]] = {
+            key: [(lat, lon) for _cid, lat, lon in group]
+            for key, group in land_groups.items()
+        }
 
         rows = conn.execute(
             "SELECT candidate_id, address_full, housenumber, street_raw, street_norm, lat, lon, "
@@ -272,10 +324,15 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
         for r in rows:
             cand = dict(r)
 
+            # Same-address Land sibling detection: <5 m auto-skips the non-canonical
+            # row; wider pairs persist the link for the intra_source_duplicate check.
+            dup = _intra_dup_status(cand, land_groups)
+            auto_skip_dup = dup is not None and dup[1] <= _INTRA_DUP_AUTO_SKIP_M and not dup[2]
+
             # Address ranges are skipped during conflation (kept for reference only).
             # Non-Land rows colocated with a Land sibling at the same address are also
             # skipped — the Land row is the canonical record (see SOURCE_DATA.md).
-            if _is_range(cand) or _colocated_land_sibling(cand, land_lookup):
+            if _is_range(cand) or _colocated_land_sibling(cand, land_lookup) or auto_skip_dup:
                 verdict, osm_id, osm_type, dist, matched, poi = "SKIPPED", None, None, None, None, None
             else:
                 verdict, osm_id, osm_type, dist, matched, poi = _classify(
@@ -290,6 +347,8 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
             poi_tags = (poi.get("tags") if poi else None) or None
             poi_postcode = (poi_tags.get("addr:postcode").strip() if poi_tags and poi_tags.get("addr:postcode") else None)
 
+            dup_sib_cid, dup_sib_dist = (dup[0], dup[1]) if dup else (None, None)
+
             conn.execute(
                 """
                 INSERT OR REPLACE INTO conflation
@@ -297,8 +356,9 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
                    nearest_dist_m, osm_snapshot_hash, computed_at,
                    matched_osm_tags_json, matched_osm_geom_hint,
                    matched_osm_lat, matched_osm_lon,
-                   poi_osm_id, poi_osm_type, poi_tags_json, proposed_postcode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   poi_osm_id, poi_osm_type, poi_tags_json, proposed_postcode,
+                   dup_sibling_candidate_id, dup_sibling_dist_m)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     run_id, cand["candidate_id"], verdict, osm_id, osm_type, dist,
@@ -309,8 +369,24 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
                     (poi.get("type") if poi else None),
                     json.dumps(poi_tags) if poi_tags else None,
                     poi_postcode,
+                    dup_sib_cid, dup_sib_dist,
                 ),
             )
+            if auto_skip_dup:
+                audit.log(
+                    actor="pipeline", event_type="INTRA_DUP_SKIPPED",
+                    run_id=run_id, candidate_id=cand["candidate_id"],
+                    payload={
+                        "sibling_candidate_id": dup_sib_cid,
+                        "dist_m": round(dup_sib_dist, 2),
+                        "canonical_candidate_id": min(
+                            s[0] for s in land_groups[
+                                (cand["address_full"], cand["municipality_name"])
+                            ]
+                        ),
+                    },
+                    conn=conn,
+                )
             conn.execute(
                 "UPDATE candidates SET stage = 'CONFLATED', stage_updated_at = ? "
                 "WHERE run_id = ? AND candidate_id = ?",

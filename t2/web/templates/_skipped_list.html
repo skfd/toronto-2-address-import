@@ -39,6 +39,11 @@
       {% if it.proposed_postcode %}
         <span class="pill" data-tip="{{ tip('pill.postcode_from_poi') }}">+postcode</span>
       {% endif %}
+      {% if it.dup_sibling_candidate_id %}
+        <a href="/runs/{{ run_id }}/review/{{ it.dup_sibling_candidate_id }}"
+           class="pill" data-tip="{{ tip('pill.intra_source_duplicate') }}"
+           onclick="event.stopPropagation()">↔ #{{ it.dup_sibling_candidate_id }}{% if it.dup_sibling_dist_m is not none %} ({{ '%.1f' % it.dup_sibling_dist_m }}m){% endif %}</a>
+      {% endif %}
     </div>
   {% else %}
     <p class="muted">Nothing skipped.</p>
