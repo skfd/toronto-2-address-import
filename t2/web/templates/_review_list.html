@@ -1,6 +1,6 @@
 <div class="card" id="review-list" style="max-height: 70vh; overflow: auto;">
   {% for it in items %}
-    <div {% if selected_candidate_id == it.candidate_id %}id="review-selected" {% endif %}style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;{% if selected_candidate_id == it.candidate_id %}background:#eef6ff;{% endif %}"
+    <div {% if selected_candidate_id == it.candidate_id %}id="list-selected" {% endif %}style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;{% if selected_candidate_id == it.candidate_id %}background:#eef6ff;{% endif %}"
          hx-get="/runs/{{ run_id }}/review/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
          hx-include="#review-filters"
          onclick="this.parentNode.querySelectorAll('div[hx-get]').forEach(function(r){r.style.background='';});this.style.background='#eef6ff';">
@@ -51,12 +51,4 @@
     <p class="muted">No items match the current filter.</p>
   {% endfor %}
 </div>
-<script>
-  (function(){
-    const list = document.getElementById('review-list');
-    const sel = document.getElementById('review-selected');
-    if (!list || !sel) return;
-    const offset = sel.offsetTop - list.offsetTop - (list.clientHeight - sel.clientHeight) / 2;
-    list.scrollTop = Math.max(0, offset);
-  })();
-</script>
+{% include "_list_scroll.html" %}

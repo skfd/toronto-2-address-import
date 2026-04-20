@@ -1,0 +1,15 @@
+<script>
+  (function(){
+    const sel = document.getElementById('list-selected');
+    if (!sel) return;
+    let list = sel.parentElement;
+    while (list && list !== document.body) {
+      const s = getComputedStyle(list);
+      if (s.overflowY === 'auto' || s.overflowY === 'scroll') break;
+      list = list.parentElement;
+    }
+    if (!list || list === document.body) return;
+    const offset = sel.offsetTop - list.offsetTop - (list.clientHeight - sel.clientHeight) / 2;
+    list.scrollTop = Math.max(0, offset);
+  })();
+</script>

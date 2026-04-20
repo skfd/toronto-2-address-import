@@ -1,6 +1,6 @@
 <div class="card" id="ranges-list" style="max-height: 70vh; overflow: auto;">
   {% for it in items %}
-    <div style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;"
+    <div {% if selected_candidate_id == it.candidate_id %}id="list-selected" {% endif %}style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;{% if selected_candidate_id == it.candidate_id %}background:#eef6ff;{% endif %}"
          hx-get="/runs/{{ run_id }}/ranges/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
          onclick="this.parentNode.querySelectorAll('div[hx-get]').forEach(function(r){r.style.background='';});this.style.background='#eef6ff';">
       <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
@@ -29,3 +29,4 @@
     <p class="muted">No ranges match the current filter.</p>
   {% endfor %}
 </div>
+{% include "_list_scroll.html" %}

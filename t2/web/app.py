@@ -678,8 +678,7 @@ def create_app() -> Flask:
 
     _RANGE_COVERAGE_CATS = _ranges.CATEGORIES
 
-    @app.get("/runs/<int:run_id>/ranges")
-    def ranges_page(run_id: int):
+    def _ranges_list_context(run_id: int) -> dict:
         raw = request.args.get("coverage")
         if raw is None:
             # Default: hide fully-covered ranges (they're the uninteresting case).
@@ -725,19 +724,22 @@ def create_app() -> Flask:
             counts[cat] += 1
             if cat in active_cats:
                 items.append(d)
+        return {
+            "run_id": run_id,
+            "items": items,
+            "counts": counts,
+            "active_cats": set(active_cats),
+            "all_cats": _RANGE_COVERAGE_CATS,
+        }
+
+    @app.get("/runs/<int:run_id>/ranges")
+    def ranges_page(run_id: int):
+        ctx = _ranges_list_context(run_id)
         partial = request.args.get("partial") == "1"
         template = "_ranges_list.html" if partial else "ranges.html"
-        return render_template(
-            template,
-            run_id=run_id,
-            items=items,
-            counts=counts,
-            active_cats=set(active_cats),
-            all_cats=_RANGE_COVERAGE_CATS,
-        )
+        return render_template(template, **ctx)
 
-    @app.get("/runs/<int:run_id>/ranges/<int:candidate_id>")
-    def ranges_detail(run_id: int, candidate_id: int):
+    def _ranges_detail_context(run_id: int, candidate_id: int) -> dict | None:
         conn = _db.connect()
         try:
             row = conn.execute(
@@ -754,15 +756,26 @@ def create_app() -> Flask:
         finally:
             conn.close()
         if not row:
-            abort(404)
+            return None
         cand = dict(row)
         snap_id = int(run_row["source_snapshot_id"]) if run_row and run_row["source_snapshot_id"] else None
         coverage = _ranges.coverage(cand, snap_id)
+        return {"run_id": run_id, "candidate": cand, "coverage": coverage}
+
+    @app.get("/runs/<int:run_id>/ranges/<int:candidate_id>")
+    def ranges_detail(run_id: int, candidate_id: int):
+        detail_ctx = _ranges_detail_context(run_id, candidate_id)
+        if detail_ctx is None:
+            abort(404)
+        if request.headers.get("HX-Request"):
+            return render_template("_ranges_detail.html", **detail_ctx)
+        list_ctx = _ranges_list_context(run_id)
         return render_template(
-            "_ranges_detail.html",
-            run_id=run_id,
-            candidate=cand,
-            coverage=coverage,
+            "ranges.html",
+            selected_candidate=True,
+            selected_candidate_id=candidate_id,
+            **list_ctx,
+            **{k: v for k, v in detail_ctx.items() if k != "run_id"},
         )
 
     # ---- Batches ----

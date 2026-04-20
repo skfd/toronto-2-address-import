@@ -46,7 +46,11 @@
   {% include "_ranges_list.html" %}
 
   <div class="card" id="detail">
-    <p class="muted">Select a range on the left.</p>
+    {% if selected_candidate %}
+      {% include "_ranges_detail.html" %}
+    {% else %}
+      <p class="muted">Select a range on the left.</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
