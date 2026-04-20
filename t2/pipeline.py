@@ -2,7 +2,7 @@
 import json
 from datetime import datetime, timezone
 
-from . import audit, candidates, conflate, config as _config, db as _db, osm_fetch, ranges as _ranges, source_db
+from . import audit, candidates, conflate, config as _config, db as _db, osm_fetch, osm_refresh, ranges as _ranges, source_db
 from .checks import REGISTRY, Candidate, CheckContext
 
 
@@ -121,6 +121,15 @@ def fetch_stage(run_id: int, force: bool = False) -> str:
 
 def conflate_stage(run_id: int, osm_hash: str | None = None) -> dict[str, int]:
     cfg = _config.load()
+    # Refuse to conflate against a stale or missing local extract — otherwise
+    # recent OSM additions show up as false MISSINGs and auto-approve into
+    # duplicate uploads. Operator resolves by refreshing via /osm.
+    if cfg.osm_source == "local":
+        status = osm_refresh.extract_status(cfg)
+        if status in ("stale", "missing"):
+            raise RuntimeError(
+                f"OSM extract is {status}; refresh at /osm before conflating."
+            )
     if osm_hash is None:
         osm_hash = fetch_stage(run_id)
     return conflate.run(run_id, osm_hash, cfg.match_radius_m, cfg.match_near_m)
