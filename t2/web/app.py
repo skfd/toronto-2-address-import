@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
-from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, review, tag_diff
+from .. import audit, batcher, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, review, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -38,6 +38,25 @@ def _load_osm_for_run(path: Path) -> tuple[list[dict], set[int]]:
             interp.add(nid)
     _OSM_CACHE[path] = (mtime, data, interp)
     return data, interp
+
+
+_TILES_CACHE: dict[Path, tuple[float, list[dict], dict[str, dict], dict]] = {}
+
+
+def _load_tiles(path: Path) -> tuple[list[dict], dict[str, dict], dict]:
+    """Return (tiles_list, tiles_by_id, meta) from data/tiles.json, cached by mtime."""
+    if not path.exists():
+        return [], {}, {}
+    mtime = path.stat().st_mtime
+    cached = _TILES_CACHE.get(path)
+    if cached and cached[0] == mtime:
+        return cached[1], cached[2], cached[3]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    tiles = data.get("tiles", [])
+    by_id = {t["id"]: t for t in tiles}
+    meta = {k: v for k, v in data.items() if k != "tiles"}
+    _TILES_CACHE[path] = (mtime, tiles, by_id, meta)
+    return tiles, by_id, meta
 
 
 def _osm_element_latlon(el: dict) -> tuple[float | None, float | None]:
@@ -145,14 +164,59 @@ def create_app() -> Flask:
         run_id = pipeline.start_run(name, bbox)  # type: ignore
         return redirect(url_for("run_view", run_id=run_id))
 
+    # ---- Tile picker ----
+
+    @app.get("/map")
+    def tiles_map():
+        tiles, _by_id, meta = _load_tiles(cfg.data_dir / "tiles.json")
+        return render_template(
+            "map.html",
+            tiles=tiles,
+            meta=meta,
+            toronto_bbox=list(cfg.osm_toronto_bbox),
+        )
+
+    @app.get("/tiles/<tile_id>")
+    def tile_view(tile_id: str):
+        tiles, by_id, _meta = _load_tiles(cfg.data_dir / "tiles.json")
+        tile = by_id.get(tile_id)
+        if not tile:
+            abort(404)
+        b = tile["bbox"]
+        conn = _db.connect()
+        try:
+            prior_runs = conn.execute(
+                "SELECT run_id, name, created_at, source_snapshot_id FROM runs "
+                "WHERE ROUND(bbox_min_lat,6)=? AND ROUND(bbox_min_lon,6)=? "
+                "  AND ROUND(bbox_max_lat,6)=? AND ROUND(bbox_max_lon,6)=? "
+                "ORDER BY created_at DESC",
+                (round(b[0], 6), round(b[1], 6), round(b[2], 6), round(b[3], 6)),
+            ).fetchall()
+        finally:
+            conn.close()
+        from datetime import date
+        prefill_name = f"{tile['id']}-{date.today().isoformat()}"
+        return render_template(
+            "tile.html",
+            tile=tile,
+            prior_runs=prior_runs,
+            prefill_name=prefill_name,
+        )
+
     @app.get("/runs/<int:run_id>")
     def run_view(run_id: int):
         run = _get_run(run_id)
         counts = pipeline.counts_by_stage(run_id)
         toggles = _get_toggles(run_id)
         batches = batcher.list_batches(run_id)
+        tiles, _by_id, _meta = _load_tiles(cfg.data_dir / "tiles.json")
+        target = (
+            round(run["bbox_min_lat"], 6), round(run["bbox_min_lon"], 6),
+            round(run["bbox_max_lat"], 6), round(run["bbox_max_lon"], 6),
+        )
+        tile = next((t for t in tiles if tuple(t["bbox"]) == target), None)
         return render_template("run.html", run=run, counts=counts, toggles=toggles,
-                               registry=REGISTRY, batches=batches)
+                               registry=REGISTRY, batches=batches, tile=tile)
 
     # ---- Stage triggers (HTMX) ----
 

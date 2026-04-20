@@ -13,8 +13,14 @@
       const map = L.map('run-map').fitBounds(bounds, { padding: [20, 20] });
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         { maxZoom: 19, attribution: '© OSM' }).addTo(map);
-      const rect = L.rectangle(bounds, { color: '#2563eb', weight: 2, fillOpacity: 0.08 }).addTo(map);
-      rect.bindTooltip({{ run.name|tojson }}, { permanent: true, direction: 'center', className: 'run-label' });
+      {% if tile %}
+      const shape = L.polygon({{ tile.polygon_latlon|tojson }},
+        { color: '#2563eb', weight: 2, fillOpacity: 0.08 }).addTo(map);
+      {% else %}
+      const shape = L.rectangle(bounds,
+        { color: '#2563eb', weight: 2, fillOpacity: 0.08 }).addTo(map);
+      {% endif %}
+      shape.bindTooltip({{ run.name|tojson }}, { permanent: true, direction: 'center', className: 'run-label' });
     })();
   </script>
   <style>

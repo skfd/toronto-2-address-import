@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Tile picker{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Toronto tiles — pick a run area</h2>
+  {% if tiles %}
+    <p class="muted">
+      {{ tiles|length }} tiles · generated {{ meta.generated_at[:10] }} · snapshot {{ meta.source_snapshot_id }} · threshold {{ meta.threshold }}
+    </p>
+    <div id="tile-map" style="height: 72vh; border-radius: 4px;"></div>
+  {% else %}
+    <p class="muted">
+      No tiles yet. Generate them with:
+      <code>python -m t2.tiles_build</code>
+    </p>
+  {% endif %}
+</div>
+{% if tiles %}
+<script>
+  (function () {
+    const tiles = {{ tiles|tojson }};
+    const bbox  = {{ toronto_bbox|tojson }};
+    const map = L.map('tile-map').fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]]);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '© OSM' }).addTo(map);
+    let current = null;
+    for (const t of tiles) {
+      const poly = L.polygon(t.polygon_latlon, {
+        color: t.is_orphan ? '#ef4444' : '#2563eb',
+        weight: 1,
+        fillOpacity: 0.05,
+      }).addTo(map);
+      poly.bindTooltip(`${t.name} · ${t.address_count} addresses`);
+      poly.on('mouseover', () => {
+        if (current && current !== poly) {
+          current.closeTooltip();
+          current.setStyle({ fillOpacity: 0.05, weight: 1 });
+        }
+        current = poly;
+        poly.setStyle({ fillOpacity: 0.25, weight: 2 });
+      });
+      poly.on('click', () => { window.location = '/tiles/' + t.id; });
+    }
+  })();
+</script>
+{% endif %}
+{% endblock %}

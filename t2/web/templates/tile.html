@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ tile.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <p class="muted"><a href="/map">← back to map</a></p>
+  <h2>
+    {{ tile.name }}
+    {% if tile.is_orphan %}<span class="pill bad">unassigned</span>{% endif %}
+    {% if tile.is_multipolygon %}<span class="pill warn">multipolygon piece</span>{% endif %}
+  </h2>
+  <p class="muted">
+    parent: {{ tile.parent }} · depth {{ tile.depth }} · {{ tile.address_count }} addresses
+  </p>
+  <div id="tile-preview" style="height: 280px; border-radius: 4px;"></div>
+  <script>
+    (function () {
+      const t = {{ tile|tojson }};
+      const b = t.bbox;
+      const map = L.map('tile-preview').fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: [20, 20] });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { maxZoom: 19, attribution: '© OSM' }).addTo(map);
+      L.polygon(t.polygon_latlon, {
+        color: t.is_orphan ? '#ef4444' : '#2563eb',
+        weight: 2,
+        fillOpacity: 0.1,
+      }).addTo(map);
+    })();
+  </script>
+</div>
+
+<div class="card">
+  <h3>Start new run on this tile</h3>
+  <form method="post" action="{{ url_for('runs_new') }}">
+    <label>Name <input name="name" value="{{ prefill_name }}" required size="40"/></label>
+    <input type="hidden" name="min_lat" value="{{ tile.bbox[0] }}"/>
+    <input type="hidden" name="min_lon" value="{{ tile.bbox[1] }}"/>
+    <input type="hidden" name="max_lat" value="{{ tile.bbox[2] }}"/>
+    <input type="hidden" name="max_lon" value="{{ tile.bbox[3] }}"/>
+    <button>Create run</button>
+    <span class="muted">bbox: {{ '%.4f, %.4f → %.4f, %.4f' % (tile.bbox[0], tile.bbox[1], tile.bbox[2], tile.bbox[3]) }}</span>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Prior runs on this tile</h3>
+  {% if prior_runs %}
+  <table>
+    <thead><tr><th>ID</th><th>Name</th><th>Created</th><th>Snapshot</th><th></th></tr></thead>
+    <tbody>
+      {% for r in prior_runs %}
+      <tr>
+        <td>{{ r.run_id }}</td>
+        <td><a href="/runs/{{ r.run_id }}">{{ r.name }}</a></td>
+        <td class="muted">{{ r.created_at }}</td>
+        <td>{{ r.source_snapshot_id }}</td>
+        <td><a href="/runs/{{ r.run_id }}/review">review</a> · <a href="/runs/{{ r.run_id }}/audit">audit</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No runs on this tile yet.</p>{% endif %}
+</div>
+{% endblock %}

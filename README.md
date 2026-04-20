@@ -86,10 +86,32 @@ runs.
 To fall back to live Overpass queries (e.g. bbox experiments outside
 Toronto), set `[osm] source = "overpass"` in `config.toml`.
 
+## Tile layer (run area picker)
+
+Toronto is too big to pick by typing lat/lon, so the tool precomputes a tile
+layer you can click on. Generate it once with:
+
+```bash
+python -m t2.tiles_build
+```
+
+This downloads the City of Toronto's 158-neighbourhood polygon layer from
+[Open Data](https://open.toronto.ca/dataset/neighbourhoods/), counts active
+source addresses inside each polygon, and quadtree-splits any neighbourhood
+with more than 500 addresses. The result (typically ~2,500 tiles) lands in
+`data/tiles.json` + a `data/tiles/meta.json` sidecar. Regenerate when a new
+source snapshot lands.
+
+The dashboard's **Pick on map** button opens `/map` — click any tile to land
+on its detail page, which lists prior runs on that tile and has a "Start new
+run" form pre-filled with the tile's bbox. The manual bbox form on the
+dashboard remains as an escape hatch for arbitrary rectangles.
+
 ## First end-to-end run
 
-1. **Create a run** from the dashboard. A small downtown rectangle like
-   `(43.645, -79.42, 43.665, -79.39)` keeps it tight.
+1. **Create a run** from the dashboard. Either **Pick on map** and click a
+   tile, or type a small downtown rectangle like
+   `(43.645, -79.42, 43.665, -79.39)` into the bbox form.
 2. On the run page, click the four pipeline buttons in order:
    **Ingest → Fetch OSM → Conflate → Run checks**.
 3. Open the **Review queue** — items flagged by any enabled check land here.
