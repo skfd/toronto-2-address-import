@@ -225,6 +225,8 @@ def create_app() -> Flask:
         verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
         poi_ack = request.args.get("poi_ack", "0") == "1"
         postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        all_reasons = review.available_reasons(run_id)
+        reasons = _parse_csv_arg("reasons", tuple(all_reasons))
         items = review.queue(
             run_id,
             statuses=statuses,
@@ -232,6 +234,7 @@ def create_app() -> Flask:
             verdicts=verdicts,
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
+            reasons=reasons,
             limit=500,
         )
         partial = request.args.get("partial") == "1"
@@ -247,6 +250,8 @@ def create_app() -> Flask:
             postcode_from_poi=postcode_from_poi,
             all_statuses=_REVIEW_STATUSES,
             all_verdicts=_REVIEW_VERDICTS,
+            all_reasons=all_reasons,
+            active_reasons=set(reasons),
             selected_candidate_id=None,
         )
 
@@ -321,6 +326,8 @@ def create_app() -> Flask:
         verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
         poi_ack = request.args.get("poi_ack", "0") == "1"
         postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        all_reasons = review.available_reasons(run_id)
+        reasons = _parse_csv_arg("reasons", tuple(all_reasons))
         items = review.queue(
             run_id,
             statuses=statuses,
@@ -328,6 +335,7 @@ def create_app() -> Flask:
             verdicts=verdicts,
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
+            reasons=reasons,
             limit=500,
         )
         return render_template(
@@ -340,6 +348,8 @@ def create_app() -> Flask:
             postcode_from_poi=postcode_from_poi,
             all_statuses=_REVIEW_STATUSES,
             all_verdicts=_REVIEW_VERDICTS,
+            all_reasons=all_reasons,
+            active_reasons=set(reasons),
             selected_candidate=True,
             selected_candidate_id=candidate_id,
             **ctx,

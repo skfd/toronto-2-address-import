@@ -34,6 +34,16 @@
     <label><input type="checkbox" name="postcode_from_poi" value="1"
                   {% if postcode_from_poi %}checked{% endif %}> Postcode from POI</label>
   </div>
+  {% if all_reasons %}
+  <div style="margin-top:.3rem;">
+    <span class="muted" style="margin-right:.4rem;">Check triggered:</span>
+    {% for r in all_reasons %}
+      <label><input type="checkbox" name="reasons" value="{{ r }}"
+                    {% if r in active_reasons %}checked{% endif %}
+                    data-tip="{{ tip('reason.' ~ r) }}"> {{ r }}</label>
+    {% endfor %}
+  </div>
+  {% endif %}
 </form>
 
 <script>
@@ -42,7 +52,7 @@
     if (!form) return;
     form.addEventListener('htmx:configRequest', function(evt){
       const p = evt.detail.parameters;
-      for (const field of ['statuses', 'verdicts']) {
+      for (const field of ['statuses', 'verdicts', 'reasons']) {
         const boxes = form.querySelectorAll('input[name="' + field + '"]:checked');
         if (boxes.length || form.querySelector('input[name="' + field + '"]')) {
           p[field] = Array.from(boxes).map(b => b.value).join(',');

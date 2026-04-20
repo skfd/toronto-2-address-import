@@ -108,6 +108,7 @@ def queue(
     verdicts: tuple[str, ...] | list[str] | None = None,
     poi_ack: bool = False,
     postcode_from_poi: bool = False,
+    reasons: tuple[str, ...] | list[str] | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> list[dict]:
@@ -116,7 +117,10 @@ def queue(
     Auto-approved candidates (stage='APPROVED' with no review_items row) are
     included as synthetic rows with status='AUTO_APPROVED' when
     include_auto=True. `verdicts`/`poi_ack`/`postcode_from_poi` narrow the
-    result to rows whose conflation row matches those predicates.
+    result to rows whose conflation row matches those predicates. `reasons`
+    narrows to rows whose `review_items.reason_code` CSV contains any of the
+    listed check reason codes; AUTO rows are never returned when `reasons`
+    is set (they carry a synthetic `auto_clean` reason).
     """
     if statuses is None:
         statuses = ("OPEN",)
@@ -124,6 +128,18 @@ def queue(
     verdicts_t = tuple(v for v in (verdicts or ()) if v in _VALID_FILTER_VERDICTS)
     extra_where, extra_params = _poi_where(poi_ack, postcode_from_poi, verdicts_t)
     and_extra = (" AND " + extra_where) if extra_where else ""
+
+    reasons_t = tuple(r for r in (reasons or ()) if r)
+    if reasons_t:
+        # Wrap both sides in commas so substring reasons match as whole CSV elements.
+        reason_clause = " OR ".join(
+            "(',' || r.reason_code || ',') LIKE ?" for _ in reasons_t
+        )
+        reason_params = [f"%,{r},%" for r in reasons_t]
+        and_reasons = " AND (" + reason_clause + ")"
+    else:
+        and_reasons = ""
+        reason_params = []
 
     conn = _db.connect()
     try:
@@ -142,13 +158,13 @@ def queue(
                 FROM review_items r
                 JOIN candidates c USING (run_id, candidate_id)
                 LEFT JOIN conflation cf USING (run_id, candidate_id)
-                WHERE r.run_id = ? AND r.status IN ({placeholders}){and_extra}
+                WHERE r.run_id = ? AND r.status IN ({placeholders}){and_extra}{and_reasons}
                 """,
-                (run_id, *statuses, *extra_params),
+                (run_id, *statuses, *extra_params, *reason_params),
             ).fetchall()
             results.extend(dict(r) for r in rows)
 
-        if include_auto:
+        if include_auto and not reasons_t:
             rows = conn.execute(
                 f"""
                 SELECT c.candidate_id,
@@ -201,6 +217,28 @@ def get_review_state(run_id: int, candidate_id: int) -> dict:
         if c and c["stage"] == "APPROVED":
             return {"status": "AUTO_APPROVED", "note": None, "prior_auto_approved": 0}
         return {"status": None, "note": None, "prior_auto_approved": 0}
+    finally:
+        conn.close()
+
+
+def available_reasons(run_id: int) -> list[str]:
+    """Distinct reason_codes that produced FLAG verdicts in this run, sorted.
+
+    Used to populate the review-page reason filter with the options that are
+    actually present — an option list scoped to what the operator might
+    reasonably click.
+    """
+    conn = _db.connect()
+    try:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT reason_code FROM check_results
+            WHERE run_id = ? AND verdict = 'FLAG' AND reason_code IS NOT NULL AND reason_code != ''
+            ORDER BY reason_code
+            """,
+            (run_id,),
+        ).fetchall()
+        return [r["reason_code"] for r in rows]
     finally:
         conn.close()
 
