@@ -55,6 +55,18 @@
 </div>
 
 <div class="card">
+  <h3>Check parameters</h3>
+  <form method="post" action="/runs/{{ run.run_id }}/sample_rate" class="inline">
+    <label title="{{ tip('field.missing_sample_every_nth') }}">
+      missing_sample every_nth
+      <input type="number" name="every_nth" min="0" value="{{ missing_sample_every_nth }}" size="6"/>
+    </label>
+    <button class="secondary">Save</button>
+  </form>
+  <p class="muted">0 disables sampling; higher values flag fewer MISSINGs for spot-check. Change before re-running checks.</p>
+</div>
+
+<div class="card">
   <h3>Batches</h3>
   <form method="post" action="/runs/{{ run.run_id }}/batches">
     <label title="{{ tip('field.mode') }}">Mode

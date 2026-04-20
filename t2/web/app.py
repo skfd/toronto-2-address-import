@@ -149,11 +149,15 @@ def create_app() -> Flask:
         from datetime import datetime
         stamp = datetime.now().strftime("%Y-%m-%d-%H%M")
         new_run_name = f"{tile['id']}-{stamp}" if tile else f"{run['name']}-rerun-{stamp}"
+        missing_sample_every_nth = pipeline.get_check_param(
+            run_id, "missing_sample", "every_nth", 50
+        )
         return render_template("run.html", run=run, counts=counts, toggles=toggles,
                                registry=REGISTRY, batches=batches, tile=tile,
                                status=status, stage_order=("ingest", "fetch", "conflate", "checks"),
                                ranges_count=candidates.count_ranges(run_id),
-                               new_run_name=new_run_name)
+                               new_run_name=new_run_name,
+                               missing_sample_every_nth=missing_sample_every_nth)
 
     # ---- Stage triggers (HTMX) ----
 
@@ -206,6 +210,18 @@ def create_app() -> Flask:
         pipeline.set_toggle(run_id, check_id, enabled)
         toggles = _get_toggles(run_id)
         return render_template("_toggles.html", toggles=toggles, registry=REGISTRY, run_id=run_id)
+
+    @app.post("/runs/<int:run_id>/sample_rate")
+    def run_sample_rate(run_id: int):
+        try:
+            every_nth = int(request.form.get("every_nth", "50"))
+        except ValueError:
+            abort(400)
+        if every_nth < 0:
+            abort(400)
+        pipeline.set_check_param(run_id, "missing_sample", "every_nth", every_nth)
+        flash(f"Sample rate set: every {every_nth} MISSINGs flagged for spot-check.")
+        return redirect(url_for("run_view", run_id=run_id))
 
     # ---- Review ----
 

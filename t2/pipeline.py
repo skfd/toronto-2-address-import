@@ -168,11 +168,16 @@ def run_checks(run_id: int) -> dict[str, int]:
     elements = osm_fetch.load_cached(run_id)
     osm_idx, _poi_idx = conflate.build_osm_index(elements)
 
+    # Per-run overrides (e.g. missing_sample every_nth) are stored under
+    # runs.config_json.checks_params and shadow the global config so an
+    # operator can dial the sampling rate up for a new bbox.
+    checks_params = _run_checks_params(run_id) or cfg.checks_params
+
     counts = {"PASS": 0, "FLAG": 0, "SKIP": 0}
     conn = _db.connect()
     try:
         city_idx = _build_city_index(conn, run_id)
-        ctx = CheckContext(run_id=run_id, osm_index=osm_idx, city_index=city_idx, params=cfg.checks_params)
+        ctx = CheckContext(run_id=run_id, osm_index=osm_idx, city_index=city_idx, params=checks_params)
 
         q = """
             SELECT c.run_id, c.candidate_id, c.address_full, c.housenumber,
@@ -322,6 +327,61 @@ def run_checks(run_id: int) -> dict[str, int]:
         conn.close()
     _ranges.compute_for_run(run_id)
     return counts
+
+
+def _run_checks_params(run_id: int) -> dict[str, dict] | None:
+    """Return the run's persisted checks_params override, or None if absent."""
+    conn = _db.connect()
+    try:
+        row = conn.execute("SELECT config_json FROM runs WHERE run_id=?", (run_id,)).fetchone()
+    finally:
+        conn.close()
+    if not row or not row["config_json"]:
+        return None
+    try:
+        return (json.loads(row["config_json"]) or {}).get("checks_params")
+    except Exception:
+        return None
+
+
+def get_check_param(run_id: int, check_id: str, key: str, default):
+    """Read a single key from the run's checks_params, falling back to the
+    global config then to the supplied default. Used by the UI to render the
+    current value of a per-run knob (e.g. missing_sample every_nth).
+    """
+    run_params = _run_checks_params(run_id)
+    if run_params and check_id in run_params and key in run_params[check_id]:
+        return run_params[check_id][key]
+    cfg = _config.load()
+    if check_id in cfg.checks_params and key in cfg.checks_params[check_id]:
+        return cfg.checks_params[check_id][key]
+    return default
+
+
+def set_check_param(run_id: int, check_id: str, key: str, value) -> None:
+    """Persist a single checks_params override into runs.config_json."""
+    conn = _db.connect()
+    try:
+        row = conn.execute("SELECT config_json FROM runs WHERE run_id=?", (run_id,)).fetchone()
+        if not row:
+            raise ValueError(f"run {run_id} not found")
+        cfg_obj = json.loads(row["config_json"]) if row["config_json"] else {}
+        params = cfg_obj.get("checks_params") or {}
+        params.setdefault(check_id, {})[key] = value
+        cfg_obj["checks_params"] = params
+        conn.execute("BEGIN")
+        conn.execute(
+            "UPDATE runs SET config_json=? WHERE run_id=?",
+            (json.dumps(cfg_obj), run_id),
+        )
+        audit.log(actor="operator", event_type="CONFIG_CHANGED", run_id=run_id,
+                  payload={"check_id": check_id, "key": key, "value": value}, conn=conn)
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
 
 
 def set_toggle(run_id: int, check_id: str, enabled: bool) -> None:

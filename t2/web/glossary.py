@@ -101,6 +101,7 @@ GLOSSARY: dict[str, str] = {
     "field.bbox": "Bounding box: min_lat, min_lon → max_lat, max_lon.",
     "field.source_snapshot": "OSM snapshot identifier this run was conflated against.",
     "field.note": "Optional free-text comment explaining the operator decision.",
+    "field.missing_sample_every_nth": "One in every N MISSING candidates is flagged for operator spot-check. 50 by default; 0 disables. Per-run override; applies the next time checks run.",
     "metric.nearest_dist_m": "Distance in metres to the nearest OSM feature.",
 
     # local OSM extract view
