@@ -1,0 +1,303 @@
+# Toronto Address Points — OSM Import Proposal
+
+**Status:** Draft for community review. Not yet submitted to `imports@osm.org` or the OSM wiki. All uploads from the tooling described here currently target the OSM **dev sandbox** (`master.apis.dev.openstreetmap.org`). No production edits have been made and none will be made until this proposal (or a successor revised after discussion) has been posted to the imports list and the wiki, has sat for the customary feedback window, and has the sign-off that the [OSM Import Guidelines](https://wiki.openstreetmap.org/wiki/Import/Guidelines) require.
+
+**Last revised:** 2026-04-21
+**Contact:** toronto@comentality.com
+**Tooling:** <https://github.com/skfd/toronto-2-address-import> (this repo) + <https://github.com/skfd/toronto-addresses-import> (upstream scraper)
+
+---
+
+## 1. Summary
+
+One-time, human-reviewed import of **missing civic address points** from the City of Toronto's "Address Points (Municipal) – Toronto One Address Repository" open dataset into OpenStreetMap, conflated against a fresh OSM snapshot so that only addresses OSM does not already have are created. Every batch is reviewed in a local web UI before it leaves the machine; every upload is a distinct, tagged changeset; every action (automatic or manual) is written to an append-only audit log.
+
+Scope numbers (active snapshot #28, 2026-04-18):
+
+| Address class | Active rows | Disposition |
+|---|---:|---|
+| `Land` | 479,966 | Candidate for import as a pure address node. |
+| `Structure` | 28,031 | Candidate for import as a pure address node. |
+| `Structure Entrance` | 14,354 | Candidate for import with `entrance=yes`. |
+| `Land Entrance` | 573 | **Excluded** from this import (driveway/gate concept, not an address). |
+| **Total considered** | **522,351** | Before conflation. |
+| **Total excluded upfront** | **573** | `Land Entrance`. |
+
+Expected output after conflation is materially smaller than the above — any address OSM already carries is dropped at conflation time, not uploaded.
+
+## 2. Goals and non-goals
+
+### Goals
+
+- Raise OSM's civic-address coverage in the City of Toronto (former municipalities of Toronto, East York, Etobicoke, North York, Scarborough, and York) to match the City's authoritative address roster for addresses OSM is missing today.
+- Do so without creating duplicates of addresses already mapped in OSM, and without stamping over existing address data.
+- Preserve a per-candidate audit trail (source row → verdict → reviewer decision → changeset id → resulting OSM id) for post-hoc inspection by any OSM contributor.
+
+### Non-goals (explicitly out of scope for this import)
+
+- **No deletions.** If OSM has an address that the City snapshot does not, we do not flag, propose, or remove it. Rationale in §8.
+- **No mutation of existing OSM objects.** This import creates new nodes only. Any future postcode or tag-enrichment work on *matched* OSM nodes will be a separate proposal with its own review. A design sketch exists in `future-work/postcode-enrichment.md` but is not part of this import.
+- **No `addr:interpolation` way cleanup.** Even where per-address points now cover the same segment as an existing interpolation way. Rationale in §8.
+- **No polygons.** We do not add `addr:*` tags to existing `building=*` ways/relations, and we do not create new buildings. Out-of-scope both for this tool and this proposal.
+- **No geometry editing** of any existing object.
+- **No `Land Entrance`** rows: the source models driveway/gate entry points; OSM's closest concept is `barrier=gate`, not an address. Excluded at ingest.
+
+## 3. Schedule
+
+**Contacts and reviewer roster.** Primary maintainer and first-line reviewer: `toronto@comentality.com`. Additional named reviewers will be listed on the OSM wiki page before Phase 1 begins; any local Toronto mapper who would like to join as a reviewer should contact the email above. No batch is uploaded without at least one named reviewer having approved it in the web UI.
+
+Phased roll-out, each phase shippable and independently reversible. Dates are earliest-start, pending community review and feedback incorporation.
+
+- **Phase 0 — community review.** Post this proposal to `imports@openstreetmap.org` and create a page on the OSM wiki under `Import/Catalogue`. Minimum two-week feedback window. Incorporate feedback, revise.
+- **Phase 1 — pilot (1 tile).** Tile `high-park-swansea-sw-se` — a depth-2 quadrant of the High Park-Swansea neighbourhood, bbox `(43.633436, -79.480592, 43.639157, -79.469502)`, 250 source addresses pre-conflation. End-to-end human review. All candidates manually approved even where auto-approval would normally apply. Post the changeset list to the wiki page after upload. Hold for one week for community response.
+- **Phase 2 — ward-level rollout.** Proceed ward-by-ward. At most ~5,000 addresses per day across all changesets. Retain manual approval of a random sample (≥5%) even for auto-approvable items.
+- **Phase 3 — remaining tiles.** Same cadence, same review gating.
+- **Phase 4 — closeout.** Final reconciliation: re-fetch the bbox, publish a post-import report (counts, rejection reasons, outstanding `REVIEW_DEFERRED` items).
+
+Upload rate is capped at **1 changeset per minute** (config `upload.changesets_per_minute`) and **300 candidates per changeset** (config `upload.batch_size`). A theoretical full pass at these limits bounds wall-clock upload time at ~29 hours; the practical schedule is much longer because human review of the review queue dominates.
+
+## 4. Import data
+
+### Source
+
+- **Dataset:** "Address Points (Municipal) – Toronto One Address Repository", published by the City of Toronto.
+- **Portal:** <https://open.toronto.ca/dataset/address-points-municipal-toronto-one-address-repository/>
+- **Consumption path:** the City's portal feed is scraped and normalised into a SQLite DB by the sibling project [`toronto-addresses-import`](https://github.com/skfd/toronto-addresses-import). This import consumes that SQLite DB read-only. See `SOURCE_DATA.md` in this repo for the exact schema and the fields we rely on.
+
+### License
+
+- **Upstream licence:** [Open Government Licence – Toronto](https://open.toronto.ca/open-data-license/).
+- **ODbL compatibility:** compatible. OGL-Toronto is a permissive attribution licence modelled on the Canadian federal OGL, with no share-alike and no non-commercial clauses; attribution is satisfied by the `source=City of Toronto Open Data` tag on both the uploaded node and its containing changeset.
+
+### Type and volume
+
+- Point data only. No polygons, no lines.
+- Per-address civic points with housenumber, street, municipality, ward, lat/lon, and a class descriptor (Land / Structure / Structure Entrance / Land Entrance).
+- Post-conflation volume will be substantially smaller than 522k — the actual count depends on OSM's current Toronto address coverage at the moment each tile is run.
+
+### Freshness
+
+The local OSM snapshot that drives conflation is refreshed from Geofabrik's Ontario PBF (`t2/osm_refresh.py`). It is re-pulled before each run so that the "OSM already has this address" signal is based on recent data, not a stale cache. For any run that spans more than 24 hours between conflation and upload, we re-fetch and re-conflate before opening any changesets.
+
+## 5. Tagging plan
+
+### Per-node tags written
+
+All uploaded elements are **nodes**. No ways, no relations. The tag set is constant modulo a small set of class-driven additions:
+
+| Tag | Source | Notes |
+|---|---|---|
+| `addr:housenumber` | `address_number` | Copied verbatim after trim. Suffix letters (`46A`, `710 1/2`) preserved. |
+| `addr:street` | `linear_name_full` | Copied verbatim (mixed case, e.g. `Amelia St`). Normalisation is only used for conflation matching (`STREET`→`ST`, etc.), not for the written tag. |
+| `addr:city` | static | `Toronto`. Used regardless of pre-amalgamation former municipality; see §5.1. |
+| `source` | static | `City of Toronto Open Data`. On the node *and* on the containing changeset. |
+| `addr:postcode` | enrichment | Written **only** when a same-address POI in the OSM snapshot already carries one. Never invented, never extrapolated. If the colocated POI's postcode disagrees with anything, we emit no postcode. Details in §6. |
+| `entrance` | class-driven | `yes` — written **only** for `Structure Entrance` rows. Aligns with OSM's `entrance=yes` convention for door-level nodes. Absent on all other classes. |
+
+Fields deliberately **not** emitted:
+
+- `addr:housename`, `addr:unit`, `addr:flats`, `addr:block` — source does not carry these in a reliable form.
+- `addr:country`, `addr:province`, `addr:state` — omitted per OSM Canadian convention; `addr:city` is sufficient for Toronto.
+- `addr:neighbourhood`, `addr:suburb`, `addr:ward` — the source's `ward_name` and neighbourhood overlays are modelled better as OSM admin polygons than as per-node tags.
+- `ref`, `name`, `place` — none apply.
+- Any `toronto:*` / `t2:*` custom namespace — rejected on principle.
+
+### 5.1 The `addr:city` question
+
+The source carries a `municipality_name` column that reflects the **pre-amalgamation** former municipalities (Toronto, East York, Etobicoke, North York, Scarborough, York). These are historical, not current civic entities — the City of Toronto is one city since 1998. We write `addr:city=Toronto` uniformly. The pre-amalgamation municipality is preserved in our internal audit trail but not emitted into OSM.
+
+Open question for community (§10): confirm this matches existing Toronto OSM convention. If local mappers prefer `addr:city` to carry the former-municipality string, we will change the static value per-row before Phase 1.
+
+### 5.2 Per-class tagging matrix
+
+| Class | `addr:housenumber` | `addr:street` | `addr:city` | `source` | `entrance` | `addr:postcode` |
+|---|---|---|---|---|---|---|
+| `Land` | yes | yes | `Toronto` | yes | — | if colocated POI has one |
+| `Structure` | yes | yes | `Toronto` | yes | — | if colocated POI has one |
+| `Structure Entrance` | yes | yes | `Toronto` | yes | `yes` | if colocated POI has one |
+| `Land Entrance` | — | — | — | — | — | — (excluded upfront) |
+
+### 5.3 Changeset tags
+
+Each changeset opened against the OSM API carries:
+
+| Tag | Value |
+|---|---|
+| `comment` | `Toronto Open Data address import, run=<run_name>, batch=<batch_id>` (template in `config.toml`) |
+| `source` | `City of Toronto Open Data` |
+| `import` | `yes` |
+| `bot` | `no` |
+| `created_by` | `t2-address-import` |
+| `import:client_token` | random per-batch UUID — used only for server-side idempotent retry after a network failure; looked up before reopening a changeset so a dropped connection never results in two parallel uploads of the same batch |
+
+The `import=yes` / `bot=no` combination matches the OSM Wiki's guidance: these are one-shot, human-reviewed imports, not ongoing automated edits.
+
+## 6. Conflation
+
+### Algorithm
+
+For each source address, we look at the OSM snapshot and classify:
+
+- **MATCH** — OSM has a pure-address node or polygon with the same normalised housenumber and street, within **15 m** of the source point.
+- **MATCH_FAR** — same housenumber/street found within 15–100 m. Surfaced to the human reviewer; never auto-approved.
+- **MISSING** — no OSM address with the same housenumber/street within 100 m. Candidate for upload.
+- **SKIPPED** — housenumber is a range (e.g. `100–110 Main St`) or contains digit-confusable letters (`I`, `O`, `Q`). Not imported; reviewer may opt in per-item.
+
+Search radii are set in `config.toml` under `[conflation]`:
+- `match_radius_m = 100`
+- `match_near_m = 15`
+
+Street-name normalisation (`STREET` → `ST`, `AVENUE` → `AVE`, `NORTH` → `N`, etc.) is used **only** for matching. The source's original casing is what's written to OSM.
+
+### Match targets
+
+Two kinds of OSM feature are valid match targets:
+
+1. **Pure address nodes** — nodes with `addr:housenumber` that do **not** carry POI keys (`amenity`, `shop`, `office`, `tourism`, `leisure`, `craft`, `healthcare`, `building`, plus their `disused:*` / `was:*` variants).
+2. **Polygons with address tags** — ways and relations carrying `addr:housenumber`, including address-bearing buildings. Polygon centroids are used for the distance calculation.
+
+POI nodes (amenity/shop/etc.) with `addr:*` tags are explicitly **not** match targets. Their address is a courtesy annotation and the canonical address point is typically absent. When a MISSING candidate is colocated with such a POI, the review UI acknowledges it with a pill and — if the POI carries `addr:postcode` — that postcode is adopted onto the proposed new node. This is the only case where we draw tag data off of an existing OSM object, and it is additive (never overwriting).
+
+### Nodes dropped from match index
+
+Nodes referenced by an `addr:interpolation` way are excluded from the index. They are endpoints of a range declaration, not standalone addresses, and treating them as match targets would spuriously suppress candidates that fall between them.
+
+### Municipality disambiguation
+
+Toronto absorbed five adjacent municipalities in 1998. Street names recur across the old boundaries — `48 Victor Ave` exists as distinct civic addresses in more than one former municipality. Our intra-city duplicate check uses `(address_full, municipality_name)` as the identity key, not `address_full` alone. This only affects checks and dedup — the written tags do not carry the former municipality (see §5.1).
+
+### Colocated duplicates within the source
+
+A small number of addresses (~436 city-wide on the current snapshot) have a `Land` row and a `Structure` row at the same address within 50 m. Today the pipeline uploads both if both pass conflation; a planned colocated-dedup pass will collapse these to a single node before review. This does not block Phase 1 because the pilot tile is selected to avoid known dense colocation clusters.
+
+## 7. Workflow and QA
+
+### Pipeline stages
+
+Every candidate advances through a deterministic sequence of stages recorded per-row in the DB:
+
+```
+INGESTED → CONFLATED → CHECKED → REVIEW_PENDING → APPROVED → BATCHED → UPLOADED
+                                                ↘ REJECTED / DEFERRED
+                                                ↘ SKIPPED (range, etc.)
+                                                ↘ FAILED (audit-logged)
+```
+
+Each stage is resumable — killing the process mid-run and restarting is safe. Re-running a stage skips work already done.
+
+### Checks
+
+Seven automated checks (enabled in `config.toml`, all `severity=info|warn|block`):
+
+| Check | Purpose |
+|---|---|
+| `match_far` | Matched housenumber/street is 15–100 m away — could be the same point, could be a different building. Always reviewed. |
+| `conflict` | Matched OSM node sits far from the source coordinates. |
+| `suffix_range` | Housenumber is a range (`100-110`) or contains digit-confusable letters. Blocks auto-approval. |
+| `city_duplicate` | Another candidate in the same run is within a few metres and has the same housenumber. |
+| `intra_source_duplicate` | Duplicate within the source dataset before conflation. |
+| `missing_sample` | Every Nth MISSING candidate is force-reviewed even if it has no other flags. Provides ongoing validation that the auto-approval bar is well-calibrated. |
+| `potential_amenity` | Matched OSM node carries non-address tags (`name`, `ref`, `entrance`, etc.) — hints the POI filter may need to grow. Not a block; feeds iteration on the match target rules. |
+
+### Review queue
+
+- MISSING candidates with **no** flags raised by the checks enter the review queue as `AUTO_APPROVED` — the reviewer's action is one-click acknowledge-or-reject rather than full review. During Phases 1 and 2 we will hold even AUTO_APPROVED items for a human click on a random sample (≥5%).
+- MATCH candidates bypass upload entirely (they are not in scope — OSM already has the address).
+- Every other state (`MATCH_FAR`, `MISSING` with any flag, `SKIPPED`) requires explicit reviewer action: Approve / Reject / Defer.
+
+The review UI is a local Flask app (`python run.py`, <http://localhost:5000/>). It is not exposed to the public internet. Reviewers are the named people listed on the wiki page for this import.
+
+### Audit log
+
+Every automatic classification, every reviewer decision, every batch composition, and every changeset open/upload/close is written to an append-only audit log keyed by candidate id. The log survives reruns. The wiki page will link to a per-run audit dump so any OSM contributor can reconstruct what happened for any specific uploaded node.
+
+### Post-upload reconciliation
+
+After a batch uploads, the OSM API's response maps our local node ids to server-assigned OSM node ids. Those mappings are stored and surfaced in the audit log. At the end of each phase (1, 2, 3) the full list of newly-created OSM node ids — alongside their changeset ids and the originating source row ids — is published as an attachment on the OSM wiki page for this import, following the precedent set by the Montréal `Adresses ponctuelles` import. If a reviewer later disputes an uploaded node, we can point at its source row, the conflation verdict, the reviewer decision, and the changeset id in a single query.
+
+## 8. Deferred work (not part of this import)
+
+These are documented so no reviewer has to ask whether we forgot them. Each would be proposed separately if and when we pursue it.
+
+### Deleting OSM addresses absent from the City source
+
+We do not propose, flag, or remove any OSM address that does not appear in the City snapshot. Absence in the source is a weaker signal than presence: the feed has refresh lag, neighbourhoods with acknowledged coverage gaps, and retired-address lifecycle states that are not cleanly separable from "never existed." Deleting OSM data on this signal alone would destroy real addresses on weaker evidence than we are prepared to accept for additions. A removal pass, if ever pursued, needs its own proposal, its own review queue (the verdicts here don't fit), a street-level cross-check to suppress the common "Toronto's feed is missing a whole street" case, and strictly human approval — no automation.
+
+### Replacing `addr:interpolation` ways with per-address points
+
+Where the City snapshot provides real points along a segment currently covered by an `addr:interpolation` way, the way is technically redundant. We still do not touch it. Replacement needs cross-validation that every integer in the interpolation's range has a colocated City point, care around tags (`addr:street`, `addr:postcode`) that the way carries on behalf of its endpoints, and a different changeset hygiene model (bulk structural edit, not address addition). Separate proposal if pursued.
+
+### Mutation of matched OSM nodes (e.g. postcode enrichment)
+
+A matched OSM address node that lacks `addr:postcode` while a same-address POI nearby carries one is a tempting enrichment target. Sketched in `future-work/postcode-enrichment.md`; deliberately excluded from this import. Reason: this import is additive-creation-only. Mixing `<modify>` into the same changeset flow expands blast radius and changes the review bar. Done separately if at all.
+
+## 9. Risks and mitigations
+
+| Risk | Mitigation |
+|---|---|
+| Duplicate creation against an OSM address we didn't see. | Conflation against a fresh Geofabrik snapshot; 100 m search radius with normalised housenumber/street; re-fetch + re-conflate if conflation-to-upload lag exceeds 24 h; post-upload reconciliation so any duplicate raised by the community can be traced to its source row and corrected. |
+| Incorrect street name (pre/post amalgamation rename, City typo). | `match_far` and `city_duplicate` checks surface most cases; reviewer can defer to a follow-up. Street-name renames without a corresponding OSM change are escalated to local mappers, not force-pushed. |
+| Rate pressure on OSM API / planet feed. | Hard cap of 1 changeset/min; 300 items per changeset; pilot tile first; no parallel uploaders from this tool. |
+| Scripted or bulk auto-approval drift. | `missing_sample` check force-reviews every Nth MISSING; Phases 1 and 2 hold ≥5% of AUTO_APPROVED items for manual click; reviewer actions and their actors are in the audit log. |
+| Mid-upload crash leaving orphan changesets. | `import:client_token` tag on each changeset; on retry the client searches open changesets for the token before opening a new one (`t2/osm_client.py`). Changesets are explicitly closed after upload. |
+| POI filter too narrow — a matched "pure address" node actually represents a shop. | `potential_amenity` check surfaces these as `severity=info`; reviewer can defer; `POI_TAG_KEYS` in `t2/conflate.py` is iterated as we find cases. |
+| Community unaware of ongoing import. | Wiki page kept updated with batch-level progress; changeset comments include run name and batch id; contact email published. |
+
+## 10. Revert plan
+
+Every batch is uploaded as a single changeset tagged `import=yes`, `created_by=t2-address-import`, and `import:client_token=<uuid>`. The revert surface is therefore per-changeset, which makes routine rollback straightforward.
+
+- **Routine revert (one bad batch).** A changeset later identified as problematic is reverted using the [JOSM Reverter plugin](https://wiki.openstreetmap.org/wiki/JOSM/Plugins/Reverter). The changeset id is available in the audit log for every uploaded candidate, and the published OSM-ID list (§7 post-upload reconciliation) groups candidates by changeset for quick lookup.
+- **Systemic issue mid-import.** If the community flags a class of problems — a tag error, a conflation false-positive pattern, a streetname misspelling that slipped through — uploads pause immediately. The pipeline is fixed, conflation is re-run on the affected tiles, and resumption only happens after a fresh human review pass. Any already-uploaded batches produced by the defective code are reverted before we resume.
+- **Post-import community revert.** We do not contest good-faith reverts by local mappers. Any revert we discover is recorded in our audit log; where the underlying candidate is still valid, it is re-enqueued for explicit human re-review rather than automatically re-uploaded.
+- **Freeze trigger.** If `imports@openstreetmap.org`, the Toronto mailing list, or a reviewer with commit rights on the wiki page files a stop-work request, we freeze within one business day and do not resume until the concern is addressed and acknowledged on the wiki page.
+
+We do not rely on `<delete>` osmChange blocks to roll ourselves back — a hand-edit made on top of one of our uploads between upload and revert could otherwise be clobbered. The JOSM Reverter plugin handles that case correctly (it builds a conflict-aware inverse changeset), so it stays authoritative.
+
+## 11. Open questions for the community
+
+1. **`addr:city` convention.** Is `addr:city=Toronto` the right uniform value across all former municipalities, or does local convention prefer the former-municipality name (`East York`, `Scarborough`, etc.)?
+2. **`addr:province` omission.** Canadian import conventions vary. Keep omitted (our default), or write `addr:province=ON`?
+3. **Pilot tile.** We plan to run the pilot on `high-park-swansea-sw-se` (bbox `(43.633436, -79.480592, 43.639157, -79.469502)`, 250 source addresses pre-conflation). Any objection, or a different area local mappers would prefer us to start in?
+4. **Rate cap.** 1 changeset/minute with 300-candidate batches is our current cap. Any preference for slower during Phases 1–2?
+5. **Changeset comment template.** Current format is `Toronto Open Data address import, run=<run_name>, batch=<batch_id>`. Any information we should add or remove?
+6. **Post-import monitoring.** How long after the final batch should we commit to watching for community-raised issues? Proposing 90 days.
+
+Answers to each will be incorporated into the wiki page and, where they change pipeline behaviour, into `config.toml` and the relevant code.
+
+## 12. References
+
+### OSM process and policy
+
+- OSM import process: <https://wiki.openstreetmap.org/wiki/Import/Guidelines>
+- OSM imports mailing list: <https://lists.openstreetmap.org/listinfo/imports>
+- OSM imports catalogue: <https://wiki.openstreetmap.org/wiki/Import/Catalogue>
+- OSM contributor terms: <https://osmfoundation.org/wiki/Licence/Contributor_Terms>
+- JOSM Reverter plugin (routine-revert tool named in §10): <https://wiki.openstreetmap.org/wiki/JOSM/Plugins/Reverter>
+
+### Source data
+
+- City of Toronto Address Points dataset: <https://open.toronto.ca/dataset/address-points-municipal-toronto-one-address-repository/>
+- Open Government Licence – Toronto: <https://open.toronto.ca/open-data-license/>
+
+### This import's tooling
+
+- This tool (review UI, conflation, uploader): <https://github.com/skfd/toronto-2-address-import>
+- Upstream scraper (City feed → SQLite): <https://github.com/skfd/toronto-addresses-import>
+- Internal terminology (Candidate / Verdict / Status / Stage): `README.md` § Terminology
+- Source-side facts verified against snapshot #28: `SOURCE_DATA.md`
+
+### Benchmark proposals used while drafting
+
+These are the prior OSM import proposals this document was compared against. Section coverage and convention choices (changeset tagging, publication of created OSM ids, revert plan wording) draw on all three.
+
+- Ottawa address import plan: <https://wiki.openstreetmap.org/wiki/Canada:Ontario:Ottawa/Import/Plan>
+- Ottawa address points schema reference: <https://wiki.openstreetmap.org/wiki/Canada:Ontario:Ottawa/Import/AddressPoints>
+- Montréal Adresses ponctuelles import: <https://wiki.openstreetmap.org/wiki/Montr%C3%A9al/Imports/Adresses_ponctuelles>
+
+## 13. Change log
+
+| Date | Change |
+|---|---|
+| 2026-04-21 | Initial draft for internal review before wiki submission. |
+| 2026-04-21 | Asserted OGL-Toronto ↔ ODbL compatibility; named pilot tile `high-park-swansea-sw-se`; added reviewer-roster contact line; committed to publishing per-phase OSM-ID lists; added §10 Revert plan; reorganised References with benchmark proposals (Ottawa, Montréal). |
