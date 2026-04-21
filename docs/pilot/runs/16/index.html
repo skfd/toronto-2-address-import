@@ -137,6 +137,11 @@
         });
         each(scope, '[hx-post]', function (el) { el.removeAttribute('hx-post'); });
         each(scope, '[hx-get][hx-target]', function (el) {
+          // hx-push-url rewrites the address bar to the hx-get value, which
+          // shifts the document base for *relative* hx-gets on the next click
+          // into a bogus nested path (.../review/<a>/<b>/index.html). Strip
+          // it so the path stays stable across clicks.
+          if (el.getAttribute('hx-push-url') === 'true') el.removeAttribute('hx-push-url');
           if (el.hasAttribute('hx-select')) return;
           el.setAttribute('hx-select', el.getAttribute('hx-target'));
           el.setAttribute('hx-swap', 'outerHTML');
@@ -156,7 +161,7 @@
   <div style="display: flex; align-items: center; gap: .6rem;">
     <h2 style="margin: 0;">Run: pilot-demo <span class="muted">#16</span></h2>
     <form method="post" action="/runs/new" class="inline" style="margin-left: auto;">
-      <input type="hidden" name="name" value="high-park-swansea-sw-se-2026-04-21-0421"/>
+      <input type="hidden" name="name" value="high-park-swansea-sw-se-2026-04-21-0434"/>
       <input type="hidden" name="min_lat" value="43.633436"/>
       <input type="hidden" name="min_lon" value="-79.480592"/>
       <input type="hidden" name="max_lat" value="43.639157"/>
