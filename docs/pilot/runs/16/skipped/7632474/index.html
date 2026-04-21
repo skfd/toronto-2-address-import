@@ -120,11 +120,22 @@
     to exercise them.
   </div>
   <script>
-    // Belt-and-braces: prevent POST forms / HTMX actions from firing even if
-    // a reader manages to click past the CSS pointer-events guard. Also teach
-    // hx-get elements to extract just their target fragment from the full
-    // page response, since the static export can't do partial rendering the
-    // way the live Flask app does (no HX-Request header branch).
+    // Teach the page to behave on the static site, where Flask isn't around
+    // to partial-render HX-Request responses or route absolute hx-get paths.
+    // Three things we need to undo / substitute:
+    //   1. Disable htmx's history machinery entirely. hx-push-url="true"
+    //      would rewrite the address bar to the clicked row's relative
+    //      hx-get target (.../<view>/<cid>/index.html). On the next click
+    //      the sibling rows' relative hx-gets then resolve against that new
+    //      path, producing a nested .../<view>/<cid1>/<cid2>/index.html
+    //      that 404s.
+    //   2. Extract the target fragment from full-page responses — we can't
+    //      branch on HX-Request, so every hx-get returns the whole page;
+    //      adding hx-select=<target> with hx-swap=outerHTML pulls out just
+    //      the fragment htmx would have otherwise inlined verbatim.
+    //   3. Neuter POST forms / hx-post actions so the disabled visual
+    //      doesn't lie if someone clicks through the pointer-events guard.
+    if (window.htmx && window.htmx.config) window.htmx.config.historyEnabled = false;
     (function () {
       function each(scope, selector, fn) {
         if (scope.matches && scope.matches(selector)) fn(scope);
@@ -137,10 +148,6 @@
         });
         each(scope, '[hx-post]', function (el) { el.removeAttribute('hx-post'); });
         each(scope, '[hx-get][hx-target]', function (el) {
-          // hx-push-url rewrites the address bar to the hx-get value, which
-          // shifts the document base for *relative* hx-gets on the next click
-          // into a bogus nested path (.../review/<a>/<b>/index.html). Strip
-          // it so the path stays stable across clicks.
           if (el.getAttribute('hx-push-url') === 'true') el.removeAttribute('hx-push-url');
           if (el.hasAttribute('hx-select')) return;
           el.setAttribute('hx-select', el.getAttribute('hx-target'));
