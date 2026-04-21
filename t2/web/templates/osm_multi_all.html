@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Non-canonical & error addresses · OSM extract{% endblock %}
+{% block content %}
+
+{% macro sev_pill(sev) -%}
+  {%- if sev == 'error' -%}<span class="pill bad">error</span>
+  {%- elif sev == 'warn' -%}<span class="pill warn">warn</span>
+  {%- else -%}<span class="pill">non-canonical</span>
+  {%- endif -%}
+{%- endmacro %}
+
+<style>
+  .multi-tbl td, .multi-tbl th { font-size: .85rem; padding: .25rem .5rem; }
+  .multi-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .multi-tbl .hn { font-family: ui-monospace, Menlo, Consolas, monospace;
+                   white-space: nowrap; }
+  .multi-tbl tbody tr:nth-child(odd) { background: #fafafa; }
+  .cat-toc { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 0 0; }
+  .cat-toc a { display: inline-flex; align-items: baseline; gap: .35rem;
+               background: #eef2ff; color: #1e3a8a; text-decoration: none;
+               padding: .25rem .55rem; border-radius: 12px; font-size: .85rem; }
+  .cat-toc a:hover { background: #dbeafe; }
+  .cat-toc a .cnt { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .cat-card h3 { margin-top: 0; display: flex; align-items: center; gap: .5rem;
+                 flex-wrap: wrap; }
+  .cat-card .desc { color: #6b7280; font-size: .9rem; margin: .2rem 0 .6rem; }
+  .cat-empty { color: #6b7280; font-style: italic; }
+  .jump-top { position: fixed; right: 1rem; bottom: 1rem; background: #1f2937;
+              color: #fff; padding: .45rem .7rem; border-radius: 4px;
+              text-decoration: none; font-size: .82rem; opacity: .85; }
+  .jump-top:hover { opacity: 1; }
+  .muted-small { color: #6b7280; font-size: .82rem; }
+</style>
+
+<div class="card">
+  <h2>Non-canonical &amp; suspected-error multi-addresses
+    <span class="pill">{{ '{:,}'.format(listing.total) }}</span>
+  </h2>
+  {% if listing.get('missing') %}
+    <p><span class="pill bad">missing extract</span> Run an OSM refresh first; no <code>toronto-addresses.json</code> on disk.</p>
+  {% else %}
+    <p class="muted">
+      Source: <code>{{ listing.source_path }}</code> ·
+      <a href="{{ url_for('osm_multi_view') }}">← back to summary</a>
+    </p>
+    <p>
+      Every <code>addr:housenumber</code> in the clipped extract that either uses a non-canonical
+      multi-value separator (<code>,</code>, <code>/</code>, <code>N-M</code>) or looks like a
+      data-entry error (reversed ranges, huge spans, mixed separators). Canonical
+      <code>;</code>-separated values are excluded. Click any row to open it on osm.org.
+    </p>
+    <div class="cat-toc">
+      {% for cat in listing.categories %}
+        <a href="#cat-{{ cat.key }}">
+          {{ cat.label }} <span class="cnt">{{ '{:,}'.format(cat.count) }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+{% if not listing.get('missing') %}
+  {% for cat in listing.categories %}
+    <div class="card cat-card" id="cat-{{ cat.key }}">
+      <h3>
+        {{ cat.label }}
+        {{ sev_pill(cat.severity) }}
+        <span class="pill">{{ '{:,}'.format(cat.count) }}</span>
+      </h3>
+      <p class="desc">{{ cat.description|safe }}</p>
+      {% if cat.rows %}
+        <table class="multi-tbl">
+          <thead>
+            <tr>
+              <th style="width:9rem">housenumber</th>
+              {% if cat.key in ('range_valid', 'error_reversed', 'error_unit_prefix') %}
+                <th class="num" style="width:4rem">span</th>
+              {% endif %}
+              <th>street</th>
+              <th>name / tags</th>
+              <th style="width:10rem">osm</th>
+              <th style="width:5rem">map</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in cat.rows %}
+              <tr>
+                <td class="hn">{{ it.hn }}</td>
+                {% if cat.key in ('range_valid', 'error_reversed', 'error_unit_prefix') %}
+                  <td class="num">{{ '{:,}'.format(it.span) if it.span is defined else '' }}</td>
+                {% endif %}
+                <td>{{ it.street }}</td>
+                <td>
+                  {%- if it.name %}<strong>{{ it.name }}</strong>{% endif -%}
+                  {%- if it.building and it.building != 'yes' %}
+                    <span class="muted-small"> · building={{ it.building }}</span>
+                  {%- endif -%}
+                  {%- if it.shop %}
+                    <span class="muted-small"> · shop={{ it.shop }}</span>
+                  {%- endif -%}
+                  {%- if it.amenity %}
+                    <span class="muted-small"> · amenity={{ it.amenity }}</span>
+                  {%- endif -%}
+                </td>
+                <td>
+                  <a href="https://www.openstreetmap.org/{{ it.type }}/{{ it.id }}"
+                     target="_blank" rel="noopener">{{ it.type }}/{{ it.id }}</a>
+                </td>
+                <td>
+                  {% if it.lat and it.lon %}
+                    <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
+                       target="_blank" rel="noopener">map ↗</a>
+                  {% else %}
+                    <span class="muted-small">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="cat-empty">no entries in this category</p>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  <a href="#" class="jump-top">↑ top</a>
+{% endif %}
+
+{% endblock %}

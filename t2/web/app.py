@@ -917,6 +917,13 @@ def create_app() -> Flask:
         stats = _multi_addresses.collect(json_path)
         return render_template("osm_multi.html", stats=stats)
 
+    @app.get("/osm/multi/all")
+    def osm_multi_all_view():
+        extract_dir = cfg.osm_extract_dir
+        json_path = extract_dir / "toronto-addresses.json"
+        listing = _multi_addresses.list_entries(json_path)
+        return render_template("osm_multi_all.html", listing=listing)
+
     @app.post("/osm/refresh")
     def osm_refresh_start():
         running, pid = osm_refresh.is_refresh_running(cfg)

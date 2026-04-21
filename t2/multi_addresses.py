@@ -21,6 +21,7 @@ _RANGE_WITH_LETTER = re.compile(r"^\s*\d+[A-Za-z]+\s*-\s*\d+[A-Za-z]*\s*$|^\s*\d
 _FRACTION = re.compile(r"^\s*\d+\s+\d+/\d+\s*$|^\s*\d+/\d+\s*$")
 
 _CACHE: dict[Path, tuple[float, dict[str, Any]]] = {}
+_LIST_CACHE: dict[Path, tuple[float, dict[str, Any]]] = {}
 
 
 def _example_row(el: dict) -> dict:
@@ -220,6 +221,182 @@ def _compute(json_path: Path) -> dict[str, Any]:
         "comma_list_lengths": sorted(comma_list_lengths.items()),
         "semicolon_list_lengths": sorted(semicolon_list_lengths.items()),
     }
+
+
+def _entry_row(el: dict) -> dict:
+    tags = el.get("tags") or {}
+    lat = el.get("lat")
+    lon = el.get("lon")
+    if lat is None or lon is None:
+        c = el.get("center") or {}
+        lat = c.get("lat")
+        lon = c.get("lon")
+    return {
+        "type": el.get("type"),
+        "id": el.get("id"),
+        "hn": tags.get("addr:housenumber", ""),
+        "street": tags.get("addr:street", ""),
+        "name": tags.get("name", ""),
+        "building": tags.get("building", ""),
+        "shop": tags.get("shop", ""),
+        "amenity": tags.get("amenity", ""),
+        "lat": lat,
+        "lon": lon,
+    }
+
+
+def _sort_key(r: dict) -> tuple:
+    """Sort entries by street, then by the first numeric housenumber found."""
+    hn = r.get("hn") or ""
+    m = re.search(r"\d+", hn)
+    num = int(m.group(0)) if m else 0
+    return ((r.get("street") or "").lower(), num, hn)
+
+
+def _compute_entries(json_path: Path) -> dict[str, Any]:
+    """Enumerate every non-canonical or suspect-error multi-address entry.
+
+    Categories:
+      - comma:               any `,`-separated housenumber (non-canonical)
+      - slash_multi:         `/`-separated multi-value (not fractions like `20 1/2`)
+      - range_valid:         `N-M` with 0 < span ≤ 100 (non-canonical but plausible)
+      - range_letter:        range-style with letter suffix (e.g. `2523A-2539A`)
+      - error_reversed:      `N-M` with span ≤ 0 (equal or reversed)
+      - error_unit_prefix:   `N-M` with span > 100 (suspected "Unit-HouseNumber")
+      - mixed:               entry uses both `;` and `,` — e.g. `2335,2335-1/2A`
+    Semicolon-only entries are canonical and excluded.
+    """
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+
+    buckets: dict[str, list[dict]] = {
+        "comma": [],
+        "slash_multi": [],
+        "range_valid": [],
+        "range_letter": [],
+        "error_reversed": [],
+        "error_unit_prefix": [],
+        "mixed": [],
+    }
+
+    for el in data:
+        tags = el.get("tags") or {}
+        hn = tags.get("addr:housenumber")
+        if not hn:
+            continue
+        if "addr:interpolation" in tags:
+            continue
+
+        has_semi = ";" in hn
+        has_comma = "," in hn
+        has_slash = "/" in hn
+        is_fraction = bool(_FRACTION.match(hn))
+        rng_match = _RANGE_SIMPLE.match(hn)
+        row = _entry_row(el)
+
+        slash_is_multi = has_slash and not is_fraction
+        mix_flags = sum((has_semi, has_comma, slash_is_multi))
+        if mix_flags >= 2:
+            buckets["mixed"].append(row)
+
+        if has_comma:
+            buckets["comma"].append(row)
+
+        if has_slash and not is_fraction:
+            buckets["slash_multi"].append(row)
+
+        if rng_match and not has_semi and not has_comma:
+            a, b = int(rng_match.group(1)), int(rng_match.group(2))
+            span = b - a
+            if span <= 0:
+                buckets["error_reversed"].append({**row, "span": span})
+            elif span > 100:
+                buckets["error_unit_prefix"].append({**row, "span": span})
+            else:
+                buckets["range_valid"].append({**row, "span": span})
+        elif _RANGE_WITH_LETTER.match(hn) and not has_semi and not has_comma:
+            buckets["range_letter"].append(row)
+
+    for k, rows in buckets.items():
+        rows.sort(key=_sort_key)
+
+    categories = [
+        {
+            "key": "error_reversed",
+            "label": "Reversed or zero-span ranges",
+            "description": "`N-M` where N ≥ M. Almost certainly data-entry errors.",
+            "severity": "error",
+        },
+        {
+            "key": "error_unit_prefix",
+            "label": "Suspected Unit-HouseNumber prefixes",
+            "description": "`N-M` with span > 100. Likely the Canadian \"Unit N ‑ Street #M\" convention squeezed into the housenumber field, not a real range.",
+            "severity": "error",
+        },
+        {
+            "key": "mixed",
+            "label": "Mixed separators",
+            "description": "A single tag combines two or more of `;`, `,`, `/` (non-fraction). Tokenizers that split on only one separator will misread these.",
+            "severity": "warn",
+        },
+        {
+            "key": "range_letter",
+            "label": "Range-style with letter suffix",
+            "description": "e.g. `2523A-2539A`, `567-567A`. Readable to a human but non-standard for machines.",
+            "severity": "warn",
+        },
+        {
+            "key": "comma",
+            "label": "Comma-separated",
+            "description": "`,` is not the OSM-canonical multi-value separator. OSM documents `;`.",
+            "severity": "noncanonical",
+        },
+        {
+            "key": "slash_multi",
+            "label": "Slash multi-value",
+            "description": "Rare; forms like `131/151/181` or `586/586a`. Fractional single addresses (`20 1/2`) are excluded.",
+            "severity": "noncanonical",
+        },
+        {
+            "key": "range_valid",
+            "label": "Dash ranges (N-M, span 1-100)",
+            "description": "Well-formed ranges like `18-20` or `168-172`. Non-canonical vs `;` but usually a legitimate multi-number building.",
+            "severity": "noncanonical",
+        },
+    ]
+    for cat in categories:
+        cat["count"] = len(buckets[cat["key"]])
+        # Key is "rows" not "items" — Jinja2 attribute access on dicts resolves
+        # `.items` to the built-in dict method, not a user-defined key.
+        cat["rows"] = buckets[cat["key"]]
+
+    total = sum(c["count"] for c in categories)
+    return {
+        "source_path": str(json_path),
+        "source_mtime": json_path.stat().st_mtime,
+        "source_bytes": json_path.stat().st_size,
+        "total": total,
+        "categories": categories,
+    }
+
+
+def list_entries(json_path: Path) -> dict[str, Any]:
+    """Return the full per-entry listing. Cached by mtime of the source JSON."""
+    if not json_path.exists():
+        return {
+            "source_path": str(json_path),
+            "source_mtime": None,
+            "source_bytes": None,
+            "total": 0,
+            "categories": [],
+            "missing": True,
+        }
+    mtime = json_path.stat().st_mtime
+    cached = _LIST_CACHE.get(json_path)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    result = _compute_entries(json_path)
+    _LIST_CACHE[json_path] = (mtime, result)
+    return result
 
 
 def collect(json_path: Path) -> dict[str, Any]:
