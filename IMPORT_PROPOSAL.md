@@ -44,7 +44,12 @@ Expected output after conflation is materially smaller than the above — any ad
 
 ## 3. Schedule
 
-**Contacts and reviewer roster.** Primary maintainer and first-line reviewer: `toronto@comentality.com`. Additional named reviewers will be listed on the OSM wiki page before Phase 1 begins; any local Toronto mapper who would like to join as a reviewer should contact the email above. No batch is uploaded without at least one named reviewer having approved it in the web UI.
+**Contacts and reviewer roster.**
+
+- **Primary maintainer / first-line reviewer:** `toronto@comentality.com`
+- **Additional reviewers:** named on the OSM wiki page before Phase 1 begins
+- **Joining the roster:** local Toronto mappers contact the email above
+- **Upload rule:** no batch is uploaded without at least one named reviewer's approval in the web UI
 
 Phased roll-out, each phase shippable and independently reversible. Dates are earliest-start, pending community review and feedback incorporation.
 
@@ -77,7 +82,9 @@ Upload rate is capped at **1 changeset per minute** (config `upload.changesets_p
 
 ### Freshness
 
-The local OSM snapshot that drives conflation is refreshed from Geofabrik's Ontario PBF (`t2/osm_refresh.py`). It is re-pulled before each run so that the "OSM already has this address" signal is based on recent data, not a stale cache. For any run that spans more than 24 hours between conflation and upload, we re-fetch and re-conflate before opening any changesets.
+- **Source:** Geofabrik Ontario PBF, refreshed via `t2/osm_refresh.py`.
+- **Cadence:** re-pulled before each run — the "OSM already has this address" signal is always based on a fresh snapshot.
+- **Staleness rule:** if more than 24 h elapse between conflation and upload, re-fetch and re-conflate before opening changesets.
 
 ## 5. Tagging plan
 
@@ -168,7 +175,25 @@ Toronto absorbed five adjacent municipalities in 1998. Street names recur across
 
 ### Colocated duplicates within the source
 
-A small number of addresses (~436 city-wide on the current snapshot) have a `Land` row and a `Structure` row at the same address within 50 m. Today the pipeline uploads both if both pass conflation; a planned colocated-dedup pass will collapse these to a single node before review. This does not block Phase 1 because the pilot tile is selected to avoid known dense colocation clusters.
+- **Shape:** `Land` + `Structure` at the same address, within 50 m. ~436 addresses city-wide on snapshot #28.
+- **Current behaviour:** both rows upload if both pass conflation.
+- **Planned fix:** colocated-dedup pass collapses them to a single node before review.
+- **Phase 1 impact:** none — the pilot tile was chosen to avoid known colocation clusters.
+
+### Acknowledged duplicate-creation paths, deferred to a future phase
+
+Two known OSM data shapes can cause this import to create a *colocated duplicate* of an address OSM already carries, because they're not representable in the current single-value match key:
+
+1. **`addr:interpolation` endpoints.** Interpolation-way member nodes are dropped from the match index (they're endpoint-of-range declarations, not standalone addresses). A City candidate whose housenumber happens to coincide with one of those endpoint numbers will therefore be classified `MISSING` and uploaded — creating a node that duplicates the address the interpolation endpoint already asserts. The same effect, by construction, applies to every real City address that falls *between* the endpoints: the whole premise of the interpolation-replacement phase is that per-address points are better than a synthesised range.
+2. **Multi-value `addr:housenumber` on a single OSM node.** Canonical OSM uses `;` to separate multi-values, but the Toronto OSM extract additionally contains `,`-separated lists and `N-M`-style ranges packed into a single tag (see `t2/multi_addresses.py`). The match key is the literal string, so `addr:housenumber=100;102;104` does not match a City candidate for `100` — and we'd upload a colocated duplicate for every sub-number the multi-value tag subsumes.
+
+**Disposition for this import:**
+
+- Accept the transient duplication.
+- No algorithmic split at conflation time.
+- No new reviewer check.
+- Cleanup handled in the follow-up proposal in §8 — that proposal enumerates these objects in place, cross-checks them against newly-uploaded per-address points, and retires or normalises them as appropriate.
+- Handling either shape now would mean editing existing OSM objects (different review bar, different rollback story) — out of scope per §2.
 
 ## 7. Workflow and QA
 
@@ -209,11 +234,15 @@ The review UI is a local Flask app (`python run.py`, <http://localhost:5000/>). 
 
 ### Audit log
 
-Every automatic classification, every reviewer decision, every batch composition, and every changeset open/upload/close is written to an append-only audit log keyed by candidate id. The log survives reruns. The wiki page will link to a per-run audit dump so any OSM contributor can reconstruct what happened for any specific uploaded node.
+- **Scope:** every automatic classification, every reviewer decision, every batch composition, every changeset open/upload/close.
+- **Key and durability:** keyed by candidate id; append-only; survives reruns.
+- **Publication:** wiki page links per-run audit dumps; any OSM contributor can reconstruct what happened for any uploaded node.
 
 ### Post-upload reconciliation
 
-After a batch uploads, the OSM API's response maps our local node ids to server-assigned OSM node ids. Those mappings are stored and surfaced in the audit log. At the end of each phase (1, 2, 3) the full list of newly-created OSM node ids — alongside their changeset ids and the originating source row ids — is published as an attachment on the OSM wiki page for this import, following the precedent set by the Montréal `Adresses ponctuelles` import. If a reviewer later disputes an uploaded node, we can point at its source row, the conflation verdict, the reviewer decision, and the changeset id in a single query.
+- **Id mapping:** OSM API returns local-id → OSM-id pairs per batch; stored in the audit log.
+- **Phase-end publication:** at the end of Phases 1, 2, 3, the full `(source_row, OSM_id, changeset_id)` triples are published as an attachment on the wiki page, following the Montréal `Adresses ponctuelles` precedent.
+- **Dispute traceability:** any uploaded node can be traced back to its source row, conflation verdict, reviewer decision, and changeset id in a single query.
 
 ## 8. Deferred work (not part of this import)
 
@@ -221,15 +250,27 @@ These are documented so no reviewer has to ask whether we forgot them. Each woul
 
 ### Deleting OSM addresses absent from the City source
 
-We do not propose, flag, or remove any OSM address that does not appear in the City snapshot. Absence in the source is a weaker signal than presence: the feed has refresh lag, neighbourhoods with acknowledged coverage gaps, and retired-address lifecycle states that are not cleanly separable from "never existed." Deleting OSM data on this signal alone would destroy real addresses on weaker evidence than we are prepared to accept for additions. A removal pass, if ever pursued, needs its own proposal, its own review queue (the verdicts here don't fit), a street-level cross-check to suppress the common "Toronto's feed is missing a whole street" case, and strictly human approval — no automation.
+- **What it is:** remove OSM addresses the City snapshot doesn't have.
+- **Why deferred:** absence in the source is a weaker signal than presence — the feed has refresh lag, neighbourhoods with acknowledged coverage gaps, and retired-address lifecycle states that aren't cleanly separable from "never existed." Deletion on that signal alone would destroy real addresses on weaker evidence than we accept for additions.
+- **What a future proposal needs:** its own review queue (the verdicts here don't fit); a street-level cross-check to suppress the common "Toronto's feed is missing a whole street" case; strictly human approval — no automation.
 
 ### Replacing `addr:interpolation` ways with per-address points
 
-Where the City snapshot provides real points along a segment currently covered by an `addr:interpolation` way, the way is technically redundant. We still do not touch it. Replacement needs cross-validation that every integer in the interpolation's range has a colocated City point, care around tags (`addr:street`, `addr:postcode`) that the way carries on behalf of its endpoints, and a different changeset hygiene model (bulk structural edit, not address addition). Separate proposal if pursued.
+- **What it is:** retire `addr:interpolation` ways where the City snapshot now provides real per-address points along the same segment.
+- **Why deferred:** replacement is a bulk structural edit, not an address addition — different changeset hygiene, different review bar.
+- **What a future proposal needs:** cross-validation that every integer in the interpolation's range has a colocated City point; careful handling of tags the way carries on behalf of its endpoints (`addr:street`, `addr:postcode`); resolution of any colocated duplicates this import created against interpolation endpoints (§6).
+
+### Normalising multi-value `addr:housenumber` nodes
+
+- **What it is:** normalise OSM nodes that pack multiple street numbers into one `addr:housenumber` tag (`;`-, `,`-, or `N-M`-delimited) — either by splitting into per-number nodes or by retiring in favour of newly-uploaded per-address points.
+- **Why deferred:** edits existing objects, needs per-case review, belongs in a mutation-capable pipeline rather than this create-only one.
+- **What a future proposal needs:** enumeration source already exists (`t2/multi_addresses.py`, surfaced on `/osm/multi`); cross-check against newly-uploaded per-address points; resolution of any colocated duplicates this import created against multi-value nodes subsuming a City housenumber (§6).
 
 ### Mutation of matched OSM nodes (e.g. postcode enrichment)
 
-A matched OSM address node that lacks `addr:postcode` while a same-address POI nearby carries one is a tempting enrichment target. Sketched in `future-work/postcode-enrichment.md`; deliberately excluded from this import. Reason: this import is additive-creation-only. Mixing `<modify>` into the same changeset flow expands blast radius and changes the review bar. Done separately if at all.
+- **What it is:** add `addr:postcode` (or other tags) to existing matched OSM address nodes, e.g. by copying from a same-address POI nearby.
+- **Why deferred:** this import is additive-creation-only; mixing `<modify>` into the same changeset flow expands blast radius and changes the review bar.
+- **What a future proposal needs:** sketched in `future-work/postcode-enrichment.md` — version-checked writes, separate changeset tagged `import:kind=postcode_enrichment`, human approval per proposed enrichment (no auto-approve).
 
 ## 9. Risks and mitigations
 
@@ -301,3 +342,5 @@ These are the prior OSM import proposals this document was compared against. Sec
 |---|---|
 | 2026-04-21 | Initial draft for internal review before wiki submission. |
 | 2026-04-21 | Asserted OGL-Toronto ↔ ODbL compatibility; named pilot tile `high-park-swansea-sw-se`; added reviewer-roster contact line; committed to publishing per-phase OSM-ID lists; added §10 Revert plan; reorganised References with benchmark proposals (Ottawa, Montréal). |
+| 2026-04-21 | §6 acknowledges two duplicate-creation paths (interpolation endpoints, multi-value `addr:housenumber`) and defers their resolution; §8 adds the multi-value-normalisation follow-up entry. No algorithmic change, no new check. |
+| 2026-04-21 | Reworked dense paragraphs in §3 Contacts, §4 Freshness, §6 Colocated duplicates + Disposition, §7 Post-upload reconciliation + Audit log, and all §8 deferred-work entries into bullet lists. No content changes. |
