@@ -5,9 +5,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
+from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_from_directory, url_for
 
-from .. import audit, batcher, candidates, config as _config, db as _db, multi_addresses as _multi_addresses, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, source_db, tag_diff, tiles_build
+from .. import audit, batcher, candidates, config as _config, db as _db, multi_addresses as _multi_addresses, multi_fixes as _multi_fixes, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, source_db, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -922,7 +922,88 @@ def create_app() -> Flask:
         extract_dir = cfg.osm_extract_dir
         json_path = extract_dir / "toronto-addresses.json"
         listing = _multi_addresses.list_entries(json_path)
-        return render_template("osm_multi_all.html", listing=listing)
+        verdicts = _multi_fixes.load_verdicts()
+        exported = _multi_fixes.load_exported_set()
+        return render_template(
+            "osm_multi_all.html",
+            listing=listing,
+            verdicts=verdicts,
+            exported=exported,
+            verdict_options=_multi_fixes.VERDICT_OPTIONS,
+        )
+
+    @app.post("/osm/multi/all/save")
+    def osm_multi_all_save():
+        entries: list[tuple[str, int, str]] = []
+        ticked: set[tuple[str, int]] = set()
+        for key, value in request.form.items():
+            if key.startswith("v-"):
+                try:
+                    _, osm_type, osm_id = key.split("-", 2)
+                    oid = int(osm_id)
+                except ValueError:
+                    continue
+                if osm_type not in ("node", "way", "relation"):
+                    continue
+                if value not in _multi_fixes.VERDICTS:
+                    continue
+                entries.append((osm_type, oid, value))
+            elif key.startswith("ex-"):
+                try:
+                    _, osm_type, osm_id = key.split("-", 2)
+                    oid = int(osm_id)
+                except ValueError:
+                    continue
+                if osm_type not in ("node", "way", "relation"):
+                    continue
+                ticked.add((osm_type, oid))
+
+        saved = _multi_fixes.save_verdicts(entries)
+        # Apply operator-controlled exported flags for every row that had a
+        # verdict picked on this form: ticked rows are marked exported (so
+        # they won't be re-shipped), un-ticked rows are cleared. Rows without
+        # a verdict this save are untouched.
+        entry_keys = [(t, i) for (t, i, _) in entries]
+        set_keys = [k for k in entry_keys if k in ticked]
+        clear_keys = [k for k in entry_keys if k not in ticked]
+        _multi_fixes.set_exported_flags(set_keys, clear_keys)
+        # Only export rows that haven't already been written to a prior .osm
+        # file. save_verdicts cleared exported_at for any row whose verdict
+        # actually changed, and set_exported_flags just applied the checkbox
+        # state, so new + re-classified + un-ticked rows are picked up here.
+        to_export = _multi_fixes.load_unexported_actionable()
+        try:
+            summary = _multi_fixes.build_export(
+                to_export, cfg.data_dir / "multi_fixes"
+            )
+            error = None
+        except Exception as exc:
+            summary = {
+                "total_verdicts": len(to_export),
+                "actionable": len(to_export),
+                "applied": [],
+                "conflicts": [],
+                "file_name": None,
+            }
+            error = f"Overpass fetch failed: {exc}"
+        return render_template(
+            "osm_multi_export.html",
+            saved=saved,
+            summary=summary,
+            error=error,
+        )
+
+    @app.get("/osm/multi/export/<path:filename>")
+    def osm_multi_export_download(filename: str):
+        # Restrict to files we emit: `t2-multi-fix-*.osm` under data/multi_fixes.
+        if "/" in filename or "\\" in filename or not filename.startswith("t2-multi-fix-") or not filename.endswith(".osm"):
+            abort(404)
+        return send_from_directory(
+            cfg.data_dir / "multi_fixes",
+            filename,
+            as_attachment=True,
+            mimetype="application/xml",
+        )
 
     @app.post("/osm/refresh")
     def osm_refresh_start():

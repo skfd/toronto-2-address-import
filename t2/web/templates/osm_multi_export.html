@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Multi-address export · result{% endblock %}
+{% block content %}
+
+<style>
+  .summary-tbl td, .summary-tbl th { font-size: .85rem; padding: .3rem .5rem; }
+  .summary-tbl .hn { font-family: ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; }
+  .download { display: inline-block; background: #1e3a8a; color: #fff; padding: .55rem 1.1rem;
+              border-radius: 4px; font-weight: 600; text-decoration: none; }
+  .download:hover { background: #1e40af; }
+  .chip-applied { background: #d1fae5; color: #065f46; padding: .1rem .4rem; border-radius: 3px; font-size: .78rem; }
+  .chip-conflict { background: #fee2e2; color: #991b1b; padding: .1rem .4rem; border-radius: 3px; font-size: .78rem; }
+</style>
+
+<div class="card">
+  <h2>Multi-address verdicts saved</h2>
+  <p>
+    <strong>{{ saved }}</strong> verdict(s) written to <code>multi_address_verdicts</code>.
+    <a href="{{ url_for('osm_multi_all_view') }}">← back to the list</a>
+  </p>
+
+  {% if error %}
+    <p><span class="pill bad">export failed</span> {{ error }}</p>
+    <p class="muted">Verdicts are saved; no <code>.osm</code> file was produced. Try again once Overpass recovers.</p>
+  {% elif summary.file_name %}
+    <p>
+      <a class="download" href="{{ url_for('osm_multi_export_download', filename=summary.file_name) }}">
+        ⬇ Download {{ summary.file_name }}
+      </a>
+    </p>
+    <p class="muted-small">
+      {{ summary.applied|length }} element(s) edited against live OSM data ·
+      {{ summary.conflicts|length }} conflict(s) skipped.
+      Open the file in JOSM → review → Upload.
+    </p>
+  {% else %}
+    <p class="muted">No actionable verdicts in this save — nothing to export.</p>
+  {% endif %}
+</div>
+
+{% if summary.applied %}
+  <div class="card">
+    <h3>Applied edits <span class="pill">{{ summary.applied|length }}</span></h3>
+    <table class="summary-tbl">
+      <thead>
+        <tr>
+          <th>osm</th>
+          <th>verdict</th>
+          <th>before</th>
+          <th>after</th>
+          <th>addr:unit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in summary.applied %}
+          <tr>
+            <td>
+              <a href="https://www.openstreetmap.org/{{ r.type }}/{{ r.id }}"
+                 target="_blank" rel="noopener">{{ r.type }}/{{ r.id }}</a>
+            </td>
+            <td><span class="chip-applied">{{ r.verdict }}</span></td>
+            <td class="hn">{{ r.before }}</td>
+            <td class="hn">{{ r.after }}</td>
+            <td class="hn">{{ r.added_unit or '' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+{% if summary.conflicts %}
+  <div class="card">
+    <h3>Conflicts <span class="pill bad">{{ summary.conflicts|length }}</span></h3>
+    <p class="muted-small">
+      These were skipped because the live OSM element no longer matches the
+      verdict's precondition (likely already fixed by another mapper, or
+      deleted). The verdict is still saved for the record.
+    </p>
+    <table class="summary-tbl">
+      <thead>
+        <tr>
+          <th>osm</th>
+          <th>verdict</th>
+          <th>live housenumber</th>
+          <th>reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in summary.conflicts %}
+          <tr>
+            <td>
+              <a href="https://www.openstreetmap.org/{{ r.type }}/{{ r.id }}"
+                 target="_blank" rel="noopener">{{ r.type }}/{{ r.id }}</a>
+            </td>
+            <td><span class="chip-conflict">{{ r.verdict }}</span></td>
+            <td class="hn">{{ r.live_hn or '' }}</td>
+            <td>{{ r.reason }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}
+
+{% endblock %}

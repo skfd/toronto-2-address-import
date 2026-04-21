@@ -9,6 +9,22 @@
   {%- endif -%}
 {%- endmacro %}
 
+{% macro verdict_cell(cat_key, row) -%}
+  {%- set opts = verdict_options.get(cat_key, []) -%}
+  {%- set saved = verdicts.get((row.type, row.id)) -%}
+  {%- set fname = 'v-' ~ row.type ~ '-' ~ row.id -%}
+  <div class="verdicts">
+    {%- for opt in opts %}
+      <label class="v-opt v-{{ opt.value }}"
+             title="{{ opt.label }}">
+        <input type="radio" name="{{ fname }}" value="{{ opt.value }}"
+               {% if saved == opt.value %}checked{% endif %}>
+        <span>{{ opt.label }}</span>
+      </label>
+    {%- endfor %}
+  </div>
+{%- endmacro %}
+
 <style>
   .multi-tbl td, .multi-tbl th { font-size: .85rem; padding: .25rem .5rem; }
   .multi-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -25,11 +41,35 @@
                  flex-wrap: wrap; }
   .cat-card .desc { color: #6b7280; font-size: .9rem; margin: .2rem 0 .6rem; }
   .cat-empty { color: #6b7280; font-style: italic; }
-  .jump-top { position: fixed; right: 1rem; bottom: 1rem; background: #1f2937;
+  .jump-top { position: fixed; right: 1rem; bottom: 5rem; background: #1f2937;
               color: #fff; padding: .45rem .7rem; border-radius: 4px;
               text-decoration: none; font-size: .82rem; opacity: .85; }
   .jump-top:hover { opacity: 1; }
   .muted-small { color: #6b7280; font-size: .82rem; }
+
+  .verdicts { display: flex; flex-wrap: wrap; gap: .25rem; }
+  .v-opt { display: inline-flex; align-items: center; gap: .2rem;
+           padding: .1rem .4rem; border: 1px solid #d1d5db; border-radius: 3px;
+           background: #fff; cursor: pointer; font-size: .78rem; user-select: none; }
+  .v-opt input { margin: 0; }
+  .v-opt:hover { background: #f3f4f6; }
+  .v-opt:has(input:checked) { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+  .v-opt.v-skip:has(input:checked) { background: #6b7280; border-color: #6b7280; }
+  .v-opt.v-keep_range:has(input:checked) { background: #0d9488; border-color: #0d9488; }
+  .v-opt.v-reverse:has(input:checked) { background: #b45309; border-color: #b45309; }
+  .v-opt.v-unit_prefix:has(input:checked) { background: #7c3aed; border-color: #7c3aed; }
+
+  .exp-cell { text-align: center; }
+  .exp-cell input { cursor: pointer; }
+  .exp-cell label { color: #6b7280; font-size: .72rem; display: block; }
+
+  .save-bar { position: sticky; bottom: 0; background: #fff; border-top: 2px solid #1e3a8a;
+              padding: .7rem 1rem; margin: 0 -1rem -1rem -1rem; display: flex;
+              gap: .75rem; align-items: center; z-index: 5; }
+  .save-bar button { background: #1e3a8a; color: #fff; border: 0; padding: .55rem 1.1rem;
+                     border-radius: 4px; font-size: .95rem; cursor: pointer; font-weight: 600; }
+  .save-bar button:hover { background: #1e40af; }
+  .save-bar .hint { color: #6b7280; font-size: .85rem; }
 </style>
 
 <div class="card">
@@ -49,6 +89,13 @@
       data-entry error (reversed ranges, huge spans, mixed separators). Canonical
       <code>;</code>-separated values are excluded. Click any row to open it on osm.org.
     </p>
+    <p class="muted-small" style="margin:.3rem 0 0">
+      Pick a verdict per row and click <strong>Save &amp; export</strong>. Actionable verdicts
+      (<code>→ ,</code>, <code>unit-#</code>, <code>reverse</code>) are re-checked against
+      live Overpass before being written to a JOSM-ready <code>.osm</code> file.
+      <code>→ ,</code> rewrites the housenumber using <code>,</code> as the list separator —
+      it's non-canonical per OSM wiki, but ~2.5× more common than <code>;</code> in this dataset.
+    </p>
     <div class="cat-toc">
       {% for cat in listing.categories %}
         <a href="#cat-{{ cat.key }}">
@@ -60,6 +107,7 @@
 </div>
 
 {% if not listing.get('missing') %}
+  <form method="post" action="{{ url_for('osm_multi_all_save') }}">
   {% for cat in listing.categories %}
     <div class="card cat-card" id="cat-{{ cat.key }}">
       <h3>
@@ -78,8 +126,10 @@
               {% endif %}
               <th>street</th>
               <th>name / tags</th>
-              <th style="width:10rem">osm</th>
-              <th style="width:5rem">map</th>
+              <th style="width:9rem">osm</th>
+              <th style="width:4rem">map</th>
+              <th style="width:20rem">verdict</th>
+              <th style="width:3rem" title="Already exported — uncheck to re-queue for the next export">exp</th>
             </tr>
           </thead>
           <tbody>
@@ -114,6 +164,12 @@
                     <span class="muted-small">—</span>
                   {% endif %}
                 </td>
+                <td>{{ verdict_cell(cat.key, it) }}</td>
+                <td class="exp-cell">
+                  <input type="checkbox" name="ex-{{ it.type }}-{{ it.id }}" value="1"
+                         {% if (it.type, it.id) in exported %}checked{% endif %}
+                         title="Tick to mark this row already exported; untick to include in the next export.">
+                </td>
               </tr>
             {% endfor %}
           </tbody>
@@ -123,6 +179,14 @@
       {% endif %}
     </div>
   {% endfor %}
+    <div class="save-bar">
+      <button type="submit">Save &amp; export OSM file</button>
+      <span class="hint">Verdicts save to <code>tool.db</code>. Actionable verdicts
+        are re-checked against live Overpass, then written as a JOSM-editable
+        <code>.osm</code> file. Rows ticked <strong>exp</strong> are skipped
+        (uploaded already); untick to re-queue.</span>
+    </div>
+  </form>
 
   <a href="#" class="jump-top">↑ top</a>
 {% endif %}
