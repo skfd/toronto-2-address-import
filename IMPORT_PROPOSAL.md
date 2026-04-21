@@ -5,6 +5,7 @@
 **Last revised:** 2026-04-21
 **Contact:** toronto@comentality.com
 **Tooling:** <https://github.com/skfd/toronto-2-address-import> (this repo) + <https://github.com/skfd/toronto-addresses-import> (upstream scraper)
+**Pilot evidence:** <https://skfd.github.io/toronto-2-address-import/pilot/runs/15/> — read-only snapshot of one completed pilot run (tile `high-park-swansea-sw-se`, 252 candidates) rendered in the full review UI.
 
 ---
 

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Review queue</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #f6f7f9; color: #222; }
+    header { background: #1f2937; color: #fff; padding: .7rem 1.2rem;
+             display: flex; align-items: center; gap: 1rem; }
+    header a { color: #fff; text-decoration: none; }
+    header .nav a { margin-right: 1rem; }
+    header .meta { margin-left: auto; font-size: .82rem; color: #cbd5e1; }
+    header .meta a { color: #cbd5e1; }
+    header .meta a:hover { color: #fff; text-decoration: underline; }
+    header .meta .sep { margin: 0 .4rem; color: #64748b; }
+    main { padding: 1.2rem; max-width: 1200px; margin: 0 auto; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: .4rem .6rem; text-align: left; font-size: .92rem; }
+    th { background: #f3f4f6; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .8rem; background: #eef; }
+    a.pill { text-decoration: none; color: #1d4ed8; }
+    a.pill:hover { background: #dbeafe; }
+    .pill.warn { background: #fde68a; }
+    .pill.bad { background: #fecaca; }
+    .pill.ok { background: #bbf7d0; }
+    button, .btn { background: #2563eb; color: #fff; border: 0; padding: .4rem .8rem; border-radius: 4px; cursor: pointer; font-size: .9rem; }
+    button.secondary { background: #6b7280; }
+    button.danger { background: #dc2626; }
+    button:disabled, button[disabled] { opacity: .55; cursor: wait; }
+    form.inline { display: inline; }
+    /* Pipeline stepper */
+    .pipeline-header { display: flex; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+    .pipeline-header .run-all { background: #059669; font-weight: 600; }
+    .pipeline-header .run-all:hover:not(:disabled) { background: #047857; }
+    .pipeline-hint { font-size: .85rem; }
+    .pipeline-spinner { width: 14px; height: 14px; border: 2px solid #cbd5e1; border-top-color: #2563eb;
+                        border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .htmx-indicator { opacity: 0; transition: opacity .15s; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+    #pipeline.htmx-request button { opacity: .55; pointer-events: none; cursor: wait; }
+    .stepper { list-style: none; padding: 0; margin: 0 0 .6rem 0; display: flex; flex-wrap: wrap;
+               align-items: center; gap: .4rem; }
+    .stepper .step { display: inline-flex; align-items: center; gap: .4rem; }
+    .stepper .step + .step::before { content: "→"; color: #9ca3af; margin: 0 .2rem; }
+    .step-badge { display: inline-flex; align-items: center; justify-content: center;
+                  width: 22px; height: 22px; border-radius: 50%; font-size: .78rem; font-weight: 600;
+                  background: #e5e7eb; color: #374151; }
+    .step.done .step-badge { background: #059669; color: #fff; }
+    .step.done .stage-btn { background: #6b7280; }
+    .stage-msg { margin: .4rem 0 .2rem; }
+    .stage-msg.err { background: #fee2e2; color: #991b1b; padding: .4rem .6rem; border-radius: 4px; }
+    .stage-counts { margin: .2rem 0 0; }
+    .flash { background: #fef3c7; padding: .5rem .8rem; border-radius: 4px; margin-bottom: 1rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; }
+    .muted { color: #6b7280; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
+    #leaflet-map { height: 280px; border-radius: 4px; }
+    [data-tip] { position: relative; cursor: help; }
+    a[data-tip], button[data-tip] { cursor: pointer; }
+    [data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      background: #1f2937; color: #fff; padding: 5px 9px; border-radius: 4px;
+      font-size: .78rem; line-height: 1.3; font-weight: normal;
+      width: max-content; max-width: 280px; white-space: normal; text-align: left;
+      z-index: 1000; pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,.18);
+    }
+    
+    .static-banner { background: #fef3c7; border-bottom: 2px solid #f59e0b;
+                     padding: .6rem 1.2rem; font-size: .88rem; color: #78350f;
+                     text-align: center; }
+    .static-banner a { color: #78350f; font-weight: 600; }
+    body.static-export form[method="post"],
+    body.static-export [hx-post] { opacity: .6; cursor: not-allowed; }
+    body.static-export form[method="post"] button,
+    body.static-export form[method="post"] input[type="submit"],
+    body.static-export form[method="post"] select,
+    body.static-export form[method="post"] input[type="text"],
+    body.static-export form[method="post"] input[type="number"],
+    body.static-export [hx-post] button,
+    body.static-export [hx-post] input[type="checkbox"] { pointer-events: none; }
+    
+  </style>
+</head>
+<body class="static-export">
+  <header>
+    <span class="nav">
+      <a href="../../../../index.html"><strong>t2 address import</strong></a>
+      
+      <a href="../../../../osm/index.html">OSM extract</a>
+      <a href="../../../../osm/multi/index.html">Multi-addresses</a>
+      <a href="../../../../osm/multi/corners/index.html">Corners</a>
+      <a href="../../../../data/index.html">Data</a>
+      
+    </span>
+    <span class="meta">
+      <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/skfd/toronto-2-address-import/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+      <span class="sep">·</span>
+      <a href="https://open.toronto.ca/open-data-license/" target="_blank" rel="noopener">Toronto Open Data</a>
+      &amp;
+      &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>
+    </span>
+  </header>
+  
+  <div class="static-banner">
+    Static snapshot of run <strong>pilot-phase1</strong>
+    as of 2026-04-21 —
+    pilot evidence for the
+    <a href="https://github.com/skfd/toronto-2-address-import/blob/main/IMPORT_PROPOSAL.md" target="_blank" rel="noopener">Toronto address import proposal</a>.
+    Interactive actions (stages, review decisions, uploads) are disabled.
+    <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">Run the live tool</a>
+    to exercise them.
+  </div>
+  <script>
+    // Belt-and-braces: prevent POST forms / HTMX actions from firing even if
+    // a reader manages to click past the CSS pointer-events guard.
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function (f) {
+        f.addEventListener('submit', function (e) { e.preventDefault(); });
+      });
+      document.querySelectorAll('[hx-post]').forEach(function (el) {
+        el.removeAttribute('hx-post');
+      });
+    });
+  </script>
+  
+  <main>
+    
+      
+    
+    
+<div class="card">
+  <h2>Review queue <span class="muted">(run #15, 0 shown)</span></h2>
+  <p><a href="../../index.html">← run</a></p>
+  
+    
+<form id="review-filters"
+      hx-get="../index.html"
+      hx-trigger="change"
+      hx-target="#review-list"
+      hx-swap="outerHTML"
+      hx-push-url="true"
+      hx-include="this"
+      hx-vals='{"partial": "1"}'>
+  
+    <div style="margin-bottom:.3rem;">
+      <span class="muted" style="margin-right:.4rem;">Status:</span>
+      
+        <label><input type="checkbox" name="statuses" value="OPEN"
+                      > Open</label>
+      
+        <label><input type="checkbox" name="statuses" value="APPROVED"
+                      > Approved</label>
+      
+        <label><input type="checkbox" name="statuses" value="REJECTED"
+                      > Rejected</label>
+      
+        <label><input type="checkbox" name="statuses" value="DEFERRED"
+                      checked> Deferred</label>
+      
+      <label><input type="checkbox" name="auto" value="1"
+                    > Auto-approved</label>
+    </div>
+  
+  <div>
+    <span class="muted" style="margin-right:.4rem;">Verdict:</span>
+    
+      <label><input type="checkbox" name="verdicts" value="MATCH"
+                    > MATCH</label>
+    
+      <label><input type="checkbox" name="verdicts" value="MATCH_FAR"
+                    > MATCH_FAR</label>
+    
+      <label><input type="checkbox" name="verdicts" value="MISSING"
+                    > MISSING</label>
+    
+      <label><input type="checkbox" name="verdicts" value="SKIPPED"
+                    > SKIPPED</label>
+    
+    <label style="margin-left:.6rem;"><input type="checkbox" name="poi_ack" value="1"
+                  > POI acknowledged</label>
+    <label><input type="checkbox" name="postcode_from_poi" value="1"
+                  > Postcode from POI</label>
+  </div>
+  
+  <div style="margin-top:.3rem;">
+    <span class="muted" style="margin-right:.4rem;">Check triggered:</span>
+    
+      <label><input type="checkbox" name="reasons" value="city_duplicate"
+                    
+                    data-tip="Another candidate in this run sits within a few metres."> city_duplicate</label>
+    
+      <label><input type="checkbox" name="reasons" value="match_far"
+                    
+                    data-tip="Same housenumber+street exists in OSM, but the matched element is unusually far from the candidate coordinates."> match_far</label>
+    
+      <label><input type="checkbox" name="reasons" value="spot_check"
+                    
+                    data-tip="Randomly sampled MISSING address for manual QA."> spot_check</label>
+    
+  </div>
+  
+</form>
+
+<script>
+  (function(){
+    const form = document.getElementById("review-filters");
+    if (!form) return;
+    form.addEventListener('htmx:configRequest', function(evt){
+      const p = evt.detail.parameters;
+      for (const field of ['statuses', 'verdicts', 'reasons']) {
+        const boxes = form.querySelectorAll('input[name="' + field + '"]:checked');
+        if (boxes.length || form.querySelector('input[name="' + field + '"]')) {
+          p[field] = Array.from(boxes).map(b => b.value).join(',');
+        }
+      }
+      for (const field of ['auto', 'poi_ack', 'postcode_from_poi']) {
+        if (form.querySelector('input[name="' + field + '"]') &&
+            !form.querySelector('input[name="' + field + '"]:checked')) {
+          p[field] = '0';
+        }
+      }
+    });
+  })();
+</script>
+  
+</div>
+
+<div class="grid-2">
+  <div class="card" id="review-list" style="max-height: 70vh; overflow: auto;">
+  
+    <p class="muted">No items match the current filter.</p>
+  
+</div>
+<script>
+  (function(){
+    const sel = document.getElementById('list-selected');
+    if (!sel) return;
+    let list = sel.parentElement;
+    while (list && list !== document.body) {
+      const s = getComputedStyle(list);
+      if (s.overflowY === 'auto' || s.overflowY === 'scroll') break;
+      list = list.parentElement;
+    }
+    if (!list || list === document.body) return;
+    const offset = sel.offsetTop - list.offsetTop - (list.clientHeight - sel.clientHeight) / 2;
+    list.scrollTop = Math.max(0, offset);
+  })();
+</script>
+
+  <div class="card" id="detail">
+    
+      <p class="muted">Select an item on the left.</p>
+    
+  </div>
+</div>
+
+  </main>
+</body>
+</html>

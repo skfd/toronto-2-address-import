@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Toronto Address Import — pilot evidence</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 720px; margin: 2.5rem auto; padding: 0 1.2rem; color: #222; line-height: 1.55; }
+    h1 { margin-bottom: .2rem; }
+    .muted { color: #6b7280; }
+    .card { background: #f6f7f9; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem 1.2rem; margin: 1rem 0; }
+    a { color: #1d4ed8; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: .92em; }
+    ul { padding-left: 1.2rem; }
+  </style>
+</head>
+<body>
+  <h1>Toronto Address Import</h1>
+  <p class="muted">Static evidence page accompanying the OSM import proposal.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Pilot run snapshot</h2>
+    <p>
+      A full, read-only mirror of one completed pilot run of the Flask review UI
+      — the Phase 1 tile <code>high-park-swansea-sw-se</code>. Every reviewer-facing
+      page is present (dashboard, run overview, review queue, per-candidate detail
+      with Leaflet map, approved / skipped / ranges lists, audit log, OSM multi-
+      address findings, composed JOSM batch). Interactive actions are visibly
+      disabled; a banner explains why.
+    </p>
+    <p>
+      <a href="pilot/runs/15/"><strong>Open the pilot run →</strong></a>
+    </p>
+    <p class="muted" style="font-size:.9rem">
+      Entry points: <a href="pilot/">dashboard</a> ·
+      <a href="pilot/runs/15/review/">review queue</a> ·
+      <a href="pilot/runs/15/audit/">audit log</a> ·
+      <a href="pilot/osm/multi/">OSM multi-address findings</a>
+    </p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Proposal &amp; source</h2>
+    <ul>
+      <li><a href="https://github.com/skfd/toronto-2-address-import/blob/main/IMPORT_PROPOSAL.md">Import proposal (Markdown)</a></li>
+      <li><a href="https://github.com/skfd/toronto-2-address-import">Tooling repository</a></li>
+      <li><a href="https://github.com/skfd/toronto-2-address-import/blob/main/LICENSE">MIT license</a></li>
+      <li>Data attribution: <a href="https://open.toronto.ca/open-data-license/">Toronto Open Data</a> &amp; <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a></li>
+    </ul>
+  </div>
+</body>
+</html>

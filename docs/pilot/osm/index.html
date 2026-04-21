@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>OSM extract</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #f6f7f9; color: #222; }
+    header { background: #1f2937; color: #fff; padding: .7rem 1.2rem;
+             display: flex; align-items: center; gap: 1rem; }
+    header a { color: #fff; text-decoration: none; }
+    header .nav a { margin-right: 1rem; }
+    header .meta { margin-left: auto; font-size: .82rem; color: #cbd5e1; }
+    header .meta a { color: #cbd5e1; }
+    header .meta a:hover { color: #fff; text-decoration: underline; }
+    header .meta .sep { margin: 0 .4rem; color: #64748b; }
+    main { padding: 1.2rem; max-width: 1200px; margin: 0 auto; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: .4rem .6rem; text-align: left; font-size: .92rem; }
+    th { background: #f3f4f6; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .8rem; background: #eef; }
+    a.pill { text-decoration: none; color: #1d4ed8; }
+    a.pill:hover { background: #dbeafe; }
+    .pill.warn { background: #fde68a; }
+    .pill.bad { background: #fecaca; }
+    .pill.ok { background: #bbf7d0; }
+    button, .btn { background: #2563eb; color: #fff; border: 0; padding: .4rem .8rem; border-radius: 4px; cursor: pointer; font-size: .9rem; }
+    button.secondary { background: #6b7280; }
+    button.danger { background: #dc2626; }
+    button:disabled, button[disabled] { opacity: .55; cursor: wait; }
+    form.inline { display: inline; }
+    /* Pipeline stepper */
+    .pipeline-header { display: flex; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+    .pipeline-header .run-all { background: #059669; font-weight: 600; }
+    .pipeline-header .run-all:hover:not(:disabled) { background: #047857; }
+    .pipeline-hint { font-size: .85rem; }
+    .pipeline-spinner { width: 14px; height: 14px; border: 2px solid #cbd5e1; border-top-color: #2563eb;
+                        border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .htmx-indicator { opacity: 0; transition: opacity .15s; }
+    .htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+    #pipeline.htmx-request button { opacity: .55; pointer-events: none; cursor: wait; }
+    .stepper { list-style: none; padding: 0; margin: 0 0 .6rem 0; display: flex; flex-wrap: wrap;
+               align-items: center; gap: .4rem; }
+    .stepper .step { display: inline-flex; align-items: center; gap: .4rem; }
+    .stepper .step + .step::before { content: "→"; color: #9ca3af; margin: 0 .2rem; }
+    .step-badge { display: inline-flex; align-items: center; justify-content: center;
+                  width: 22px; height: 22px; border-radius: 50%; font-size: .78rem; font-weight: 600;
+                  background: #e5e7eb; color: #374151; }
+    .step.done .step-badge { background: #059669; color: #fff; }
+    .step.done .stage-btn { background: #6b7280; }
+    .stage-msg { margin: .4rem 0 .2rem; }
+    .stage-msg.err { background: #fee2e2; color: #991b1b; padding: .4rem .6rem; border-radius: 4px; }
+    .stage-counts { margin: .2rem 0 0; }
+    .flash { background: #fef3c7; padding: .5rem .8rem; border-radius: 4px; margin-bottom: 1rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; }
+    .muted { color: #6b7280; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
+    #leaflet-map { height: 280px; border-radius: 4px; }
+    [data-tip] { position: relative; cursor: help; }
+    a[data-tip], button[data-tip] { cursor: pointer; }
+    [data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      background: #1f2937; color: #fff; padding: 5px 9px; border-radius: 4px;
+      font-size: .78rem; line-height: 1.3; font-weight: normal;
+      width: max-content; max-width: 280px; white-space: normal; text-align: left;
+      z-index: 1000; pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,.18);
+    }
+    
+    .static-banner { background: #fef3c7; border-bottom: 2px solid #f59e0b;
+                     padding: .6rem 1.2rem; font-size: .88rem; color: #78350f;
+                     text-align: center; }
+    .static-banner a { color: #78350f; font-weight: 600; }
+    body.static-export form[method="post"],
+    body.static-export [hx-post] { opacity: .6; cursor: not-allowed; }
+    body.static-export form[method="post"] button,
+    body.static-export form[method="post"] input[type="submit"],
+    body.static-export form[method="post"] select,
+    body.static-export form[method="post"] input[type="text"],
+    body.static-export form[method="post"] input[type="number"],
+    body.static-export [hx-post] button,
+    body.static-export [hx-post] input[type="checkbox"] { pointer-events: none; }
+    
+  </style>
+</head>
+<body class="static-export">
+  <header>
+    <span class="nav">
+      <a href="../index.html"><strong>t2 address import</strong></a>
+      
+      <a href="index.html">OSM extract</a>
+      <a href="multi/index.html">Multi-addresses</a>
+      <a href="multi/corners/index.html">Corners</a>
+      <a href="../data/index.html">Data</a>
+      
+    </span>
+    <span class="meta">
+      <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/skfd/toronto-2-address-import/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+      <span class="sep">·</span>
+      <a href="https://open.toronto.ca/open-data-license/" target="_blank" rel="noopener">Toronto Open Data</a>
+      &amp;
+      &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>
+    </span>
+  </header>
+  
+  <div class="static-banner">
+    Static snapshot of run <strong>pilot-phase1</strong>
+    as of 2026-04-21 —
+    pilot evidence for the
+    <a href="https://github.com/skfd/toronto-2-address-import/blob/main/IMPORT_PROPOSAL.md" target="_blank" rel="noopener">Toronto address import proposal</a>.
+    Interactive actions (stages, review decisions, uploads) are disabled.
+    <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">Run the live tool</a>
+    to exercise them.
+  </div>
+  <script>
+    // Belt-and-braces: prevent POST forms / HTMX actions from firing even if
+    // a reader manages to click past the CSS pointer-events guard.
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function (f) {
+        f.addEventListener('submit', function (e) { e.preventDefault(); });
+      });
+      document.querySelectorAll('[hx-post]').forEach(function (el) {
+        el.removeAttribute('hx-post');
+      });
+    });
+  </script>
+  
+  <main>
+    
+      
+    
+    
+
+
+<div class="card" id="osm-status">
+  <h2>
+    Local OSM extract
+    <span class="pill ok" data-tip="Extract is present and refreshed recently.">fresh</span>
+  </h2>
+  <p class="muted">
+    source <span data-tip="Where stage 2 reads OSM from: &#39;local&#39; uses the cached extract, &#39;overpass&#39; queries the live API."><code>local</code></span>
+    · PBF <a href="https://download.geofabrik.de/north-america/canada/ontario-latest.osm.pbf" target="_blank" rel="noopener" data-tip="Geofabrik URL we download the raw PBF from.">ontario-latest.osm.pbf</a>
+    · clip bbox <code data-tip="Clip bbox applied after tag filtering — features outside are discarded.">43.580, -79.640 → 43.860, -79.110</code>
+  </p>
+
+  
+  <table>
+    <tr>
+      <th>Geofabrik Last-Modified</th>
+      <td data-tip="Last-Modified header Geofabrik reported for the PBF when we last downloaded it."><code>Sat, 18 Apr 2026 23:19:46 GMT</code></td>
+    </tr>
+    <tr>
+      <th>Downloaded</th>
+      <td data-tip="Wall-clock time of our last successful refresh."><code>2026-04-19T21:13:28.520246+00:00</code></td>
+    </tr>
+    <tr>
+      <th>PBF</th>
+      <td>891.8 MiB · sha256 <code data-tip="SHA-256 of the downloaded PBF.">5bbfc8e495dc2883…</code></td>
+    </tr>
+    <tr>
+      <th>JSON</th>
+      <td>94.14 MiB · sha256 <code data-tip="SHA-256 of the filtered address JSON.">13c69aa30c1b6eeb…</code></td>
+    </tr>
+    <tr>
+      <th>Elements</th>
+      <td data-tip="Feature counts after filtering: nodes + ways kept, relations skipped (no centroid), features outside the Toronto bbox.">
+        nodes <strong>168723</strong> ·
+        ways <strong>95282</strong> ·
+        relations skipped 709 ·
+        outside bbox 2356207
+      </td>
+    </tr>
+    <tr>
+      <th>Filter time</th>
+      <td data-tip="Time spent running pyosmium over the PBF.">373.81s <span class="muted">(total 534.86s)</span></td>
+    </tr>
+  </table>
+  
+
+  <div>
+    <form method="post" action="/osm/refresh" class="inline">
+      <button  title="Start a refresh subprocess. Skips the download if Geofabrik is unchanged since the last refresh.">
+        Refresh
+      </button>
+    </form>
+    <form method="post" action="/osm/refresh" class="inline">
+      <input type="hidden" name="force" value="1" />
+      <button class="secondary"  title="Start a refresh subprocess and re-download even if Geofabrik is unchanged.">Force refresh</button>
+    </form>
+    <span class="muted">&nbsp;CLI equivalent: <code>python -m t2.osm_refresh [--force]</code></span>
+  </div>
+</div>
+
+
+<div class="card">
+  <h3>Last refresh log</h3>
+  <pre style="max-height: 20rem; overflow: auto; background: #f3f4f6; padding: .6rem; border-radius: 4px; font-size: .8rem;">[2026-04-19T02:29:50.484347+00:00] HEAD https://download.geofabrik.de/north-america/canada/ontario-latest.osm.pbf
+[2026-04-19T02:29:51.237119+00:00] source last-modified: Sat, 18 Apr 2026 23:19:46 GMT size: 935139863 bytes
+[2026-04-19T02:29:51.237789+00:00] source unchanged since last refresh; skipping download (pass --force to override)</pre>
+</div>
+
+
+  </main>
+</body>
+</html>
