@@ -2293,7 +2293,7 @@
       if (el._sibFetch) el._sibFetch.abort();
       el._sibFetch = new AbortController();
       // t2-static-export:siblings-fetch
-      fetch('../../../../assets/siblings/30098142.json', {signal: el._sibFetch.signal})
+      fetch(location.pathname.replace(/\/runs\/.*$/, '') + '/assets/siblings/30098142.json', {signal: el._sibFetch.signal})
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(render)
         .catch(err => { if (err && err.name === 'AbortError') return; /* ignore */ });

@@ -162,13 +162,24 @@ def _rewrite_links(html: str, output_path: str, url_to_path: dict[str, str]) -> 
     # Rewrite the Leaflet siblings fetch to point at the pre-baked JSON for
     # this candidate, if the current page is a detail page. The landmark
     # comment `// t2-static-export:siblings-fetch` sits one line above.
+    #
+    # The fetch URL is derived from location.pathname at runtime rather than
+    # baked as a relative path. The detail HTML is often swapped into the
+    # list page via htmx (where the browser URL stays on `.../review/` and
+    # the directory is one level shallower than the detail page's own
+    # directory). A static `../../../../` would walk out of the site root
+    # when resolved against the list-page URL; the runtime form works from
+    # either URL because it strips everything from `/runs/` onward and
+    # re-anchors to `<deploy-root>/assets/siblings/<cid>.json`.
     dm = _DETAIL_PATH_RE.search(output_path)
     if dm:
         cid = dm.group("cid")
         view = dm.group("view")
-        sib_rel = _rel_from(here, Path(f"assets/siblings/{cid}.json"))
+        sib_url_expr = (
+            f"location.pathname.replace(/\\/runs\\/.*$/, '') + '/assets/siblings/{cid}.json'"
+        )
         html = _SIBLINGS_FETCH_RE.sub(
-            f"fetch('{sib_rel}', {{signal: el._sibFetch.signal}})",
+            f"fetch({sib_url_expr}, {{signal: el._sibFetch.signal}})",
             html,
         )
         # Popup "Open sibling" / "Open candidate" links (JS-built).
