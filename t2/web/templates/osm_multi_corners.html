@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Corner-lot addresses · OSM extract{% endblock %}
+{% block content %}
+
+<style>
+  .corner-tbl td, .corner-tbl th { font-size: .88rem; padding: .3rem .5rem; }
+  .corner-tbl .hn, .corner-tbl .street {
+    font-family: ui-monospace, Menlo, Consolas, monospace; white-space: nowrap;
+  }
+  .corner-tbl tbody tr:nth-child(odd) { background: #fafafa; }
+  .muted-small { color: #6b7280; font-size: .82rem; }
+</style>
+
+<div class="card">
+  <h2>Corner-lot &amp; multi-street-name addresses
+    <span class="pill">{{ '{:,}'.format(listing.total) }}</span>
+  </h2>
+
+  {% if listing.get('missing') %}
+    <p><span class="pill bad">missing extract</span>
+      Run an OSM refresh first; no <code>toronto-addresses.json</code> on disk.</p>
+  {% else %}
+    <p class="muted" style="margin-bottom:.4rem">
+      Source: <code>{{ listing.source_path }}</code> ·
+      <a href="{{ url_for('osm_multi_view') }}">← back to summary</a>
+    </p>
+
+    <p>
+      A building on a corner lot often has two valid street addresses — one
+      off each street. OSM encodes this by packing both street names into
+      <code>addr:street</code> separated by <code>;</code>, with matching
+      numbers in <code>addr:housenumber</code> (also <code>;</code>-separated).
+      Example: <code>addr:street=Rowatson Road;Fareham Crescent</code> with
+      <code>addr:housenumber=55;50</code>.
+    </p>
+    <p>
+      Comma in <code>addr:street</code> is a different signal. It usually
+      means a single address where trailing bits (city, suite, unit) were
+      dumped into the street tag instead of their own tag — not a real
+      multi-street case.
+    </p>
+    <p class="muted-small">
+      Clue: this page simply enumerates every element in the clipped extract
+      whose <code>addr:street</code> contains <code>;</code> or <code>,</code>.
+      Click any row to open it on openstreetmap.org.
+    </p>
+  {% endif %}
+</div>
+
+{% if not listing.get('missing') %}
+
+<div class="card">
+  <h3>Corner lots (<code>;</code> in <code>addr:street</code>)
+    <span class="pill">{{ listing.semicolon | length }}</span>
+  </h3>
+  <p class="muted-small" style="margin:.2rem 0 .6rem">
+    Canonical multi-value addresses: both a semicolon-separated street tag
+    and (usually) a matching semicolon-separated housenumber.
+  </p>
+  {% if listing.semicolon %}
+    <table class="corner-tbl">
+      <thead>
+        <tr>
+          <th style="width:7rem">housenumber</th>
+          <th>street</th>
+          <th>name / tags</th>
+          <th style="width:9rem">osm</th>
+          <th style="width:4rem">map</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in listing.semicolon %}
+          <tr>
+            <td class="hn">{{ it.hn }}</td>
+            <td class="street">{{ it.street }}</td>
+            <td>
+              {%- if it.name %}<strong>{{ it.name }}</strong>{% endif -%}
+              {%- if it.building and it.building != 'yes' %}
+                <span class="muted-small"> · building={{ it.building }}</span>
+              {%- endif -%}
+              {%- if it.shop %}
+                <span class="muted-small"> · shop={{ it.shop }}</span>
+              {%- endif -%}
+              {%- if it.amenity %}
+                <span class="muted-small"> · amenity={{ it.amenity }}</span>
+              {%- endif -%}
+            </td>
+            <td>
+              <a href="https://www.openstreetmap.org/edit?editor=id&amp;{{ it.type }}={{ it.id }}"
+                 target="_blank" rel="noopener"
+                 title="Open in iD editor">{{ it.type }}/{{ it.id }}</a>
+            </td>
+            <td>
+              {% if it.lat and it.lon %}
+                <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
+                   target="_blank" rel="noopener">map ↗</a>
+              {% else %}
+                <span class="muted-small">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">none</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Comma in street (likely malformed, not corner lots)
+    <span class="pill">{{ listing.comma | length }}</span>
+  </h3>
+  <p class="muted-small" style="margin:.2rem 0 .6rem">
+    These are typically single addresses where the mapper stuffed extra
+    locality/suite information into <code>addr:street</code>. The fix is
+    usually to move that suffix to <code>addr:city</code>,
+    <code>addr:unit</code>, or drop it entirely.
+  </p>
+  {% if listing.comma %}
+    <table class="corner-tbl">
+      <thead>
+        <tr>
+          <th style="width:7rem">housenumber</th>
+          <th>street</th>
+          <th>name / tags</th>
+          <th style="width:9rem">osm</th>
+          <th style="width:4rem">map</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in listing.comma %}
+          <tr>
+            <td class="hn">{{ it.hn }}</td>
+            <td class="street">{{ it.street }}</td>
+            <td>
+              {%- if it.name %}<strong>{{ it.name }}</strong>{% endif -%}
+              {%- if it.building and it.building != 'yes' %}
+                <span class="muted-small"> · building={{ it.building }}</span>
+              {%- endif -%}
+              {%- if it.shop %}
+                <span class="muted-small"> · shop={{ it.shop }}</span>
+              {%- endif -%}
+              {%- if it.amenity %}
+                <span class="muted-small"> · amenity={{ it.amenity }}</span>
+              {%- endif -%}
+            </td>
+            <td>
+              <a href="https://www.openstreetmap.org/edit?editor=id&amp;{{ it.type }}={{ it.id }}"
+                 target="_blank" rel="noopener"
+                 title="Open in iD editor">{{ it.type }}/{{ it.id }}</a>
+            </td>
+            <td>
+              {% if it.lat and it.lon %}
+                <a href="https://www.openstreetmap.org/?mlat={{ it.lat }}&mlon={{ it.lon }}#map=19/{{ it.lat }}/{{ it.lon }}"
+                   target="_blank" rel="noopener">map ↗</a>
+              {% else %}
+                <span class="muted-small">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">none</p>
+  {% endif %}
+</div>
+
+{% endif %}
+
+{% endblock %}

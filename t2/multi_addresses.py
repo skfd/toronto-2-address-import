@@ -22,6 +22,7 @@ _FRACTION = re.compile(r"^\s*\d+\s+\d+/\d+\s*$|^\s*\d+/\d+\s*$")
 
 _CACHE: dict[Path, tuple[float, dict[str, Any]]] = {}
 _LIST_CACHE: dict[Path, tuple[float, dict[str, Any]]] = {}
+_CORNER_CACHE: dict[Path, tuple[float, dict[str, Any]]] = {}
 
 
 def _example_row(el: dict) -> dict:
@@ -396,6 +397,59 @@ def list_entries(json_path: Path) -> dict[str, Any]:
         return cached[1]
     result = _compute_entries(json_path)
     _LIST_CACHE[json_path] = (mtime, result)
+    return result
+
+
+def _compute_corner_lots(json_path: Path) -> dict[str, Any]:
+    """Enumerate elements whose addr:street contains `;` or `,`.
+
+    OSM encodes corner-lot addresses (a building addressed off two streets)
+    by packing both street names into addr:street with `;` and the matching
+    housenumbers into addr:housenumber, also `;`-separated. Comma-in-street
+    is a different signal: usually a single address whose extra trailing
+    bits (city, suite, unit) were dumped into addr:street instead of their
+    own tags.
+    """
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+    semi: list[dict] = []
+    comma: list[dict] = []
+    for el in data:
+        tags = el.get("tags") or {}
+        st = tags.get("addr:street") or ""
+        if ";" in st:
+            semi.append(_entry_row(el))
+        elif "," in st:
+            comma.append(_entry_row(el))
+    semi.sort(key=_sort_key)
+    comma.sort(key=_sort_key)
+    return {
+        "source_path": str(json_path),
+        "source_mtime": json_path.stat().st_mtime,
+        "source_bytes": json_path.stat().st_size,
+        "semicolon": semi,
+        "comma": comma,
+        "total": len(semi) + len(comma),
+    }
+
+
+def list_corner_lots(json_path: Path) -> dict[str, Any]:
+    """Return corner-lot / multi-street-name entries. Cached by mtime."""
+    if not json_path.exists():
+        return {
+            "source_path": str(json_path),
+            "source_mtime": None,
+            "source_bytes": None,
+            "semicolon": [],
+            "comma": [],
+            "total": 0,
+            "missing": True,
+        }
+    mtime = json_path.stat().st_mtime
+    cached = _CORNER_CACHE.get(json_path)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    result = _compute_corner_lots(json_path)
+    _CORNER_CACHE[json_path] = (mtime, result)
     return result
 
 
