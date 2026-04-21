@@ -189,6 +189,7 @@
       const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].join(',');
       if (el._sibFetch) el._sibFetch.abort();
       el._sibFetch = new AbortController();
+      // t2-static-export:siblings-fetch
       fetch(`/runs/${runId}/siblings?bbox=${bbox}&focus=${focusId}`, {signal: el._sibFetch.signal})
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(render)

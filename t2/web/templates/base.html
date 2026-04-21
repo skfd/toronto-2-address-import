@@ -71,18 +71,33 @@
       z-index: 1000; pointer-events: none;
       box-shadow: 0 2px 6px rgba(0,0,0,.18);
     }
+    {% if static_export.active %}
+    .static-banner { background: #fef3c7; border-bottom: 2px solid #f59e0b;
+                     padding: .6rem 1.2rem; font-size: .88rem; color: #78350f;
+                     text-align: center; }
+    .static-banner a { color: #78350f; font-weight: 600; }
+    body.static-export form[method="post"],
+    body.static-export [hx-post] { opacity: .6; cursor: not-allowed; }
+    body.static-export form[method="post"] button,
+    body.static-export form[method="post"] input[type="submit"],
+    body.static-export form[method="post"] select,
+    body.static-export form[method="post"] input[type="text"],
+    body.static-export form[method="post"] input[type="number"],
+    body.static-export [hx-post] button,
+    body.static-export [hx-post] input[type="checkbox"] { pointer-events: none; }
+    {% endif %}
   </style>
 </head>
-<body>
+<body{% if static_export.active %} class="static-export"{% endif %}>
   <header>
     <span class="nav">
       <a href="/"><strong>t2 address import</strong></a>
-      <a href="/map">Map</a>
+      {% if not static_export.active %}<a href="/map">Map</a>{% endif %}
       <a href="/osm">OSM extract</a>
       <a href="/osm/multi">Multi-addresses</a>
       <a href="/osm/multi/corners">Corners</a>
       <a href="/data">Data</a>
-      <a href="/oauth/start">OSM auth</a>
+      {% if not static_export.active %}<a href="/oauth/start">OSM auth</a>{% endif %}
     </span>
     <span class="meta">
       <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">GitHub</a>
@@ -94,6 +109,29 @@
       &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>
     </span>
   </header>
+  {% if static_export.active %}
+  <div class="static-banner">
+    Static snapshot of run <strong>{{ static_export.run_name }}</strong>
+    {% if static_export.snapshot_date %}as of {{ static_export.snapshot_date }}{% endif %} —
+    pilot evidence for the
+    <a href="https://github.com/skfd/toronto-2-address-import/blob/main/IMPORT_PROPOSAL.md" target="_blank" rel="noopener">Toronto address import proposal</a>.
+    Interactive actions (stages, review decisions, uploads) are disabled.
+    <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">Run the live tool</a>
+    to exercise them.
+  </div>
+  <script>
+    // Belt-and-braces: prevent POST forms / HTMX actions from firing even if
+    // a reader manages to click past the CSS pointer-events guard.
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function (f) {
+        f.addEventListener('submit', function (e) { e.preventDefault(); });
+      });
+      document.querySelectorAll('[hx-post]').forEach(function (el) {
+        el.removeAttribute('hx-post');
+      });
+    });
+  </script>
+  {% endif %}
   <main>
     {% with messages = get_flashed_messages() %}
       {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}

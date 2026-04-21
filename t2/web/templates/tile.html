@@ -2,7 +2,7 @@
 {% block title %}{{ tile.name }}{% endblock %}
 {% block content %}
 <div class="card">
-  <p class="muted"><a href="/map">← back to map</a></p>
+  {% if not static_export.active %}<p class="muted"><a href="/map">← back to map</a></p>{% endif %}
   <h2>
     {{ tile.name }}
     {% if tile.is_orphan %}<span class="pill bad">unassigned</span>{% endif %}
@@ -28,6 +28,7 @@
   </script>
 </div>
 
+{% if not static_export.active %}
 <div class="card">
   <h3>Start new run on this tile</h3>
   {% if source_snapshot_info and source_snapshot_info.is_stale %}
@@ -47,9 +48,13 @@
     <span class="muted">bbox: {{ '%.4f, %.4f → %.4f, %.4f' % (tile.bbox[0], tile.bbox[1], tile.bbox[2], tile.bbox[3]) }}</span>
   </form>
 </div>
+{% endif %}
 
 <div class="card">
   <h3>Prior runs on this tile</h3>
+  {% if static_export.active %}
+    {% set prior_runs = prior_runs | selectattr('run_id', 'equalto', static_export.run_id) | list %}
+  {% endif %}
   {% if prior_runs %}
   <table>
     <thead><tr><th>ID</th><th>Name</th><th>Created</th><th>Snapshot</th><th></th></tr></thead>

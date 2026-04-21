@@ -75,6 +75,13 @@ def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
     app.secret_key = cfg.flask_secret_key
     app.jinja_env.globals["tip"] = lambda key: GLOSSARY.get(key, "")
+    _static_run_id_env = os.environ.get("T2_STATIC_EXPORT_RUN_ID", "")
+    app.jinja_env.globals["static_export"] = {
+        "active": os.environ.get("T2_STATIC_EXPORT") == "1",
+        "run_name": os.environ.get("T2_STATIC_EXPORT_RUN_NAME", ""),
+        "snapshot_date": os.environ.get("T2_STATIC_EXPORT_SNAPSHOT_DATE", ""),
+        "run_id": int(_static_run_id_env) if _static_run_id_env.isdigit() else None,
+    }
 
     @app.context_processor
     def _inject_source_snapshot():

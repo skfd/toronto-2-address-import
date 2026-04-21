@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Runs{% endblock %}
 {% block content %}
+{% if not static_export.active %}
 <div class="card">
   <h2>New run</h2>
   {% if source_snapshot_info and source_snapshot_info.is_stale %}
@@ -23,6 +24,7 @@
     <button>Create run</button>
   </form>
 </div>
+{% endif %}
 
 <div class="card">
   <h2>Runs</h2>

@@ -215,6 +215,7 @@
       el._sibFetch = new AbortController();
       const params = new URLSearchParams({bbox, focus: String(focusId)});
       if (streetNorm) params.set('include_interp', streetNorm);
+      // t2-static-export:siblings-fetch
       fetch(`/runs/${runId}/siblings?${params.toString()}`, {signal: el._sibFetch.signal})
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(render)
