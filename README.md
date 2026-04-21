@@ -1,6 +1,6 @@
 # t2-address-import
 
-[GitHub](https://github.com/skfd/toronto-2-address-import) · MIT licensed
+[GitHub](https://github.com/skfd/toronto-2-address-import) · [Pilot evidence site](https://skfd.github.io/toronto-2-address-import/) · MIT licensed
 
 Local tool that reads Toronto address points from the sibling
 [`toronto-addresses-import`](https://github.com/skfd/toronto-addresses-import) project's SQLite DB,
