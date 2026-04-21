@@ -152,7 +152,10 @@ def _rewrite_links(html: str, output_path: str, url_to_path: dict[str, str]) -> 
         if target is None:
             # Unknown URL — leave untouched. Dead link on the static site but not fatal.
             return m.group(0)
-        return f"{prefix}{quote}{_rel_from(here, Path(target))}{quote}"
+        rel = _rel_from(here, Path(target))
+        if split.fragment:
+            rel = f"{rel}#{split.fragment}"
+        return f"{prefix}{quote}{rel}{quote}"
 
     html = _ATTR_RE.sub(_sub, html)
 

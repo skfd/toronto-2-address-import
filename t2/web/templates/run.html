@@ -66,7 +66,7 @@
   <p class="muted">0 disables sampling; higher values flag fewer MISSINGs for spot-check. Change before re-running checks.</p>
 </div>
 
-<div class="card">
+<div class="card" id="batches">
   <h3>Batches</h3>
   <form method="post" action="/runs/{{ run.run_id }}/batches">
     <label title="{{ tip('field.mode') }}">Mode
