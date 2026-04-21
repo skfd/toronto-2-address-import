@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}Multi-addresses · OSM extract{% endblock %}
+{% block content %}
+
+{% macro bar(count, max_count, width_px=140, color='#2563eb') -%}
+  {%- set pct = (count / max_count * 100) if max_count and max_count > 0 else 0 -%}
+  <span style="display:inline-block; vertical-align:middle; width:{{ width_px }}px;
+               background:#e5e7eb; border-radius:3px; height:10px;">
+    <span style="display:block; height:100%; width:{{ pct }}%;
+                 background:{{ color }}; border-radius:3px;"></span>
+  </span>
+{%- endmacro %}
+
+{% macro bytes(n) -%}
+  {%- if n is none -%}—
+  {%- elif n >= 1073741824 -%}{{ (n / 1073741824) | round(2) }} GiB
+  {%- elif n >= 1048576 -%}{{ (n / 1048576) | round(1) }} MiB
+  {%- elif n >= 1024 -%}{{ (n / 1024) | round(1) }} KiB
+  {%- else -%}{{ n }} B
+  {%- endif -%}
+{%- endmacro %}
+
+<style>
+  .mini-tbl td, .mini-tbl th { font-size: .88rem; padding: .3rem .5rem; }
+  .mini-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .mini-tbl .bar-cell { width: 160px; }
+  .mini-tbl .hn { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .two-col { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 1rem; }
+  .callout { background: #fffbeb; border-left: 3px solid #f59e0b; padding: .5rem .75rem;
+             border-radius: 3px; margin-bottom: .75rem; font-size: .9rem; }
+  .sep-glyph { display: inline-block; font-family: ui-monospace, Menlo, Consolas, monospace;
+               font-weight: 700; background: #1f2937; color: #fff; border-radius: 3px;
+               padding: 0 .4rem; margin-right: .35rem; }
+</style>
+
+<div class="card">
+  <h2>Multi-address housenumbers <span class="pill">{{ '{:,}'.format(stats.multi_total) }}</span></h2>
+  {% if stats.get('missing') %}
+    <p><span class="pill bad">missing extract</span> Run an OSM refresh first; no <code>toronto-addresses.json</code> on disk.</p>
+  {% else %}
+    <p class="muted">
+      Source: <code>{{ stats.source_path }}</code> · {{ bytes(stats.source_bytes) }}
+    </p>
+    <p>
+      Of <strong>{{ '{:,}'.format(stats.with_housenumber) }}</strong> elements that carry
+      <code>addr:housenumber</code> (out of {{ '{:,}'.format(stats.total_elements) }} total in the clipped extract),
+      <strong>{{ '{:,}'.format(stats.multi_total) }}</strong>
+      pack more than one street number into that tag — roughly
+      {{ (stats.multi_total / stats.with_housenumber * 100) | round(2) }}%.
+      Addresses counted here are non-interpolation elements whose <code>addr:housenumber</code>
+      contains <code>;</code>, <code>,</code>, or <code>N-M</code>. <code>addr:interpolation</code> ways
+      are excluded since they encode ranges by geometry, not text.
+    </p>
+  {% endif %}
+</div>
+
+{% if not stats.get('missing') %}
+
+{# -- Separator breakdown -- #}
+{% set max_sep = stats.separators | map(attribute='count') | max %}
+<div class="card">
+  <h3>Breakdown by separator</h3>
+  <table class="mini-tbl">
+    <thead>
+      <tr><th>Separator</th><th class="num">Count</th><th class="bar-cell"></th><th class="num">Nodes</th><th class="num">Ways</th></tr>
+    </thead>
+    <tbody>
+      {% for s in stats.separators %}
+      <tr>
+        <td><span class="sep-glyph">{{ s.glyph }}</span>{{ s.label }}</td>
+        <td class="num">{{ '{:,}'.format(s.count) }}</td>
+        <td class="bar-cell">{{ bar(s.count, max_sep) }}</td>
+        <td class="num">{{ s.by_type.get('node', 0) }}</td>
+        <td class="num">{{ s.by_type.get('way',  0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted" style="margin-top:.6rem">
+    Commas outnumber semicolons ~2.5× despite OSM documenting <code>;</code> as the canonical
+    multi-value delimiter. Tokenizers that only split on <code>;</code> will miss most of the
+    real cases in this dataset.
+  </p>
+</div>
+
+{# -- Top values per separator -- #}
+<div class="card">
+  <h3>Most frequent multi-address values</h3>
+  <div class="two-col">
+    {% for s in stats.separators if s.count > 0 %}
+    <div>
+      <h4 style="margin:.2rem 0 .4rem">
+        <span class="sep-glyph">{{ s.glyph }}</span>{{ s.label }}
+        <span class="muted" style="font-weight:normal">({{ '{:,}'.format(s.count) }} total)</span>
+      </h4>
+      {% set max_top = s.top | map(attribute='count') | max %}
+      <table class="mini-tbl">
+        <thead><tr><th>housenumber</th><th class="num">×</th><th class="bar-cell"></th></tr></thead>
+        <tbody>
+          {% for t in s.top %}
+          <tr>
+            <td class="hn">{{ t.hn }}</td>
+            <td class="num">{{ t.count }}</td>
+            <td class="bar-cell">{{ bar(t.count, max_top, 120) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# -- Dash-range span distribution -- #}
+{% set max_bucket = stats.dash_spans.buckets | map(attribute='count') | max %}
+<div class="card">
+  <h3>Dash-range spans <span class="pill">{{ '{:,}'.format(stats.dash_spans.total) }}</span></h3>
+  <p class="muted" style="margin:.2rem 0 .6rem">
+    How far apart are the two numbers in an <code>N-M</code> housenumber?
+    Span 2 (e.g. <code>18-20</code>) dominates and matches a typical duplex pair.
+    Spans above ~100 are almost always the Canadian
+    <em>Unit ‑ Street #</em> convention squeezed into the housenumber field.
+  </p>
+  <table class="mini-tbl">
+    <thead><tr><th>span</th><th class="num">count</th><th class="bar-cell"></th><th class="num">% of ranges</th></tr></thead>
+    <tbody>
+      {% for b in stats.dash_spans.buckets %}
+      <tr>
+        <td>{{ b.label }}</td>
+        <td class="num">{{ '{:,}'.format(b.count) }}</td>
+        <td class="bar-cell">{{ bar(b.count, max_bucket, 180, '#0d9488') }}</td>
+        <td class="num">
+          {%- if stats.dash_spans.total > 0 -%}
+            {{ (b.count / stats.dash_spans.total * 100) | round(1) }}%
+          {%- else -%}—{%- endif -%}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if stats.dash_spans.top_spans %}
+  <h4 style="margin:1rem 0 .3rem">Largest spans (likely mis-encoded unit prefixes)</h4>
+  <table class="mini-tbl">
+    <thead><tr><th>housenumber</th><th class="num">span</th><th>street</th><th>name</th><th class="num">osm</th></tr></thead>
+    <tbody>
+      {% for ts in stats.dash_spans.top_spans %}
+      <tr>
+        <td class="hn">{{ ts.hn }}</td>
+        <td class="num">{{ '{:,}'.format(ts.span) }}</td>
+        <td>{{ ts.street }}</td>
+        <td>{{ ts.name }}</td>
+        <td class="num muted">{{ ts.type }}/{{ ts.id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if stats.dash_spans.with_letter_examples %}
+  <h4 style="margin:1rem 0 .3rem">Letter-suffixed range-style values (e.g. <code>2523A-2539A</code>)</h4>
+  <table class="mini-tbl">
+    <thead><tr><th>housenumber</th><th>street</th><th>name</th><th class="num">osm</th></tr></thead>
+    <tbody>
+      {% for ex in stats.dash_spans.with_letter_examples %}
+      <tr>
+        <td class="hn">{{ ex.hn }}</td>
+        <td>{{ ex.street }}</td>
+        <td>{{ ex.name }}</td>
+        <td class="num muted">{{ ex.type }}/{{ ex.id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+{# -- List-length histograms -- #}
+<div class="card">
+  <h3>List-length distribution</h3>
+  <p class="muted" style="margin:.2rem 0 .6rem">
+    How many numbers are packed into a single tag? Pairs are by far the most common,
+    but comma-lists on ways can enumerate an entire townhouse row.
+  </p>
+  <div class="two-col">
+    {% for name, series, color in [
+         ('Comma-lists', stats.comma_list_lengths, '#7c3aed'),
+         ('Semicolon-lists', stats.semicolon_list_lengths, '#2563eb')
+       ] %}
+    <div>
+      <h4 style="margin:.2rem 0 .4rem">{{ name }}</h4>
+      {% if series %}
+        {% set max_n = series | map(attribute=1) | max %}
+        <table class="mini-tbl">
+          <thead><tr><th>n</th><th class="num">count</th><th class="bar-cell"></th></tr></thead>
+          <tbody>
+            {% for length, count in series %}
+            <tr>
+              <td>{{ length }}</td>
+              <td class="num">{{ '{:,}'.format(count) }}</td>
+              <td class="bar-cell">{{ bar(count, max_n, 140, color) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}<p class="muted">none</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# -- Slash fractions (not multi-address, but easily confused) -- #}
+<div class="card">
+  <h3>Slash fractions <span class="pill">{{ '{:,}'.format(stats.slash_fraction.count) }}</span></h3>
+  <div class="callout">
+    Entries like <code>20 1/2</code> or <code>19/21</code> look multi-valued but are
+    single addresses with half-number notation. They are reported separately so
+    tokenizers don't mis-split them. (Slash multi-value entries — e.g.
+    <code>131/151/181</code> — are in the separator table above.)
+  </div>
+  {% if stats.slash_fraction.top %}
+  <table class="mini-tbl">
+    <thead><tr><th>housenumber</th><th class="num">×</th></tr></thead>
+    <tbody>
+      {% for t in stats.slash_fraction.top %}
+      <tr><td class="hn">{{ t.hn }}</td><td class="num">{{ t.count }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+{# -- Examples per separator -- #}
+<div class="card">
+  <h3>Concrete examples</h3>
+  {% for s in stats.separators if s.examples %}
+  <h4 style="margin:1rem 0 .3rem">
+    <span class="sep-glyph">{{ s.glyph }}</span>{{ s.label }}
+  </h4>
+  <table class="mini-tbl">
+    <thead>
+      <tr><th>housenumber</th><th>street</th><th>name</th><th>building</th><th>shop / amenity</th><th class="num">osm</th></tr>
+    </thead>
+    <tbody>
+      {% for ex in s.examples %}
+      <tr>
+        <td class="hn">{{ ex.hn }}</td>
+        <td>{{ ex.street }}</td>
+        <td>{{ ex.name }}</td>
+        <td>{{ ex.building }}</td>
+        <td>
+          {%- if ex.shop %}shop={{ ex.shop }}{% endif %}
+          {%- if ex.shop and ex.amenity %} · {% endif -%}
+          {%- if ex.amenity %}amenity={{ ex.amenity }}{% endif -%}
+        </td>
+        <td class="num muted">{{ ex.type }}/{{ ex.id }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+</div>
+
+{% endif %}
+{% endblock %}

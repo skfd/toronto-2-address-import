@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, url_for
 
-from .. import audit, batcher, candidates, config as _config, db as _db, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, source_db, tag_diff, tiles_build
+from .. import audit, batcher, candidates, config as _config, db as _db, multi_addresses as _multi_addresses, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, source_db, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -909,6 +909,13 @@ def create_app() -> Flask:
             status=status,
             log_tail=log_tail,
         )
+
+    @app.get("/osm/multi")
+    def osm_multi_view():
+        extract_dir = cfg.osm_extract_dir
+        json_path = extract_dir / "toronto-addresses.json"
+        stats = _multi_addresses.collect(json_path)
+        return render_template("osm_multi.html", stats=stats)
 
     @app.post("/osm/refresh")
     def osm_refresh_start():
