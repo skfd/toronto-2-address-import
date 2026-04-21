@@ -121,15 +121,30 @@
   </div>
   <script>
     // Belt-and-braces: prevent POST forms / HTMX actions from firing even if
-    // a reader manages to click past the CSS pointer-events guard.
-    document.addEventListener('DOMContentLoaded', function () {
-      document.querySelectorAll('form[method="post"], form[method="POST"]').forEach(function (f) {
-        f.addEventListener('submit', function (e) { e.preventDefault(); });
-      });
-      document.querySelectorAll('[hx-post]').forEach(function (el) {
-        el.removeAttribute('hx-post');
-      });
-    });
+    // a reader manages to click past the CSS pointer-events guard. Also teach
+    // hx-get elements to extract just their target fragment from the full
+    // page response, since the static export can't do partial rendering the
+    // way the live Flask app does (no HX-Request header branch).
+    (function () {
+      function each(scope, selector, fn) {
+        if (scope.matches && scope.matches(selector)) fn(scope);
+        if (scope.querySelectorAll) scope.querySelectorAll(selector).forEach(fn);
+      }
+      function process(scope) {
+        if (!scope) return;
+        each(scope, 'form[method="post"], form[method="POST"]', function (f) {
+          f.addEventListener('submit', function (e) { e.preventDefault(); });
+        });
+        each(scope, '[hx-post]', function (el) { el.removeAttribute('hx-post'); });
+        each(scope, '[hx-get][hx-target]', function (el) {
+          if (el.hasAttribute('hx-select')) return;
+          el.setAttribute('hx-select', el.getAttribute('hx-target'));
+          el.setAttribute('hx-swap', 'outerHTML');
+        });
+      }
+      document.addEventListener('DOMContentLoaded', function () { process(document); });
+      document.addEventListener('htmx:afterSwap', function (evt) { process(evt.target); });
+    })();
   </script>
   
   <main>
@@ -141,7 +156,7 @@
   <div style="display: flex; align-items: center; gap: .6rem;">
     <h2 style="margin: 0;">Run: pilot-demo <span class="muted">#16</span></h2>
     <form method="post" action="/runs/new" class="inline" style="margin-left: auto;">
-      <input type="hidden" name="name" value="high-park-swansea-sw-se-2026-04-21-0409"/>
+      <input type="hidden" name="name" value="high-park-swansea-sw-se-2026-04-21-0421"/>
       <input type="hidden" name="min_lat" value="43.633436"/>
       <input type="hidden" name="min_lon" value="-79.480592"/>
       <input type="hidden" name="max_lat" value="43.639157"/>
