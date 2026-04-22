@@ -53,7 +53,7 @@
 <div class="card">
   <h3>Prior runs on this tile</h3>
   {% if static_export.active %}
-    {% set prior_runs = prior_runs | selectattr('run_id', 'equalto', static_export.run_id) | list %}
+    {% set prior_runs = prior_runs | selectattr('run_id', 'in', static_export.run_ids) | list %}
   {% endif %}
   {% if prior_runs %}
   <table>

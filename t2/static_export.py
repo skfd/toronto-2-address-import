@@ -114,7 +114,7 @@ _ATTR_RE = re.compile(r'''(\b(?:href|action|hx-get|hx-post|src)\s*=\s*)(["'])([^
 _SIBLINGS_FETCH_RE = re.compile(
     r"fetch\(`/runs/\$\{runId\}/siblings\?[^`]*`,\s*\{signal: el\._sibFetch\.signal\}\)"
 )
-_DETAIL_PATH_RE = re.compile(r"runs/\d+/(?P<view>review|approved|skipped|ranges)/(?P<cid>\d+)/index\.html$")
+_DETAIL_PATH_RE = re.compile(r"runs/(?P<rid>\d+)/(?P<view>review|approved|skipped|ranges)/(?P<cid>\d+)/index\.html$")
 
 # Popup links inside the Leaflet map JS. These are built at runtime with JS
 # template literals / string concatenation, so the attribute rewriter can't
@@ -173,10 +173,11 @@ def _rewrite_links(html: str, output_path: str, url_to_path: dict[str, str]) -> 
     # re-anchors to `<deploy-root>/assets/siblings/<cid>.json`.
     dm = _DETAIL_PATH_RE.search(output_path)
     if dm:
+        rid = dm.group("rid")
         cid = dm.group("cid")
         view = dm.group("view")
         sib_url_expr = (
-            f"location.pathname.replace(/\\/runs\\/.*$/, '') + '/assets/siblings/{cid}.json'"
+            f"location.pathname.replace(/\\/runs\\/.*$/, '') + '/assets/siblings/run{rid}/{cid}.json'"
         )
         html = _SIBLINGS_FETCH_RE.sub(
             f"fetch({sib_url_expr}, {{signal: el._sibFetch.signal}})",
@@ -244,7 +245,7 @@ def main(argv: list[str] | None = None) -> int:
         shutil.rmtree(out)
     out.mkdir(parents=True)
     (out / "assets").mkdir()
-    (out / "assets" / "siblings").mkdir()
+    (out / "assets" / "siblings" / f"run{args.run}").mkdir(parents=True)
 
     bbox = _run_bbox(args.run)
     candidates = _candidates(args.run)
@@ -284,7 +285,7 @@ def main(argv: list[str] | None = None) -> int:
         r = client.get(f"/runs/{args.run}/siblings?bbox={bb}&focus={c['candidate_id']}")
         if r.status_code != 200:
             continue
-        (out / "assets" / "siblings" / f"{c['candidate_id']}.json").write_bytes(r.data)
+        (out / "assets" / "siblings" / f"run{args.run}" / f"{c['candidate_id']}.json").write_bytes(r.data)
         sib_written += 1
 
     # Copy raw assets. These aren't strictly required by any page that's

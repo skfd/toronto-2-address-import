@@ -76,11 +76,18 @@ def create_app() -> Flask:
     app.secret_key = cfg.flask_secret_key
     app.jinja_env.globals["tip"] = lambda key: GLOSSARY.get(key, "")
     _static_run_id_env = os.environ.get("T2_STATIC_EXPORT_RUN_ID", "")
+    _static_run_ids_env = os.environ.get("T2_STATIC_EXPORT_RUN_IDS", "")
+    _static_run_id = int(_static_run_id_env) if _static_run_id_env.isdigit() else None
+    _static_run_ids = [int(x) for x in _static_run_ids_env.split(",") if x.strip().isdigit()]
+    if not _static_run_ids and _static_run_id is not None:
+        _static_run_ids = [_static_run_id]
     app.jinja_env.globals["static_export"] = {
         "active": os.environ.get("T2_STATIC_EXPORT") == "1",
         "run_name": os.environ.get("T2_STATIC_EXPORT_RUN_NAME", ""),
         "snapshot_date": os.environ.get("T2_STATIC_EXPORT_SNAPSHOT_DATE", ""),
-        "run_id": int(_static_run_id_env) if _static_run_id_env.isdigit() else None,
+        "run_id": _static_run_id,
+        "run_ids": _static_run_ids,
+        "multi": os.environ.get("T2_STATIC_EXPORT_MULTI") == "1",
     }
 
     @app.context_processor

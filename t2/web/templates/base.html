@@ -92,7 +92,7 @@
   <header>
     <span class="nav">
       <a href="/"><strong>t2 address import</strong></a>
-      {% if not static_export.active %}<a href="/map">Map</a>{% endif %}
+      {% if not static_export.active or static_export.multi %}<a href="/map">Map</a>{% endif %}
       <a href="/osm">OSM extract</a>
       <a href="/osm/multi">Multi-addresses</a>
       <a href="/osm/multi/corners">Corners</a>
