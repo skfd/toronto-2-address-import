@@ -52,9 +52,6 @@ def _global_pairs() -> list[tuple[str, str]]:
         ("/map", "map/index.html"),
         ("/data", "data/index.html"),
         ("/osm", "osm/index.html"),
-        ("/osm/multi", "osm/multi/index.html"),
-        ("/osm/multi/corners", "osm/multi/corners/index.html"),
-        ("/osm/multi/all", "osm/multi/all/index.html"),
     ]
 
 
@@ -75,10 +72,10 @@ def _per_run_pairs(run_id: int, candidates: list[dict], batch_ids: list[int]) ->
         pairs.append((f"/batches/{bid}", f"batches/{bid}/index.html"))
     for c in candidates:
         cid = c["candidate_id"]
-        pairs.append((f"/runs/{run_id}/review/{cid}", f"runs/{run_id}/review/{cid}/index.html"))
-        pairs.append((f"/runs/{run_id}/approved/{cid}", f"runs/{run_id}/approved/{cid}/index.html"))
-        pairs.append((f"/runs/{run_id}/skipped/{cid}", f"runs/{run_id}/skipped/{cid}/index.html"))
-        pairs.append((f"/runs/{run_id}/ranges/{cid}", f"runs/{run_id}/ranges/{cid}/index.html"))
+        if c.get("stage") != "SKIPPED":
+            pairs.append((f"/runs/{run_id}/review/{cid}", f"runs/{run_id}/review/{cid}/index.html"))
+        if _single._is_range(c):
+            pairs.append((f"/runs/{run_id}/ranges/{cid}", f"runs/{run_id}/ranges/{cid}/index.html"))
     return pairs
 
 
@@ -115,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         shutil.rmtree(out)
     out.mkdir(parents=True)
     (out / "assets").mkdir()
-    (out / "assets" / "siblings").mkdir()
+    (out / "assets" / "siblings").mkdir(parents=True)
 
     # Build the full URL->path list so link rewriting knows about every page.
     pairs: list[tuple[str, str]] = list(_global_pairs())
@@ -131,6 +128,8 @@ def main(argv: list[str] | None = None) -> int:
         per_run_meta.append({"run_id": rid, "candidates": cands, "batch_ids": bids, "tile_id": tile_id})
 
     url_to_path = {u: p for u, p in pairs}
+    for src, dst in _single._STATIC_BUNDLES:
+        url_to_path[f"/static/{src}"] = f"assets/{dst}"
 
     rendered = 0
     skipped_404 = 0
@@ -151,25 +150,29 @@ def main(argv: list[str] | None = None) -> int:
         rendered += 1
     t_render_s = time.monotonic() - t_render_start
 
-    # Siblings JSON per candidate, bucketed by run.
+    # One siblings bundle per run covering the full run bbox. Detail pages
+    # fetch this bundle and filter client-side to the current map viewport.
     t_sib_start = time.monotonic()
     sib_written = 0
     for meta in per_run_meta:
         rid = meta["run_id"]
-        rdir = out / "assets" / "siblings" / f"run{rid}"
-        rdir.mkdir(parents=True, exist_ok=True)
-        for c in meta["candidates"]:
-            lat, lon = c["lat"], c["lon"]
-            if lat is None or lon is None:
-                continue
-            h = _single.HALO_DEG
-            bb = f"{lat - h},{lon - h},{lat + h},{lon + h}"
-            r = client.get(f"/runs/{rid}/siblings?bbox={bb}&focus={c['candidate_id']}")
-            if r.status_code != 200:
-                continue
-            (rdir / f"{c['candidate_id']}.json").write_bytes(r.data)
-            sib_written += 1
+        lo_lat, lo_lon, hi_lat, hi_lon = _single._run_bbox(rid)
+        bb = f"{lo_lat},{lo_lon},{hi_lat},{hi_lon}"
+        r = client.get(f"/runs/{rid}/siblings?bbox={bb}&focus=0")
+        if r.status_code != 200:
+            continue
+        data = json.loads(r.data.decode("utf-8"))
+        data["bbox_is_run_scope"] = True
+        (out / "assets" / "siblings" / f"run{rid}.json").write_text(
+            json.dumps(data, separators=(",", ":")), encoding="utf-8"
+        )
+        sib_written += 1
     t_sib_s = time.monotonic() - t_sib_start
+
+    # Copy shared static bundles (CSS/JS extracted from templates).
+    static_src_dir = Path(__file__).parent / "web" / "static"
+    for src, dst in _single._STATIC_BUNDLES:
+        shutil.copyfile(static_src_dir / src, out / "assets" / dst)
 
     # Raw assets — per-run osm snapshots + batch .osm files + the tile polygon JSON.
     copied: list[str] = []

@@ -1,9 +1,9 @@
 <div class="card" id="skipped-list" style="max-height: 70vh; overflow: auto;">
   {% for it in items %}
-    <div {% if selected_candidate_id == it.candidate_id %}id="list-selected" {% endif %}style="border-bottom:1px solid #eee; padding:.3rem 0; cursor:pointer;{% if selected_candidate_id == it.candidate_id %}background:#eef6ff;{% endif %}"
-         hx-get="/runs/{{ run_id }}/{{ view }}/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
+    <div {% if selected_candidate_id == it.candidate_id %}id="list-selected" {% endif %}style="border-bottom:1px solid #eee; padding:.3rem 0;{% if not static_export.active %} cursor:pointer;{% endif %}{% if selected_candidate_id == it.candidate_id %}background:#eef6ff;{% endif %}"
+         {% if not static_export.active %}hx-get="/runs/{{ run_id }}/{{ view }}/{{ it.candidate_id }}" hx-target="#detail" hx-push-url="true"
          hx-include="#skipped-filters"
-         onclick="this.parentNode.querySelectorAll('div[hx-get]').forEach(function(r){r.style.background='';});this.style.background='#eef6ff';">
+         onclick="this.parentNode.querySelectorAll('div[hx-get]').forEach(function(r){r.style.background='';});this.style.background='#eef6ff';"{% endif %}>
       <strong>{{ it.address_full or (it.housenumber ~ ' ' ~ it.street_raw) }}</strong>
       {% if it.address_class and it.address_class != 'Land' %}
         <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ it.address_class }}</span>

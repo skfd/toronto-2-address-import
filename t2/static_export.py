@@ -25,9 +25,6 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 
-HALO_DEG = 0.005  # ~500 m halo for per-candidate siblings pre-fetch
-
-
 def _lookup_run_name(run_id: int) -> str | None:
     from . import db as _db
     conn = _db.connect()
@@ -43,12 +40,22 @@ def _candidates(run_id: int) -> list[dict]:
     conn = _db.connect()
     try:
         rows = conn.execute(
-            "SELECT candidate_id, lat, lon FROM candidates WHERE run_id=? ORDER BY candidate_id",
+            "SELECT candidate_id, lat, lon, stage, lo_num, hi_num "
+            "FROM candidates WHERE run_id=? ORDER BY candidate_id",
             (run_id,),
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
+
+
+def _is_range(c: dict) -> bool:
+    return (
+        c.get("stage") == "SKIPPED"
+        and c.get("lo_num") is not None
+        and c.get("hi_num") is not None
+        and c.get("lo_num") != c.get("hi_num")
+    )
 
 
 def _run_bbox(run_id: int) -> tuple[float, float, float, float]:
@@ -93,9 +100,6 @@ def _output_paths(run_id: int, candidates: list[dict], batch_ids: list[int], til
         (f"/runs/{run_id}/audit", f"runs/{run_id}/audit/index.html"),
         ("/data", "data/index.html"),
         ("/osm", "osm/index.html"),
-        ("/osm/multi", "osm/multi/index.html"),
-        ("/osm/multi/corners", "osm/multi/corners/index.html"),
-        ("/osm/multi/all", "osm/multi/all/index.html"),
     ]
     if tile_id:
         pairs.append((f"/tiles/{tile_id}", f"tiles/{tile_id}/index.html"))
@@ -103,10 +107,12 @@ def _output_paths(run_id: int, candidates: list[dict], batch_ids: list[int], til
         pairs.append((f"/batches/{bid}", f"batches/{bid}/index.html"))
     for c in candidates:
         cid = c["candidate_id"]
-        pairs.append((f"/runs/{run_id}/review/{cid}", f"runs/{run_id}/review/{cid}/index.html"))
-        pairs.append((f"/runs/{run_id}/approved/{cid}", f"runs/{run_id}/approved/{cid}/index.html"))
-        pairs.append((f"/runs/{run_id}/skipped/{cid}", f"runs/{run_id}/skipped/{cid}/index.html"))
-        pairs.append((f"/runs/{run_id}/ranges/{cid}", f"runs/{run_id}/ranges/{cid}/index.html"))
+        # Auto-SKIPPED candidates have no open decision; their /review/<cid>
+        # detail is redundant with the /skipped list. Skip emission.
+        if c.get("stage") != "SKIPPED":
+            pairs.append((f"/runs/{run_id}/review/{cid}", f"runs/{run_id}/review/{cid}/index.html"))
+        if _is_range(c):
+            pairs.append((f"/runs/{run_id}/ranges/{cid}", f"runs/{run_id}/ranges/{cid}/index.html"))
     return pairs
 
 
@@ -115,6 +121,16 @@ _SIBLINGS_FETCH_RE = re.compile(
     r"fetch\(`/runs/\$\{runId\}/siblings\?[^`]*`,\s*\{signal: el\._sibFetch\.signal\}\)"
 )
 _DETAIL_PATH_RE = re.compile(r"runs/(?P<rid>\d+)/(?P<view>review|approved|skipped|ranges)/(?P<cid>\d+)/index\.html$")
+# Detail pages for approved/skipped views are merged into review/ on the
+# static site (Lever 1). Remap those URLs before path lookup so list pages
+# and permalinks still resolve.
+_VIEW_ALIAS_RE = re.compile(r"^/runs/(\d+)/(approved|skipped)/(\d+)$")
+
+# Static bundles (relative to t2/web/static/) copied into <out>/assets/.
+_STATIC_BUNDLES: tuple[tuple[str, str], ...] = (
+    ("site.css", "site.css"),
+    ("detail-map.js", "detail-map.js"),
+)
 
 # Popup links inside the Leaflet map JS. These are built at runtime with JS
 # template literals / string concatenation, so the attribute rewriter can't
@@ -147,8 +163,12 @@ def _rewrite_links(html: str, output_path: str, url_to_path: dict[str, str]) -> 
         if not url.startswith("/"):
             return m.group(0)
         split = urlsplit(url)
-        keyed = split.path + (f"?{split.query}" if split.query else "")
-        target = url_to_path.get(keyed) or url_to_path.get(split.path)
+        path = split.path
+        alias = _VIEW_ALIAS_RE.match(path)
+        if alias:
+            path = f"/runs/{alias.group(1)}/review/{alias.group(3)}"
+        keyed = path + (f"?{split.query}" if split.query else "")
+        target = url_to_path.get(keyed) or url_to_path.get(path)
         if target is None:
             # Unknown URL — leave untouched. Dead link on the static site but not fatal.
             return m.group(0)
@@ -170,14 +190,13 @@ def _rewrite_links(html: str, output_path: str, url_to_path: dict[str, str]) -> 
     # directory). A static `../../../../` would walk out of the site root
     # when resolved against the list-page URL; the runtime form works from
     # either URL because it strips everything from `/runs/` onward and
-    # re-anchors to `<deploy-root>/assets/siblings/<cid>.json`.
+    # re-anchors to `<deploy-root>/assets/siblings/run<rid>.json`.
     dm = _DETAIL_PATH_RE.search(output_path)
     if dm:
         rid = dm.group("rid")
-        cid = dm.group("cid")
         view = dm.group("view")
         sib_url_expr = (
-            f"location.pathname.replace(/\\/runs\\/.*$/, '') + '/assets/siblings/run{rid}/{cid}.json'"
+            f"location.pathname.replace(/\\/runs\\/.*$/, '') + '/assets/siblings/run{rid}.json'"
         )
         html = _SIBLINGS_FETCH_RE.sub(
             f"fetch({sib_url_expr}, {{signal: el._sibFetch.signal}})",
@@ -245,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         shutil.rmtree(out)
     out.mkdir(parents=True)
     (out / "assets").mkdir()
-    (out / "assets" / "siblings" / f"run{args.run}").mkdir(parents=True)
+    (out / "assets" / "siblings").mkdir()
 
     bbox = _run_bbox(args.run)
     candidates = _candidates(args.run)
@@ -255,6 +274,10 @@ def main(argv: list[str] | None = None) -> int:
 
     pairs = _output_paths(args.run, candidates, batch_ids, tile_id)
     url_to_path = {u: p for u, p in pairs}
+    # Static bundles (copied, not rendered). Seed into url_to_path so
+    # /static/<file> links resolve to the exported asset path.
+    for src, dst in _STATIC_BUNDLES:
+        url_to_path[f"/static/{src}"] = f"assets/{dst}"
 
     rendered = 0
     skipped_404 = 0
@@ -275,18 +298,25 @@ def main(argv: list[str] | None = None) -> int:
         dest.write_text(html, encoding="utf-8")
         rendered += 1
 
-    # Pre-fetch siblings JSON for each candidate with coordinates.
+    # One siblings bundle per run covering the full run bbox. Detail pages
+    # fetch this bundle and filter client-side to the current map viewport.
+    import json as _json
     sib_written = 0
-    for c in candidates:
-        lat, lon = c["lat"], c["lon"]
-        if lat is None or lon is None:
-            continue
-        bb = f"{lat - HALO_DEG},{lon - HALO_DEG},{lat + HALO_DEG},{lon + HALO_DEG}"
-        r = client.get(f"/runs/{args.run}/siblings?bbox={bb}&focus={c['candidate_id']}")
-        if r.status_code != 200:
-            continue
-        (out / "assets" / "siblings" / f"run{args.run}" / f"{c['candidate_id']}.json").write_bytes(r.data)
-        sib_written += 1
+    lo_lat, lo_lon, hi_lat, hi_lon = bbox
+    bb = f"{lo_lat},{lo_lon},{hi_lat},{hi_lon}"
+    r = client.get(f"/runs/{args.run}/siblings?bbox={bb}&focus=0")
+    if r.status_code == 200:
+        data = _json.loads(r.data.decode("utf-8"))
+        data["bbox_is_run_scope"] = True
+        (out / "assets" / "siblings" / f"run{args.run}.json").write_text(
+            _json.dumps(data, separators=(",", ":")), encoding="utf-8"
+        )
+        sib_written = 1
+
+    # Copy shared static bundles (CSS/JS extracted from templates).
+    static_src_dir = Path(__file__).parent / "web" / "static"
+    for src, dst in _STATIC_BUNDLES:
+        shutil.copyfile(static_src_dir / src, out / "assets" / dst)
 
     # Copy raw assets. These aren't strictly required by any page that's
     # rendered (siblings JSON already covers the Leaflet maps), but they let
