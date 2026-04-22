@@ -1,0 +1,222 @@
+[
+  {
+    "id": "high-park-swansea-sw-se",
+    "name": "High Park-Swansea-SW-SE",
+    "bbox": [
+      43.633436,
+      -79.480592,
+      43.639157,
+      -79.469502
+    ],
+    "address_count": 250
+  },
+  {
+    "id": "highland-creek-nw-nw",
+    "name": "Highland Creek-NW-NW",
+    "bbox": [
+      43.794651,
+      -79.19701,
+      43.798195,
+      -79.185621
+    ],
+    "address_count": 33
+  },
+  {
+    "id": "clairlea-birchmount-se-se",
+    "name": "Clairlea-Birchmount-SE-SE",
+    "bbox": [
+      43.697583,
+      -79.268115,
+      43.70437,
+      -79.263401
+    ],
+    "address_count": 38
+  },
+  {
+    "id": "oakdale-beverley-heights-se-se",
+    "name": "Oakdale-Beverley Heights-SE-SE",
+    "bbox": [
+      43.719819,
+      -79.494048,
+      43.722512,
+      -79.482207
+    ],
+    "address_count": 29
+  },
+  {
+    "id": "north-riverdale-nw-nw",
+    "name": "North Riverdale-NW-NW",
+    "bbox": [
+      43.674636,
+      -79.363391,
+      43.67642,
+      -79.357749
+    ],
+    "address_count": 50
+  },
+  {
+    "id": "milliken-nw-se-ne",
+    "name": "Milliken-NW-SE-NE",
+    "bbox": [
+      43.821969,
+      -79.28307,
+      43.825004,
+      -79.275072
+    ],
+    "address_count": 111
+  },
+  {
+    "id": "oakwood-village-se-sw-nw",
+    "name": "Oakwood Village-SE-SW-NW",
+    "bbox": [
+      43.681667,
+      -79.439686,
+      43.68399,
+      -79.437038
+    ],
+    "address_count": 129
+  },
+  {
+    "id": "st-andrew-windfields-sw-ne-sw",
+    "name": "St.Andrew-Windfields-SW-NE-SW",
+    "bbox": [
+      43.749099,
+      -79.392267,
+      43.751997,
+      -79.384206
+    ],
+    "address_count": 105
+  },
+  {
+    "id": "west-humber-clairville-ne-1-ne",
+    "name": "West Humber-Clairville-NE-1-NE",
+    "bbox": [
+      43.729256,
+      -79.580535,
+      43.733835,
+      -79.575208
+    ],
+    "address_count": 52
+  },
+  {
+    "id": "eringate-centennial-west-deane-nw-se-se",
+    "name": "Eringate-Centennial-West Deane-NW-SE-SE",
+    "bbox": [
+      43.657618,
+      -79.585599,
+      43.661332,
+      -79.58199
+    ],
+    "address_count": 170
+  },
+  {
+    "id": "leaside-bennington-ne-nw-nw",
+    "name": "Leaside-Bennington-NE-NW-NW",
+    "bbox": [
+      43.715839,
+      -79.365323,
+      43.720078,
+      -79.361738
+    ],
+    "address_count": 154
+  },
+  {
+    "id": "scarborough-village-sw-nw",
+    "name": "Scarborough Village-SW-NW",
+    "bbox": [
+      43.733352,
+      -79.227492,
+      43.738948,
+      -79.222146
+    ],
+    "address_count": 183
+  },
+  {
+    "id": "newtonbrook-west-nw-ne",
+    "name": "Newtonbrook West-NW-NE",
+    "bbox": [
+      43.790766,
+      -79.438902,
+      43.795602,
+      -79.431127
+    ],
+    "address_count": 321
+  },
+  {
+    "id": "old-east-york-ne-sw",
+    "name": "Old East York-NE-SW",
+    "bbox": [
+      43.696402,
+      -79.334244,
+      43.699886,
+      -79.325838
+    ],
+    "address_count": 334
+  },
+  {
+    "id": "annex-nw-se",
+    "name": "Annex-NW-SE",
+    "bbox": [
+      43.672333,
+      -79.413087,
+      43.674194,
+      -79.404321
+    ],
+    "address_count": 330
+  },
+  {
+    "id": "lawrence-park-north-se-nw",
+    "name": "Lawrence Park North-SE-NW",
+    "bbox": [
+      43.727295,
+      -79.403528,
+      43.729739,
+      -79.396802
+    ],
+    "address_count": 344
+  },
+  {
+    "id": "taylor-massey-se",
+    "name": "Taylor-Massey-SE",
+    "bbox": [
+      43.688708,
+      -79.297034,
+      43.695862,
+      -79.287757
+    ],
+    "address_count": 455
+  },
+  {
+    "id": "south-riverdale-nw-nw-ne",
+    "name": "South Riverdale-NW-NW-NE",
+    "bbox": [
+      43.662822,
+      -79.351432,
+      43.666786,
+      -79.346561
+    ],
+    "address_count": 491
+  },
+  {
+    "id": "golfdale-cedarbrae-woburn-se-nw",
+    "name": "Golfdale-Cedarbrae-Woburn-SE-NW",
+    "bbox": [
+      43.753386,
+      -79.222283,
+      43.760016,
+      -79.212367
+    ],
+    "address_count": 487
+  },
+  {
+    "id": "west-rouge-nw-sw",
+    "name": "West Rouge-NW-SW",
+    "bbox": [
+      43.797932,
+      -79.19009,
+      43.80402,
+      -79.171434
+    ],
+    "address_count": 496
+  }
+]

@@ -8,3 +8,5 @@ venv/
 .pytest_cache/
 *.egg-info/
 .claude/
+docs/spike/
+docs/spike_runs.json
