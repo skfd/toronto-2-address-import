@@ -226,7 +226,7 @@ deserve their own pipelines when we get to them.
 
 This tool moves data between three open datasets. Downstream uploads inherit OSM's licence, but the upstream sources each have their own terms:
 
-- **Toronto Open Data** — "Address Points (Municipal) – Toronto One Address Repository", published under the [Open Government Licence – Toronto](https://open.toronto.ca/open-data-license/). Consumed indirectly via the sibling [`toronto-addresses-import`](https://github.com/skfd/toronto-addresses-import) project.
+- **Toronto Open Data** — "Address Points (Municipal) – Toronto One Address Repository", published under the [Open Government Licence – Toronto](https://open.toronto.ca/open-data-licence/). Consumed indirectly via the sibling [`toronto-addresses-import`](https://github.com/skfd/toronto-addresses-import) project.
 - **OpenStreetMap** — © OpenStreetMap contributors, [ODbL 1.0](https://www.openstreetmap.org/copyright). All uploads target the OSM **dev sandbox** (`master.apis.dev.openstreetmap.org`); any future production import must separately comply with the OSMF [import guidelines](https://wiki.openstreetmap.org/wiki/Import/Guidelines) and [contributor terms](https://osmfoundation.org/wiki/Licence/Contributor_Terms).
 - **Geofabrik** — Ontario `.osm.pbf` extracts, redistributed under ODbL from OSM.
 

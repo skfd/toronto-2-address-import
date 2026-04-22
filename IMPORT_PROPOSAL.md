@@ -72,7 +72,7 @@ Upload rate is capped at **1 changeset per minute** (config `upload.changesets_p
 
 ### License
 
-- **Upstream licence:** [Open Government Licence – Toronto](https://open.toronto.ca/open-data-license/).
+- **Upstream licence:** [Open Government Licence – Toronto](https://open.toronto.ca/open-data-licence/).
 - **ODbL compatibility:** compatible. OGL-Toronto is a permissive attribution licence modelled on the Canadian federal OGL, with no share-alike and no non-commercial clauses; attribution is satisfied by the `source=City of Toronto Open Data` tag on both the uploaded node and its containing changeset.
 
 ### Type and volume
@@ -320,7 +320,7 @@ Answers to each will be incorporated into the wiki page and, where they change p
 ### Source data
 
 - City of Toronto Address Points dataset: <https://open.toronto.ca/dataset/address-points-municipal-toronto-one-address-repository/>
-- Open Government Licence – Toronto: <https://open.toronto.ca/open-data-license/>
+- Open Government Licence – Toronto: <https://open.toronto.ca/open-data-licence/>
 
 ### This import's tooling
 
