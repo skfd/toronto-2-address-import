@@ -298,11 +298,9 @@ We do not rely on `<delete>` osmChange blocks to roll ourselves back — a hand-
 ## 11. Open questions for the community
 
 1. **`addr:city` convention.** Is `addr:city=Toronto` the right uniform value across all former municipalities, or does local convention prefer the former-municipality name (`East York`, `Scarborough`, etc.)?
-2. **`addr:province` omission.** Canadian import conventions vary. Keep omitted (our default), or write `addr:province=ON`?
-3. **Pilot tile.** We plan to run the pilot on `high-park-swansea-sw-se` (bbox `(43.633436, -79.480592, 43.639157, -79.469502)`, 250 source addresses pre-conflation). Any objection, or a different area local mappers would prefer us to start in?
-4. **Rate cap.** 1 changeset/minute with 300-candidate batches is our current cap. Any preference for slower during Phases 1–2?
-5. **Changeset comment template.** Current format is `Toronto Open Data address import, run=<run_name>, batch=<batch_id>`. Any information we should add or remove?
-6. **Post-import monitoring.** How long after the final batch should we commit to watching for community-raised issues? Proposing 90 days.
+2. **Changeset comment template.** Current format is `Toronto Open Data address import, run=<run_name>, batch=<batch_id>`. Any information we should add or remove?
+3. **Post-import monitoring.** How long after the final batch should we commit to watching for community-raised issues? Proposing 90 days.
+4. **Empty lots and recently demolished buildings.** Some source rows describe addresses where no building presently stands — empty lots awaiting construction, or recent demolitions where the City feed hasn't yet retired the record. Distinguishing a real current civic address from stale source data here requires local knowledge. Preferred handling: upload all such rows (the address is a civic record regardless of whether a structure stands), skip those without a visible building on recent imagery, or route them through per-tile review with a local mapper?
 
 Answers to each will be incorporated into the wiki page and, where they change pipeline behaviour, into `config.toml` and the relevant code.
 
@@ -347,3 +345,4 @@ These are the prior OSM import proposals this document was compared against. Sec
 | 2026-04-28 | §2 Phase 2 drops the ~5,000 addresses/day cap and frames rollout as 2,493 tiles processed one at a time. §6 Colocated duplicates updated to reflect the implemented behaviour (non-`Land` row skipped when a same-address `Land` sibling sits within 50 m); doc no longer describes it as a planned fix. |
 | 2026-04-28 | §6 cross-class dedup: dropped the 50 m radius. The check now keys purely on `(address_full, municipality_name)` for non-`Land` rows. Snapshot #28 had no same-key cross-class pairs >50 m apart within one former municipality, so the radius was a no-op; removing it closes the theoretical gap and simplifies the rule. Code (`t2/conflate.py`), in-app glossary, and `SOURCE_DATA.md` updated to match. |
 | 2026-04-28 | §7 reconciliation: replaced phase-end attachment with per-tile + cumulative CSV publication. New `t2/upload_manifest.py` writes `(address_point_id, address_full, osm_node_id, changeset_id)` rows per uploaded candidate; `t2.static_export` and `t2.static_export_all` emit `uploads/<tile_id>.csv` per tile and `uploads/all.csv` cumulatively. Wiki page links to the cumulative file; reviewers can audit any uploaded node within hours rather than waiting for a phase boundary. |
+| 2026-04-28 | §11 Open questions: dropped items already settled elsewhere in the doc (`addr:province` omission — §5; pilot tile choice — §1, §2; rate cap — §2, §9). Added a new question on empty lots and recently demolished buildings, which need local-mapper input rather than pipeline-level decisions. |
