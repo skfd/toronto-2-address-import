@@ -241,7 +241,7 @@ The review UI is a local Flask app (`python run.py`, <http://localhost:5000/>). 
 ### Post-upload reconciliation
 
 - **Id mapping:** OSM API returns local-id → OSM-id pairs per batch; stored in the audit log.
-- **Phase-end publication:** at the end of Phases 1, 2, 3, the full `(source_row, OSM_id, changeset_id)` triples are published as an attachment on the wiki page, following the Montréal `Adresses ponctuelles` precedent.
+- **Per-tile publication:** every export run writes a `(address_point_id, address_full, osm_node_id, changeset_id)` CSV at `<deploy>/triples/<tile_id>.csv` for each completed tile, plus a cumulative `<deploy>/triples/all.csv` covering every uploaded item across all tiles. The wiki page links to the cumulative file. Reviewers can audit any uploaded node within hours of the changeset closing — no need to wait for a phase boundary. This serves the same purpose as the Montréal `Adresses ponctuelles` reconciliation table, on a tile-grained cadence that fits the slower per-tile rollout.
 - **Dispute traceability:** any uploaded node can be traced back to its source row, conflation verdict, reviewer decision, and changeset id in a single query.
 
 ## 8. Deferred work (not part of this import)
@@ -346,3 +346,4 @@ These are the prior OSM import proposals this document was compared against. Sec
 | 2026-04-21 | Reworked dense paragraphs in §3 Contacts, §4 Freshness, §6 Colocated duplicates + Disposition, §7 Post-upload reconciliation + Audit log, and all §8 deferred-work entries into bullet lists. No content changes. |
 | 2026-04-28 | §2 Phase 2 drops the ~5,000 addresses/day cap and frames rollout as 2,493 tiles processed one at a time. §6 Colocated duplicates updated to reflect the implemented behaviour (non-`Land` row skipped when a same-address `Land` sibling sits within 50 m); doc no longer describes it as a planned fix. |
 | 2026-04-28 | §6 cross-class dedup: dropped the 50 m radius. The check now keys purely on `(address_full, municipality_name)` for non-`Land` rows. Snapshot #28 had no same-key cross-class pairs >50 m apart within one former municipality, so the radius was a no-op; removing it closes the theoretical gap and simplifies the rule. Code (`t2/conflate.py`), in-app glossary, and `SOURCE_DATA.md` updated to match. |
+| 2026-04-28 | §7 reconciliation: replaced phase-end attachment with per-tile + cumulative CSV publication. New `t2/triples_export.py` writes `(address_point_id, address_full, osm_node_id, changeset_id)` rows per uploaded candidate; `t2.static_export` and `t2.static_export_all` emit `triples/<tile_id>.csv` per tile and `triples/all.csv` cumulatively. Wiki page links to the cumulative file; reviewers can audit any uploaded node within hours rather than waiting for a phase boundary. |
