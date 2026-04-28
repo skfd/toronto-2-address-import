@@ -176,9 +176,9 @@ Toronto absorbed five adjacent municipalities in 1998. Street names recur across
 
 ### Colocated duplicates within the source
 
-- **Shape:** non-`Land` row (`Structure`, `Structure Entrance`, or `Land Entrance`) at the same `(address_full, municipality_name)` as a `Land` row, within 50 m. ~436 rows city-wide on snapshot #28 (276 `Structure`, 13 `Structure Entrance`, 147 `Land Entrance`).
-- **Behaviour:** colocated-dedup pass in conflation skips the non-`Land` row; the `Land` row is treated as the canonical record and is the only one that proceeds to review and upload.
-- **Tiebreak rationale:** `Land` is the parcel-level "this lot has this address" point and maps cleanly to a standalone OSM address node. Non-`Land` classes (building centroid, door, driveway) are dropped only when a same-address `Land` sibling exists within 50 m — otherwise they flow through normally and carry a unique address (see §3 source data summary).
+- **Shape:** non-`Land` row (`Structure`, `Structure Entrance`, or `Land Entrance`) sharing `(address_full, municipality_name)` with a `Land` row in the same run. ~436 rows city-wide on snapshot #28 (276 `Structure`, 13 `Structure Entrance`, 147 `Land Entrance`).
+- **Behaviour:** dedup pass in conflation skips the non-`Land` row whenever a same-key `Land` sibling exists; the `Land` row is treated as the canonical record and is the only one that proceeds to review and upload. The check is purely key-based — no distance threshold — because within one former municipality the source treats one `address_full` as one civic address (the municipality component of the key handles cross-municipality string collisions like `48 Victor Ave`).
+- **Tiebreak rationale:** `Land` is the parcel-level "this lot has this address" point and maps cleanly to a standalone OSM address node. Non-`Land` classes (building centroid, door, driveway) are dropped only when a same-key `Land` sibling exists; otherwise they flow through normally and carry a unique address (see §3 source data summary).
 
 ### Acknowledged duplicate-creation paths, deferred to a future phase
 
@@ -345,3 +345,4 @@ These are the prior OSM import proposals this document was compared against. Sec
 | 2026-04-21 | §6 acknowledges two duplicate-creation paths (interpolation endpoints, multi-value `addr:housenumber`) and defers their resolution; §8 adds the multi-value-normalisation follow-up entry. No algorithmic change, no new check. |
 | 2026-04-21 | Reworked dense paragraphs in §3 Contacts, §4 Freshness, §6 Colocated duplicates + Disposition, §7 Post-upload reconciliation + Audit log, and all §8 deferred-work entries into bullet lists. No content changes. |
 | 2026-04-28 | §2 Phase 2 drops the ~5,000 addresses/day cap and frames rollout as 2,493 tiles processed one at a time. §6 Colocated duplicates updated to reflect the implemented behaviour (non-`Land` row skipped when a same-address `Land` sibling sits within 50 m); doc no longer describes it as a planned fix. |
+| 2026-04-28 | §6 cross-class dedup: dropped the 50 m radius. The check now keys purely on `(address_full, municipality_name)` for non-`Land` rows. Snapshot #28 had no same-key cross-class pairs >50 m apart within one former municipality, so the radius was a no-op; removing it closes the theoretical gap and simplifies the rule. Code (`t2/conflate.py`), in-app glossary, and `SOURCE_DATA.md` updated to match. |

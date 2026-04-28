@@ -47,7 +47,7 @@ GLOSSARY: dict[str, str] = {
     # check reason codes
     "reason.match_far": "Same housenumber+street exists in OSM, but the matched element is unusually far from the candidate coordinates.",
     "reason.range": "Address range (e.g. 10–14) — reference only, not uploaded.",
-    "reason.colocated_land": "Non-Land row sits within 50 m of a Land sibling at the same address — the Land row is the canonical record.",
+    "reason.colocated_land": "Non-Land row shares an address with a Land sibling in the same source — the Land row is the canonical record.",
     "reason.suspicious_suffix": "Suffix letter looks like a digit (I↔1, O↔0, Q↔0) — likely a data-entry typo.",
     "reason.city_duplicate": "Another candidate in this run sits within a few metres.",
     "reason.intra_source_duplicate": "Another Land row in the source has the same address_full + municipality but sits elsewhere. Unlike city_duplicate (3 m, any class), this is address-keyed and Land-only; <5 m pairs are silently deduped during conflation, so anything flagged here is 5 m or farther.",

@@ -136,9 +136,11 @@ range addresses to OSM.
 - `latitude` / `longitude` are authoritative — use them.
 - Entrances are positioned at the physical door; Structures at the building
   centroid; Land at the parcel centroid; Land Entrances at the driveway/gate.
-- For colocated-dup detection the 50 m threshold works because entrance-to-
-  parcel-centroid distances rarely exceed that on Toronto lots; increase if
-  you hit large-lot false negatives.
+- Cross-class dedup keys purely on `(address_full, municipality_name)` — no
+  distance threshold. Within one former municipality the source treats one
+  `address_full` as one civic address, so a non-Land sibling sharing that
+  key is always a duplicate of the Land row regardless of how far apart the
+  two coordinates sit.
 
 ## Municipality trap (pre-amalgamation)
 

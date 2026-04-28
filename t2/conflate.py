@@ -218,15 +218,13 @@ def _is_range(row: dict) -> bool:
     return lo is not None and hi is not None and lo != hi
 
 
-# Land sibling within this distance auto-skips the non-Land candidate.
-# 50 m is comfortably wider than typical Toronto lot depth, so it catches
-# parcel-centroid-vs-entrance pairs without colliding with the next address
-# over. The lookup is keyed on (address_full, municipality_name) because
-# the same string recurs across former municipalities post-amalgamation
+# A non-Land candidate that shares (address_full, municipality_name) with
+# any Land row in the same run is auto-skipped — the Land row is the
+# canonical record. The lookup keys on municipality_name because the same
+# address string recurs across former municipalities post-amalgamation
 # (see SOURCE_DATA.md "Municipality trap" — e.g. "66 George St" exists in
-# three of them). The 50 m haversine check is a backstop, not the primary
-# disambiguator.
-_LAND_SIBLING_RADIUS_M = 50.0
+# three of them); within one municipality the source treats one
+# address_full as one civic address.
 
 # Two Land rows at the same (address_full, municipality_name) within this
 # distance are treated as a single logical record: conflation silently skips
@@ -236,18 +234,14 @@ _INTRA_DUP_AUTO_SKIP_M = 5.0
 
 
 def _colocated_land_sibling(
-    cand: dict, land_lookup: dict[tuple[str, str | None], list[tuple[float, float]]]
+    cand: dict, land_keys: set[tuple[str, str | None]]
 ) -> bool:
     if cand.get("address_class") == "Land":
         return False
     addr = cand.get("address_full")
-    lat, lon = cand.get("lat"), cand.get("lon")
-    if not addr or lat is None or lon is None:
+    if not addr:
         return False
-    for la, lo in land_lookup.get((addr, cand.get("municipality_name")), ()):
-        if haversine(lat, lon, la, lo) <= _LAND_SIBLING_RADIUS_M:
-            return True
-    return False
+    return (addr, cand.get("municipality_name")) in land_keys
 
 
 def _build_land_groups(
@@ -256,8 +250,8 @@ def _build_land_groups(
     """(address_full, municipality_name) -> [(candidate_id, lat, lon), ...].
 
     Ordered by candidate_id so the first entry of every group is the canonical
-    (lowest-id) row. Same key shape as land_lookup but carries candidate_id so
-    the sibling link can be persisted on the conflation row.
+    (lowest-id) row. Carries candidate_id so the sibling link can be persisted
+    on the conflation row.
     """
     groups: dict[tuple[str, str | None], list[tuple[int, float, float]]] = defaultdict(list)
     for r in conn.execute(
@@ -313,10 +307,7 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
     conn = _db.connect()
     try:
         land_groups = _build_land_groups(conn, run_id)
-        land_lookup: dict[tuple[str, str | None], list[tuple[float, float]]] = {
-            key: [(lat, lon) for _cid, lat, lon in group]
-            for key, group in land_groups.items()
-        }
+        land_keys = set(land_groups.keys())
 
         rows = conn.execute(
             "SELECT candidate_id, address_full, housenumber, street_raw, street_norm, lat, lon, "
@@ -335,9 +326,9 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
             auto_skip_dup = dup is not None and dup[1] <= _INTRA_DUP_AUTO_SKIP_M and not dup[2]
 
             # Address ranges are skipped during conflation (kept for reference only).
-            # Non-Land rows colocated with a Land sibling at the same address are also
-            # skipped — the Land row is the canonical record (see SOURCE_DATA.md).
-            if _is_range(cand) or _colocated_land_sibling(cand, land_lookup) or auto_skip_dup:
+            # Non-Land rows that share an address with a Land sibling are also skipped —
+            # the Land row is the canonical record (see SOURCE_DATA.md).
+            if _is_range(cand) or _colocated_land_sibling(cand, land_keys) or auto_skip_dup:
                 verdict, osm_id, osm_type, dist, matched, poi = "SKIPPED", None, None, None, None, None
             else:
                 verdict, osm_id, osm_type, dist, matched, poi = _classify(
