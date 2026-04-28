@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["T2_STATIC_EXPORT_SNAPSHOT_DATE"] = args.snapshot_date
     os.environ["T2_STATIC_EXPORT_RUN_IDS"] = ",".join(str(r) for r in run_ids)
 
-    from . import batcher, config as _config
+    from . import batcher, config as _config, triples_export
     from .web.app import create_app
 
     cfg = _config.load()
@@ -191,6 +191,20 @@ def main(argv: list[str] | None = None) -> int:
     if tiles_json.exists():
         shutil.copyfile(tiles_json, out / "assets" / "tiles.json")
         copied.append("tiles.json")
+
+    # Public traceability CSVs — one per tile, plus a cumulative all.csv
+    # the wiki page links to.
+    all_rows: list[tuple[int, str, int, int]] = []
+    for meta in per_run_meta:
+        rid = meta["run_id"]
+        rows = triples_export.fetch_for_run(rid)
+        all_rows.extend(rows)
+        label = meta["tile_id"] or f"run{rid}"
+        triples_export.write_csv(out / "triples" / f"{label}.csv", rows)
+        copied.append(f"triples/{label}.csv")
+    all_rows.sort(key=lambda r: r[0])
+    triples_export.write_csv(out / "triples" / "all.csv", all_rows)
+    copied.append(f"triples/all.csv ({len(all_rows)} rows)")
 
     print(
         f"exported {len(run_ids)} runs -> {out}\n"

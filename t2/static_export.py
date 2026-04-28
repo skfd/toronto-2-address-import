@@ -251,7 +251,7 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["T2_STATIC_EXPORT_RUN_ID"] = str(args.run)
 
     # Import after env is set so the Jinja global picks up the flag.
-    from . import batcher, config as _config
+    from . import batcher, config as _config, triples_export
     from .web.app import create_app
 
     cfg = _config.load()
@@ -335,6 +335,12 @@ def main(argv: list[str] | None = None) -> int:
     if tiles_json.exists():
         shutil.copyfile(tiles_json, out / "assets" / "tiles.json")
         copied.append("tiles.json")
+
+    # Public traceability CSV — one per tile (or per run when no tile id).
+    triple_rows = triples_export.fetch_for_run(args.run)
+    triple_label = tile_id or f"run{args.run}"
+    triples_export.write_csv(out / "triples" / f"{triple_label}.csv", triple_rows)
+    copied.append(f"triples/{triple_label}.csv ({len(triple_rows)} rows)")
 
     print(
         f"exported run={args.run} ({run_name}) -> {out}\n"
