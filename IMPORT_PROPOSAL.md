@@ -56,7 +56,7 @@ Phased roll-out, each phase shippable and independently reversible. Dates are ea
 
 - **Phase 0 — community review.** Post this proposal to `imports@openstreetmap.org` and create a page on the OSM wiki under `Import/Catalogue`. Minimum two-week feedback window. Incorporate feedback, revise.
 - **Phase 1 — pilot (1 tile).** Tile `high-park-swansea-sw-se` — a depth-2 quadrant of the High Park-Swansea neighbourhood, bbox `(43.633436, -79.480592, 43.639157, -79.469502)`, 250 source addresses pre-conflation. End-to-end human review. All candidates manually approved even where auto-approval would normally apply. Post the changeset list to the wiki page after upload. Hold for one week for community response.
-- **Phase 2 — ward-level rollout.** Proceed ward-by-ward. At most ~5,000 addresses per day across all changesets. Retain manual approval of a random sample (≥5%) even for auto-approvable items.
+- **Phase 2 — ward-level rollout.** Proceed ward-by-ward, working through the 2,493 tiles one at a time. Retain manual approval of a random sample (≥5%) even for auto-approvable items.
 - **Phase 3 — remaining tiles.** Same cadence, same review gating.
 - **Phase 4 — closeout.** Final reconciliation: re-fetch the bbox, publish a post-import report (counts, rejection reasons, outstanding `REVIEW_DEFERRED` items).
 
@@ -176,10 +176,9 @@ Toronto absorbed five adjacent municipalities in 1998. Street names recur across
 
 ### Colocated duplicates within the source
 
-- **Shape:** `Land` + `Structure` at the same address, within 50 m. ~436 addresses city-wide on snapshot #28.
-- **Current behaviour:** both rows upload if both pass conflation.
-- **Planned fix:** colocated-dedup pass collapses them to a single node before review.
-- **Phase 1 impact:** none — the pilot tile was chosen to avoid known colocation clusters.
+- **Shape:** non-`Land` row (`Structure`, `Structure Entrance`, or `Land Entrance`) at the same `(address_full, municipality_name)` as a `Land` row, within 50 m. ~436 rows city-wide on snapshot #28 (276 `Structure`, 13 `Structure Entrance`, 147 `Land Entrance`).
+- **Behaviour:** colocated-dedup pass in conflation skips the non-`Land` row; the `Land` row is treated as the canonical record and is the only one that proceeds to review and upload.
+- **Tiebreak rationale:** `Land` is the parcel-level "this lot has this address" point and maps cleanly to a standalone OSM address node. Non-`Land` classes (building centroid, door, driveway) are dropped only when a same-address `Land` sibling exists within 50 m — otherwise they flow through normally and carry a unique address (see §3 source data summary).
 
 ### Acknowledged duplicate-creation paths, deferred to a future phase
 
@@ -345,3 +344,4 @@ These are the prior OSM import proposals this document was compared against. Sec
 | 2026-04-21 | Asserted OGL-Toronto ↔ ODbL compatibility; named pilot tile `high-park-swansea-sw-se`; added reviewer-roster contact line; committed to publishing per-phase OSM-ID lists; added §10 Revert plan; reorganised References with benchmark proposals (Ottawa, Montréal). |
 | 2026-04-21 | §6 acknowledges two duplicate-creation paths (interpolation endpoints, multi-value `addr:housenumber`) and defers their resolution; §8 adds the multi-value-normalisation follow-up entry. No algorithmic change, no new check. |
 | 2026-04-21 | Reworked dense paragraphs in §3 Contacts, §4 Freshness, §6 Colocated duplicates + Disposition, §7 Post-upload reconciliation + Audit log, and all §8 deferred-work entries into bullet lists. No content changes. |
+| 2026-04-28 | §2 Phase 2 drops the ~5,000 addresses/day cap and frames rollout as 2,493 tiles processed one at a time. §6 Colocated duplicates updated to reflect the implemented behaviour (non-`Land` row skipped when a same-address `Land` sibling sits within 50 m); doc no longer describes it as a planned fix. |
