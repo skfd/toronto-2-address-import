@@ -15,3 +15,8 @@ at the date they were written.
   First mutation flow in an otherwise create-only pipeline.
 - [maplibre.md](maplibre.md) — swap the review UI's Leaflet maps for
   MapLibre GL JS (vector tiles, richer styling).
+- [no-anchor-osm-buildings.md](no-anchor-osm-buildings.md) — post-import
+  MapRoulette challenge for the ~1,580 OSM buildings with
+  `addr:housenumber` but no `addr:street`. These can't be matched by
+  conflation and are an acknowledged duplicate-creation path
+  (`IMPORT_PROPOSAL.md` §6).
