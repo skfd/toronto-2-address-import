@@ -409,6 +409,7 @@ def create_app() -> Flask:
         verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
         poi_ack = request.args.get("poi_ack", "0") == "1"
         postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        door_only = request.args.get("door_only", "0") == "1"
         all_reasons = review.available_reasons(run_id)
         reasons = _parse_csv_arg("reasons", tuple(all_reasons))
         items = review.queue(
@@ -418,6 +419,7 @@ def create_app() -> Flask:
             verdicts=verdicts,
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
+            door_only=door_only,
             reasons=reasons,
             limit=500,
         )
@@ -445,6 +447,7 @@ def create_app() -> Flask:
             include_auto=include_auto,
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
+            door_only=door_only,
             all_statuses=_REVIEW_STATUSES,
             all_verdicts=_REVIEW_VERDICTS,
             all_reasons=all_reasons,
@@ -547,6 +550,7 @@ def create_app() -> Flask:
         verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
         poi_ack = request.args.get("poi_ack", "0") == "1"
         postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
+        door_only = request.args.get("door_only", "0") == "1"
         all_reasons = review.available_reasons(run_id)
         reasons = _parse_csv_arg("reasons", tuple(all_reasons))
         items = review.queue(
@@ -556,6 +560,7 @@ def create_app() -> Flask:
             verdicts=verdicts,
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
+            door_only=door_only,
             reasons=reasons,
             limit=500,
         )
@@ -567,6 +572,7 @@ def create_app() -> Flask:
             include_auto=include_auto,
             poi_ack=poi_ack,
             postcode_from_poi=postcode_from_poi,
+            door_only=door_only,
             all_statuses=_REVIEW_STATUSES,
             all_verdicts=_REVIEW_VERDICTS,
             all_reasons=all_reasons,
@@ -777,7 +783,8 @@ def create_app() -> Flask:
         verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
         poi_ack = request.args.get("poi_ack", "0") == "1"
         postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
-        extra_where, extra_params = review._poi_where(poi_ack, postcode_from_poi, verdicts)
+        door_only = request.args.get("door_only", "0") == "1"
+        extra_where, extra_params = review._poi_where(poi_ack, postcode_from_poi, verdicts, door_only)
         and_extra = (" AND " + extra_where) if extra_where else ""
         conn = _db.connect()
         try:
@@ -804,6 +811,7 @@ def create_app() -> Flask:
             "active_verdicts": set(verdicts),
             "poi_ack": poi_ack,
             "postcode_from_poi": postcode_from_poi,
+            "door_only": door_only,
             "all_verdicts": _REVIEW_VERDICTS,
             "municipality_collisions": review.colliding_address_fulls(run_id),
             "view": "approved",
@@ -813,7 +821,8 @@ def create_app() -> Flask:
         verdicts = _parse_csv_arg("verdicts", _REVIEW_VERDICTS)
         poi_ack = request.args.get("poi_ack", "0") == "1"
         postcode_from_poi = request.args.get("postcode_from_poi", "0") == "1"
-        extra_where, extra_params = review._poi_where(poi_ack, postcode_from_poi, verdicts)
+        door_only = request.args.get("door_only", "0") == "1"
+        extra_where, extra_params = review._poi_where(poi_ack, postcode_from_poi, verdicts, door_only)
         and_extra = (" AND " + extra_where) if extra_where else ""
         conn = _db.connect()
         try:
@@ -842,6 +851,7 @@ def create_app() -> Flask:
             "active_verdicts": set(verdicts),
             "poi_ack": poi_ack,
             "postcode_from_poi": postcode_from_poi,
+            "door_only": door_only,
             "all_verdicts": _REVIEW_VERDICTS,
             "municipality_collisions": review.colliding_address_fulls(run_id),
             "view": "skipped",

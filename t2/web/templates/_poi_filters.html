@@ -33,6 +33,8 @@
                   {% if poi_ack %}checked{% endif %}> POI acknowledged</label>
     <label><input type="checkbox" name="postcode_from_poi" value="1"
                   {% if postcode_from_poi %}checked{% endif %}> Postcode from POI</label>
+    <label data-tip="{{ tip('filter.door_only') }}"><input type="checkbox" name="door_only" value="1"
+                  {% if door_only %}checked{% endif %}> Doors only</label>
   </div>
   {% if all_reasons %}
   <div style="margin-top:.3rem;">
@@ -58,7 +60,7 @@
           p[field] = Array.from(boxes).map(b => b.value).join(',');
         }
       }
-      for (const field of ['auto', 'poi_ack', 'postcode_from_poi']) {
+      for (const field of ['auto', 'poi_ack', 'postcode_from_poi', 'door_only']) {
         if (form.querySelector('input[name="' + field + '"]') &&
             !form.querySelector('input[name="' + field + '"]:checked')) {
           p[field] = '0';

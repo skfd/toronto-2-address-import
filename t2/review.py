@@ -19,10 +19,16 @@ _VALID_FILTER_STATUSES = {"OPEN", "APPROVED", "REJECTED", "DEFERRED"}
 _VALID_FILTER_VERDICTS = {"MATCH", "MATCH_FAR", "MISSING", "SKIPPED"}
 
 
-def _poi_where(poi_ack: bool, postcode_from_poi: bool, verdicts: tuple[str, ...]) -> tuple[str, list]:
-    """Build shared WHERE predicates for the POI / verdict filters used by
-    review.queue, approved_page, and skipped_page. Predicates reference the
-    `cf` (conflation) alias, so callers must LEFT JOIN conflation AS cf.
+def _poi_where(
+    poi_ack: bool,
+    postcode_from_poi: bool,
+    verdicts: tuple[str, ...],
+    door_only: bool = False,
+) -> tuple[str, list]:
+    """Build shared WHERE predicates for the POI / verdict / door filters used
+    by review.queue, approved_page, and skipped_page. Predicates reference the
+    `c` (candidates) and `cf` (conflation) aliases, so callers must select
+    candidates AS c and LEFT JOIN conflation AS cf.
     """
     clauses: list[str] = []
     params: list = []
@@ -34,6 +40,8 @@ def _poi_where(poi_ack: bool, postcode_from_poi: bool, verdicts: tuple[str, ...]
         placeholders = ",".join("?" for _ in verdicts)
         clauses.append(f"cf.verdict IN ({placeholders})")
         params.extend(verdicts)
+    if door_only:
+        clauses.append("c.address_class = 'Structure Entrance'")
     return (" AND ".join(clauses), params)
 
 
@@ -108,6 +116,7 @@ def queue(
     verdicts: tuple[str, ...] | list[str] | None = None,
     poi_ack: bool = False,
     postcode_from_poi: bool = False,
+    door_only: bool = False,
     reasons: tuple[str, ...] | list[str] | None = None,
     limit: int = 100,
     offset: int = 0,
@@ -116,17 +125,18 @@ def queue(
 
     Auto-approved candidates (stage='APPROVED' with no review_items row) are
     included as synthetic rows with status='AUTO_APPROVED' when
-    include_auto=True. `verdicts`/`poi_ack`/`postcode_from_poi` narrow the
-    result to rows whose conflation row matches those predicates. `reasons`
-    narrows to rows whose `review_items.reason_code` CSV contains any of the
-    listed check reason codes; AUTO rows are never returned when `reasons`
-    is set (they carry a synthetic `auto_clean` reason).
+    include_auto=True. `verdicts`/`poi_ack`/`postcode_from_poi`/`door_only`
+    narrow the result to rows whose conflation row (or `address_class` for
+    `door_only`) matches those predicates. `reasons` narrows to rows whose
+    `review_items.reason_code` CSV contains any of the listed check reason
+    codes; AUTO rows are never returned when `reasons` is set (they carry a
+    synthetic `auto_clean` reason).
     """
     if statuses is None:
         statuses = ("OPEN",)
     statuses = tuple(s for s in statuses if s in _VALID_FILTER_STATUSES)
     verdicts_t = tuple(v for v in (verdicts or ()) if v in _VALID_FILTER_VERDICTS)
-    extra_where, extra_params = _poi_where(poi_ack, postcode_from_poi, verdicts_t)
+    extra_where, extra_params = _poi_where(poi_ack, postcode_from_poi, verdicts_t, door_only)
     and_extra = (" AND " + extra_where) if extra_where else ""
 
     reasons_t = tuple(r for r in (reasons or ()) if r)
