@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file, send_from_directory, url_for
 
-from .. import audit, batcher, candidates, config as _config, db as _db, multi_addresses as _multi_addresses, multi_fixes as _multi_fixes, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, source_db, tag_diff, tiles_build
+from .. import audit, batcher, candidates, config as _config, db as _db, multi_addresses as _multi_addresses, multi_fixes as _multi_fixes, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, run_for_all, source_db, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -169,6 +169,69 @@ def create_app() -> Flask:
             prior_runs=prior_runs,
             prefill_name=prefill_name,
         )
+
+    # ---- Run for All (background worker) ----
+
+    @app.get("/api/run_for_all/status")
+    def run_for_all_status():
+        running, pid = run_for_all.is_running(cfg)
+        status = run_for_all.read_status(cfg)
+        return jsonify({"running": running, "pid": pid, "status": status})
+
+    @app.post("/map/run_all")
+    def run_for_all_start():
+        running, pid = run_for_all.is_running(cfg)
+        if running:
+            flash(f"Run for All is already running (pid {pid}).")
+            return redirect(url_for("tiles_map"))
+        snap = source_db.latest_snapshot_info()
+        if snap and snap.get("is_stale"):
+            flash("Source snapshot is stale; refresh the source DB before Run for All.")
+            return redirect(url_for("tiles_map"))
+        if cfg.osm_source == "local":
+            ext_status = osm_refresh.extract_status(cfg)
+            if ext_status in ("missing", "stale"):
+                flash(f"OSM extract is {ext_status}; refresh at /osm before Run for All.")
+                return redirect(url_for("tiles_map"))
+        cfg.data_dir.mkdir(parents=True, exist_ok=True)
+        args = [sys.executable, "-m", "t2.run_for_all"]
+        with open(run_for_all.log_path(cfg), "wb") as log_file:
+            popen_kwargs: dict = {
+                "stdout": log_file,
+                "stderr": subprocess.STDOUT,
+                "stdin": subprocess.DEVNULL,
+                "close_fds": True,
+                "cwd": str(_config.ROOT),
+            }
+            if os.name == "nt":
+                popen_kwargs["creationflags"] = (
+                    subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+                )
+            else:
+                popen_kwargs["start_new_session"] = True
+            subprocess.Popen(args, **popen_kwargs)
+        flash("Run for All started.")
+        return redirect(url_for("tiles_map"))
+
+    @app.post("/map/run_all/stop")
+    def run_for_all_stop():
+        running, _pid = run_for_all.is_running(cfg)
+        if not running:
+            flash("Run for All is not running.")
+            return redirect(url_for("tiles_map"))
+        run_for_all.request_stop(cfg)
+        flash("Stop requested. Worker will exit after the current tile.")
+        return redirect(url_for("tiles_map"))
+
+    @app.post("/map/run_all/reset")
+    def run_for_all_reset():
+        running, _pid = run_for_all.is_running(cfg)
+        if running:
+            flash("Stop the worker before resetting state.")
+            return redirect(url_for("tiles_map"))
+        run_for_all.reset_state(cfg)
+        flash("Run for All progress cleared. Runs and DB untouched.")
+        return redirect(url_for("tiles_map"))
 
     def _tile_for_run(run: dict) -> tuple[dict | None, int | None, int]:
         """Resolve (tile, 1-based-index, total_tiles) for a run by rounded bbox."""

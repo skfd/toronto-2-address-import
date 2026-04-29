@@ -7,6 +7,28 @@
     <p class="muted">
       {{ tiles|length }} tiles · generated {{ meta.generated_at[:10] }} · snapshot {{ meta.source_snapshot_id }} · threshold {{ meta.threshold }}
     </p>
+    {% if not static_export.active %}
+    <div class="run-all-bar">
+      <form method="post" action="{{ url_for('run_for_all_start') }}" class="inline">
+        <button type="submit" class="run-all-btn">Run for All</button>
+      </form>
+      <form method="post" action="{{ url_for('run_for_all_stop') }}" class="inline">
+        <button type="submit" class="secondary">Stop</button>
+      </form>
+      <form method="post" action="{{ url_for('run_for_all_reset') }}" class="inline"
+            onsubmit="return confirm('Clear Run for All progress tracking? Runs and DB are not deleted.');">
+        <button type="submit" class="danger">Reset State</button>
+      </form>
+      <span id="run-all-banner" class="muted run-all-banner"></span>
+    </div>
+    <div class="run-all-legend muted">
+      <span class="swatch swatch-pending"></span> pending
+      <span class="swatch swatch-running"></span> running
+      <span class="swatch swatch-done"></span> done
+      <span class="swatch swatch-skipped"></span> already complete
+      <span class="swatch swatch-error"></span> error
+    </div>
+    {% endif %}
     <div id="tile-map" style="height: 72vh; border-radius: 4px;"></div>
   {% else %}
     <p class="muted">
@@ -23,24 +45,107 @@
     const map = L.map('tile-map').fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]]);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       { maxZoom: 19, attribution: '© OSM' }).addTo(map);
+
+    const STATE_COLORS = {
+      pending: { color: '#94a3b8', fill: '#94a3b8', fillOpacity: 0.05 },
+      running: { color: '#f59e0b', fill: '#f59e0b', fillOpacity: 0.35 },
+      done:    { color: '#16a34a', fill: '#16a34a', fillOpacity: 0.30 },
+      skipped: { color: '#16a34a', fill: '#16a34a', fillOpacity: 0.12 },
+      error:   { color: '#dc2626', fill: '#dc2626', fillOpacity: 0.30 },
+    };
+    const ORPHAN = { color: '#ef4444', fill: '#ef4444', fillOpacity: 0.05 };
+    const DEFAULT = { color: '#2563eb', fill: '#2563eb', fillOpacity: 0.05 };
+
+    const polysById = new Map();
     let current = null;
     for (const t of tiles) {
+      const base = t.is_orphan ? ORPHAN : DEFAULT;
       const poly = L.polygon(t.polygon_latlon, {
-        color: t.is_orphan ? '#ef4444' : '#2563eb',
+        color: base.color,
+        fillColor: base.fill,
         weight: 1,
-        fillOpacity: 0.05,
+        fillOpacity: base.fillOpacity,
       }).addTo(map);
-      poly.bindTooltip(`${t.name} · ${t.address_count} addresses`);
+      poly._tile = t;
+      poly._baseTooltip = `${t.name} · ${t.address_count} addresses`;
+      poly.bindTooltip(poly._baseTooltip);
       poly.on('mouseover', () => {
         if (current && current !== poly) {
           current.closeTooltip();
-          current.setStyle({ fillOpacity: 0.05, weight: 1 });
+          current.setStyle({ weight: 1 });
         }
         current = poly;
-        poly.setStyle({ fillOpacity: 0.25, weight: 2 });
+        poly.setStyle({ weight: 2 });
       });
       poly.on('click', () => { window.location = '/tiles/' + t.id; });
+      polysById.set(t.id, poly);
     }
+
+    const banner = document.getElementById('run-all-banner');
+    if (!banner) return;
+
+    function applyStatus(payload) {
+      const status = payload && payload.status;
+      if (!status) {
+        banner.textContent = '';
+        for (const poly of polysById.values()) {
+          const t = poly._tile;
+          const base = t.is_orphan ? ORPHAN : DEFAULT;
+          poly.setStyle({ color: base.color, fillColor: base.fill, fillOpacity: base.fillOpacity });
+          poly.setTooltipContent(poly._baseTooltip);
+        }
+        return false;
+      }
+      const tilesState = status.tiles || {};
+      let done = 0, errors = 0, running = 0, skipped = 0;
+      for (const [tid, poly] of polysById.entries()) {
+        const entry = tilesState[tid];
+        if (!entry) {
+          const style = STATE_COLORS.pending;
+          poly.setStyle({ color: style.color, fillColor: style.fill, fillOpacity: style.fillOpacity });
+          poly.setTooltipContent(poly._baseTooltip + ' · pending');
+          continue;
+        }
+        const st = entry.state || 'pending';
+        const style = STATE_COLORS[st] || STATE_COLORS.pending;
+        poly.setStyle({ color: style.color, fillColor: style.fill, fillOpacity: style.fillOpacity });
+        let label = poly._baseTooltip + ' · ' + st;
+        if (entry.stage && st === 'running') label += ' (' + entry.stage + ')';
+        if (entry.run_id) label += ' · run ' + entry.run_id;
+        if (entry.error) label += ' · ' + entry.error;
+        poly.setTooltipContent(label);
+        if (st === 'done') done++;
+        else if (st === 'error') errors++;
+        else if (st === 'running') running++;
+        else if (st === 'skipped') skipped++;
+      }
+      const total = status.total || polysById.size;
+      const parts = [`${done + skipped}/${total} processed`];
+      if (skipped) parts.push(`${skipped} skipped`);
+      if (errors) parts.push(`${errors} error`);
+      if (payload.running && status.current_tile) {
+        parts.push(`running ${status.current_stage || '?'} on ${status.current_tile}`);
+      } else if (status.stopped) {
+        parts.push('stopped');
+      } else if (status.finished_at) {
+        parts.push('finished');
+      }
+      banner.textContent = parts.join(' · ');
+      return !!payload.running;
+    }
+
+    let timer = null;
+    function tick() {
+      fetch('/api/run_for_all/status', { cache: 'no-store' })
+        .then(r => r.json())
+        .then(payload => {
+          const stillRunning = applyStatus(payload);
+          const nextDelay = stillRunning ? 2000 : 5000;
+          timer = setTimeout(tick, nextDelay);
+        })
+        .catch(() => { timer = setTimeout(tick, 5000); });
+    }
+    tick();
   })();
 </script>
 {% endif %}

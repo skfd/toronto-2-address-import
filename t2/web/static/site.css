@@ -72,6 +72,20 @@ body.static-export .kbd-bar { display: none; }
 }
 .row-decided-approve { box-shadow: inset 4px 0 0 #16a34a; }
 .row-decided-reject  { box-shadow: inset 4px 0 0 #dc2626; opacity: .55; text-decoration: line-through; }
+.run-all-bar { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+               margin: .4rem 0 .5rem; }
+.run-all-bar .run-all-btn { background: #059669; font-weight: 600; }
+.run-all-bar .run-all-btn:hover:not(:disabled) { background: #047857; }
+.run-all-banner { font-size: .9rem; }
+.run-all-legend { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+                  font-size: .82rem; margin: 0 0 .6rem; }
+.run-all-legend .swatch { display: inline-block; width: .8rem; height: .8rem;
+                          border-radius: 2px; margin-right: .25rem; vertical-align: middle; }
+.run-all-legend .swatch-pending { background: #94a3b8; opacity: .5; }
+.run-all-legend .swatch-running { background: #f59e0b; }
+.run-all-legend .swatch-done    { background: #16a34a; }
+.run-all-legend .swatch-skipped { background: #16a34a; opacity: .35; }
+.run-all-legend .swatch-error   { background: #dc2626; }
 [data-tip] { position: relative; cursor: help; }
 a[data-tip], button[data-tip] { cursor: pointer; }
 [data-tip]:hover::after {
