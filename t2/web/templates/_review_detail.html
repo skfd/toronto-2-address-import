@@ -1,3 +1,12 @@
+<div class="kbd-bar">
+  <button type="button" onclick="window.t2ReviewKeys && t2ReviewKeys.act('APPROVED')" title="Approve and advance to next item">
+    <span class="kbd">A</span> Approve
+  </button>
+  <button type="button" class="danger" onclick="window.t2ReviewKeys && t2ReviewKeys.act('REJECTED')" title="Reject and advance to next item">
+    <span class="kbd">D</span> Reject
+  </button>
+  <span class="muted">· <span class="kbd">W</span>/<span class="kbd">S</span> prev/next</span>
+</div>
 <h3>{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}
   {% if candidate.address_class and candidate.address_class != 'Land' %}
     <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ candidate.address_class }}</span>

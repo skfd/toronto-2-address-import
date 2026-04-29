@@ -57,6 +57,21 @@ form.inline { display: inline; }
 .muted { color: #6b7280; }
 code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; }
 #leaflet-map { height: 280px; border-radius: 4px; }
+.kbd-bar { position: sticky; top: 0; z-index: 5; background: #fff;
+           border-bottom: 1px solid #e5e7eb; padding: .5rem 0; margin: -1rem -1rem .6rem;
+           padding-left: 1rem; padding-right: 1rem;
+           display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.kbd { display: inline-block; min-width: 1em; padding: 0 .35em;
+       border: 1px solid #cbd5e1; border-bottom-width: 2px; border-radius: 3px;
+       font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8em;
+       background: #f8fafc; color: #111; line-height: 1.4; }
+.kbd-bar button .kbd { background: rgba(255,255,255,.85); color: #111; border-color: #cbd5e1; }
+body.static-export .kbd-bar { display: none; }
+.row-decided-approve, .row-decided-reject {
+  padding-left: .5rem; transition: opacity .15s;
+}
+.row-decided-approve { box-shadow: inset 4px 0 0 #16a34a; }
+.row-decided-reject  { box-shadow: inset 4px 0 0 #dc2626; opacity: .55; text-decoration: line-through; }
 [data-tip] { position: relative; cursor: help; }
 a[data-tip], button[data-tip] { cursor: pointer; }
 [data-tip]:hover::after {
