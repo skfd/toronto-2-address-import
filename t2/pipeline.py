@@ -439,3 +439,51 @@ def list_runs() -> list[dict]:
         return [dict(r) for r in rows]
     finally:
         conn.close()
+
+
+# Run-scoped tables, in delete order (children before parents so FKs hold).
+# multi_address_verdicts / checks_catalog / kv / schema_version are intentionally
+# excluded — they are global, not tied to a run.
+_RUN_SCOPED_TABLES = (
+    "batch_items",
+    "batches",
+    "changesets",
+    "events",
+    "review_items",
+    "check_results",
+    "check_toggles",
+    "conflation",
+    "candidates",
+    "runs",
+)
+
+
+def delete_all_runs() -> dict[str, int]:
+    """Wipe every run and all related rows. Also removes per-run cached files
+    (osm_current_run*.json, batch_*.osm). Returns row counts deleted per table."""
+    cfg = _config.load()
+    counts: dict[str, int] = {}
+    conn = _db.connect()
+    try:
+        conn.execute("BEGIN")
+        for table in _RUN_SCOPED_TABLES:
+            cur = conn.execute(f"DELETE FROM {table}")
+            counts[table] = cur.rowcount or 0
+        # Reset autoincrement so the next run starts at 1.
+        conn.execute(
+            "DELETE FROM sqlite_sequence WHERE name IN ('runs','batches','events')"
+        )
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.close()
+
+    for path in cfg.data_dir.glob("osm_current_run*.json"):
+        path.unlink(missing_ok=True)
+    for path in cfg.data_dir.glob("batch_*.osm"):
+        path.unlink(missing_ok=True)
+
+    audit.log(actor="operator", event_type="RUNS_PURGED", payload={"counts": counts})
+    return counts

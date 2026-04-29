@@ -27,7 +27,14 @@
 {% endif %}
 
 <div class="card">
-  <h2>Runs</h2>
+  <h2>Runs
+    {% if runs and not static_export.active %}
+    <form method="post" action="{{ url_for('runs_delete_all') }}" style="display:inline; float:right;"
+          onsubmit="return confirm('Delete ALL {{ runs|length }} run(s) and every related candidate, conflation, check, review, batch, changeset, and event? This cannot be undone.');">
+      <button type="submit" class="danger">Delete all runs</button>
+    </form>
+    {% endif %}
+  </h2>
   {% if runs %}
   <table>
     <thead><tr><th>ID</th><th>Name</th><th>Created</th><th>BBox</th><th>Snap</th><th></th></tr></thead>

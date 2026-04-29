@@ -120,6 +120,13 @@ def create_app() -> Flask:
         run_id = pipeline.start_run(name, bbox)  # type: ignore
         return redirect(url_for("run_view", run_id=run_id))
 
+    @app.post("/runs/delete_all")
+    def runs_delete_all():
+        counts = pipeline.delete_all_runs()
+        runs_deleted = counts.get("runs", 0)
+        flash(f"Deleted {runs_deleted} run(s) and all related data.")
+        return redirect(url_for("index"))
+
     # ---- Tile picker ----
 
     @app.get("/map")
