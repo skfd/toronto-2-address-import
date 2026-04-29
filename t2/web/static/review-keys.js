@@ -106,10 +106,28 @@
       .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then(j => {
         if (j && j.run_id != null) {
-          window.location.href = `/runs/${j.run_id}/review`;
+          window.location.href = `/runs/${j.run_id}/review#select-first`;
         }
       })
       .catch(err => console.error('review-keys:', err));
+  }
+
+  function selectFirstIfHinted() {
+    if (location.hash !== '#select-first') return;
+    if (!VIEWS.has(getView())) return;
+    const rs = rows();
+    if (rs.length) selectIndex(0);
+    // Clear the hint so a manual refresh doesn't keep re-selecting.
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  // Must run AFTER htmx has bound its click handlers (htmx processes on
+  // DOMContentLoaded; this script is `defer`, so it executes before that).
+  // window.load fires after htmx processing, so .click() on the row will
+  // actually trigger the hx-get instead of just the inline visual handler.
+  if (document.readyState === 'complete') {
+    selectFirstIfHinted();
+  } else {
+    window.addEventListener('load', selectFirstIfHinted, { once: true });
   }
 
   document.addEventListener('keydown', e => {
