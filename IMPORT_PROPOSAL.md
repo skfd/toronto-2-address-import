@@ -161,7 +161,7 @@ Street-name normalisation (`STREET` → `ST`, `AVENUE` → `AVE`, `NORTH` → `N
 
 Two kinds of OSM feature are valid match targets:
 
-1. **Pure address nodes** — nodes with `addr:housenumber` that do **not** carry POI keys (`amenity`, `shop`, `office`, `tourism`, `leisure`, `craft`, `healthcare`, `building`, plus their `disused:*` / `was:*` variants).
+1. **Pure address nodes** — nodes with `addr:housenumber` that do **not** carry POI keys (`amenity`, `shop`, `office`, `tourism`, `leisure`, `craft`, `healthcare`, `building`, plus their `disused:*` / `was:*` variants). Nodes additionally tagged `entrance=*` (≈675 across Toronto) count as pure-address match targets — their address is canonical, the `entrance` tag just records that the point sits on a door rather than the parcel centre.
 2. **Polygons with address tags** — ways and relations carrying `addr:housenumber`, including address-bearing buildings. Polygon centroids are used for the distance calculation.
 
 POI nodes (amenity/shop/etc.) with `addr:*` tags are explicitly **not** match targets. Their address is a courtesy annotation and the canonical address point is typically absent. When a MISSING candidate is colocated with such a POI, the review UI acknowledges it with a pill and — if the POI carries `addr:postcode` — that postcode is adopted onto the proposed new node. This is the only case where we draw tag data off of an existing OSM object, and it is additive (never overwriting).

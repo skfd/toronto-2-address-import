@@ -74,6 +74,10 @@ def _is_poi_node(el: dict) -> bool:
     """A POI node is a node that carries shop/amenity/etc. tags — its address is
     a courtesy annotation, not the canonical address feature. Polygons are never
     POI-filtered: a hospital or building polygon with addr:* is a valid match.
+
+    `entrance=*` is intentionally NOT in POI_TAG_KEYS: an entrance node with
+    addr:* is a canonical address (just door-level rather than parcel-level)
+    and must remain a valid match target. See IMPORT_PROPOSAL.md §6.
     """
     if el.get("type") != "node":
         return False
@@ -84,8 +88,9 @@ def _is_poi_node(el: dict) -> bool:
 def build_osm_index(elements: list[dict]) -> tuple[GridIndex, GridIndex]:
     """Return (match_idx, poi_idx).
 
-    match_idx holds pure-address nodes and polygons — valid conflation targets.
-    poi_idx holds amenity/shop/etc. nodes, acknowledged but ignored for matching.
+    match_idx holds pure-address nodes (including entrance=* nodes that carry
+    addr:*) and polygons — valid conflation targets. poi_idx holds
+    amenity/shop/etc. nodes, acknowledged but ignored for matching.
     Nodes that are members of an addr:interpolation way are dropped entirely:
     they're endpoints of an interpolated range, not standalone addresses.
     """
