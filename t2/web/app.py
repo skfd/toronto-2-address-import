@@ -89,6 +89,18 @@ def create_app() -> Flask:
         "run_ids": _static_run_ids,
         "multi": os.environ.get("T2_STATIC_EXPORT_MULTI") == "1",
     }
+    _api_base_lower = (cfg.osm_api_base or "").lower()
+    if "dev.openstreetmap" in _api_base_lower:
+        _target_label, _target_class = "DEV", "dev"
+    elif "api.openstreetmap.org" in _api_base_lower:
+        _target_label, _target_class = "PROD", "prod"
+    else:
+        _target_label, _target_class = "OTHER", "other"
+    app.jinja_env.globals["osm_target"] = {
+        "label": _target_label,
+        "class": _target_class,
+        "api_base": cfg.osm_api_base,
+    }
 
     @app.context_processor
     def _inject_source_snapshot():

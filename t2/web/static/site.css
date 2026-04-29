@@ -3,6 +3,12 @@ header { background: #1f2937; color: #fff; padding: .7rem 1.2rem;
          display: flex; align-items: center; gap: 1rem; }
 header a { color: #fff; text-decoration: none; }
 header .nav a { margin-right: 1rem; }
+header .osm-target { display: inline-block; padding: 2px 8px; border-radius: 10px;
+                     font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+                     vertical-align: middle; margin-right: .8rem; }
+header .osm-target-dev { background: #fbbf24; color: #78350f; }
+header .osm-target-prod { background: #dc2626; color: #fff; }
+header .osm-target-other { background: #6b7280; color: #fff; }
 header .meta { margin-left: auto; font-size: .82rem; color: #cbd5e1; }
 header .meta a { color: #cbd5e1; }
 header .meta a:hover { color: #fff; text-decoration: underline; }

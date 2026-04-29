@@ -30,6 +30,7 @@
   <header>
     <span class="nav">
       <a href="/"><strong>t2 address import</strong></a>
+      {% if not static_export.active %}<span class="osm-target osm-target-{{ osm_target.class }}" title="OSM API: {{ osm_target.api_base }}">{{ osm_target.label }}</span>{% endif %}
       {% if not static_export.active or static_export.multi %}<a href="/map">Map</a>{% endif %}
       <a href="/osm">OSM extract</a>
       {% if not static_export.active %}<a href="/osm/multi">Multi-addresses</a>{% endif %}

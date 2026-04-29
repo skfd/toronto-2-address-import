@@ -58,6 +58,44 @@ python run.py
 
 Then visit <http://localhost:5000/>.
 
+## Targeting dev vs prod OSM
+
+The tool defaults to the OSM **dev sandbox**
+(`master.apis.dev.openstreetmap.org`). The header shows a `DEV` / `PROD`
+badge so you always know which server uploads will go to.
+
+Switch by setting `OSM_API_BASE`:
+
+- **DEV (default):** `OSM_API_BASE=https://master.apis.dev.openstreetmap.org`
+- **PROD (real OSM):** `OSM_API_BASE=https://api.openstreetmap.org`
+
+Each server has its own OAuth2 application registry, so a prod run also needs
+a prod-side `OSM_CLIENT_ID` / `OSM_CLIENT_SECRET` — register a second app on
+<https://www.openstreetmap.org/oauth2/applications> with the same redirect URI.
+
+To launch against a non-default target, set the env var inline (this wins
+over `.env`, which uses `setdefault`):
+
+```powershell
+# PowerShell — prod
+$env:OSM_API_BASE="https://api.openstreetmap.org"
+$env:OSM_CLIENT_ID="<prod-client-id>"
+$env:OSM_CLIENT_SECRET="<prod-client-secret>"
+python run.py
+```
+
+```bash
+# bash — prod
+OSM_API_BASE=https://api.openstreetmap.org \
+OSM_CLIENT_ID=<prod-client-id> \
+OSM_CLIENT_SECRET=<prod-client-secret> \
+python run.py
+```
+
+The Geofabrik extract (Stage 2 read source) is the same in both modes — there
+is no dev-server slice from Geofabrik, and the dev sandbox has no realistic
+Toronto data anyway. Only the upload target changes.
+
 ## Local OSM extract (default source)
 
 Stage 2 reads addresses from a locally-cached Toronto extract instead of
