@@ -158,7 +158,10 @@
         <td class="num">{{ '{:,}'.format(ts.span) }}</td>
         <td>{{ ts.street }}</td>
         <td>{{ ts.name }}</td>
-        <td class="num muted">{{ ts.type }}/{{ ts.id }}</td>
+        <td class="num muted">
+          <a href="https://www.openstreetmap.org/{{ ts.type }}/{{ ts.id }}"
+             target="_blank" rel="noopener">{{ ts.type }}/{{ ts.id }}</a>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -175,7 +178,10 @@
         <td class="hn">{{ ex.hn }}</td>
         <td>{{ ex.street }}</td>
         <td>{{ ex.name }}</td>
-        <td class="num muted">{{ ex.type }}/{{ ex.id }}</td>
+        <td class="num muted">
+          <a href="https://www.openstreetmap.org/{{ ex.type }}/{{ ex.id }}"
+             target="_blank" rel="noopener">{{ ex.type }}/{{ ex.id }}</a>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -261,7 +267,10 @@
           {%- if ex.shop and ex.amenity %} · {% endif -%}
           {%- if ex.amenity %}amenity={{ ex.amenity }}{% endif -%}
         </td>
-        <td class="num muted">{{ ex.type }}/{{ ex.id }}</td>
+        <td class="num muted">
+          <a href="https://www.openstreetmap.org/{{ ex.type }}/{{ ex.id }}"
+             target="_blank" rel="noopener">{{ ex.type }}/{{ ex.id }}</a>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
