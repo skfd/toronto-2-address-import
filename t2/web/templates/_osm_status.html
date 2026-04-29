@@ -34,7 +34,7 @@
       <td data-tip="{{ tip('field.osm_element_counts') }}">
         nodes <strong>{{ meta.element_counts.nodes }}</strong> ·
         ways <strong>{{ meta.element_counts.ways }}</strong> ·
-        relations skipped {{ meta.element_counts.relations_skipped }} ·
+        relations <strong>{{ meta.element_counts.relations or 0 }}</strong> ·
         outside bbox {{ meta.element_counts.outside_bbox }}
       </td>
     </tr>

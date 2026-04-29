@@ -199,7 +199,11 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
 
     Element shape matches Overpass `out center;` for address ways and
     `out body;` for addr:interpolation ways (which carry their member node IDs
-    so downstream conflation can exclude interpolation endpoints from matching):
+    so downstream conflation can exclude interpolation endpoints from matching).
+    Multipolygon relations with addr:housenumber are emitted with a centroid
+    computed from the union bbox of their member ways — close to the exact
+    outer-ring centroid for typical building/co-op relations (e.g. relation
+    12272741, "100 Bain Avenue"):
 
       node:   {"type": "node", "id": N, "lat": L, "lon": L, "tags": {...}}
       way:    {"type": "way",  "id": N, "center": {"lat": L, "lon": L},
@@ -207,10 +211,12 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
                "nodes": [n1, n2, ...], "tags": {...}}
       interp: {"type": "way",  "id": N, "bounds": {...},
                "nodes": [n1, n2, ...], "tags": {"addr:interpolation": ...}}
+      rel:    {"type": "relation", "id": N, "center": {...}, "bounds": {...}, "tags": {...}}
 
-    Relations with addr:housenumber are counted but not emitted — we can't
-    compute a centroid without resolving member geometries, and Overpass's
-    downstream consumers already tolerate missing coords by dropping the entry.
+    Two passes: pass 1 reads only relation blocks (no location cache) to
+    identify target relations and their member way IDs; pass 2 is the existing
+    node+way scan, which additionally caches bounds for those member ways.
+    Pass 1 is ~1s on the 935 MB Ontario PBF; pass 2 is the existing cost.
     """
     import osmium  # imported lazily so the web app doesn't pay the cost
 
@@ -219,9 +225,36 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
         "nodes": 0,
         "ways": 0,
         "interp_ways": 0,
-        "relations_skipped": 0,
+        "relations": 0,
+        "relations_no_geometry": 0,
         "outside_bbox": 0,
     }
+
+    # Pass 1: collect addr:housenumber multipolygon relations + member way IDs.
+    target_rels: dict[int, dict] = {}
+    member_way_ids: set[int] = set()
+
+    class _RelCollector(osmium.SimpleHandler):
+        def relation(self, r):
+            if "addr:housenumber" not in r.tags:
+                return
+            if r.tags.get("type") != "multipolygon":
+                # Other relation types (boundary, site, …) carry addr:* less
+                # often and have ill-defined centroids — skip for now.
+                return
+            way_refs = [m.ref for m in r.members if m.type == "w"]
+            if not way_refs:
+                return
+            target_rels[r.id] = {
+                "tags": {t.k: t.v for t in r.tags},
+                "member_ways": way_refs,
+            }
+            member_way_ids.update(way_refs)
+
+    _RelCollector().apply_file(str(pbf_path))
+
+    # Pass 2: existing node+way scan, plus bounds capture for relation members.
+    way_bounds_for_rels: dict[int, dict] = {}
 
     class Handler(osmium.SimpleHandler):
         def node(self, n):
@@ -245,7 +278,8 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
         def way(self, w):
             has_hn = "addr:housenumber" in w.tags
             has_interp = "addr:interpolation" in w.tags
-            if not has_hn and not has_interp:
+            is_member = w.id in member_way_ids
+            if not has_hn and not has_interp and not is_member:
                 return
             node_ids: list[int] = []
             lats: list[float] = []
@@ -261,6 +295,10 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
             minlon, maxlon = min(lons), max(lons)
             bounds = {"minlat": minlat, "minlon": minlon,
                       "maxlat": maxlat, "maxlon": maxlon}
+            if is_member:
+                way_bounds_for_rels[w.id] = bounds
+            if not has_hn and not has_interp:
+                return
             # Match Overpass `way(...)(bbox)` semantics: keep the way if its
             # bounding box intersects the Toronto bbox, not just if its center
             # falls inside.
@@ -282,11 +320,42 @@ def _filter(pbf_path: Path, bbox: tuple[float, float, float, float]) -> tuple[li
                 counts["interp_ways"] += 1
             elements.append(out)
 
-        def relation(self, r):
-            if "addr:housenumber" in r.tags:
-                counts["relations_skipped"] += 1
-
     Handler().apply_file(str(pbf_path), locations=True)
+
+    # Post-pass: assemble relation entries from member-way bounds.
+    for rid, info in target_rels.items():
+        union: dict | None = None
+        for wid in info["member_ways"]:
+            wb = way_bounds_for_rels.get(wid)
+            if wb is None:
+                continue
+            if union is None:
+                union = dict(wb)
+            else:
+                union = {
+                    "minlat": min(union["minlat"], wb["minlat"]),
+                    "minlon": min(union["minlon"], wb["minlon"]),
+                    "maxlat": max(union["maxlat"], wb["maxlat"]),
+                    "maxlon": max(union["maxlon"], wb["maxlon"]),
+                }
+        if union is None:
+            counts["relations_no_geometry"] += 1
+            continue
+        if not _bounds_intersect_bbox(union, bbox):
+            counts["outside_bbox"] += 1
+            continue
+        elements.append({
+            "type": "relation",
+            "id": rid,
+            "bounds": union,
+            "center": {
+                "lat": (union["minlat"] + union["maxlat"]) / 2,
+                "lon": (union["minlon"] + union["maxlon"]) / 2,
+            },
+            "tags": info["tags"],
+        })
+        counts["relations"] += 1
+
     return elements, counts
 
 
@@ -319,11 +388,60 @@ def _release_lock(lock: Path) -> None:
         pass
 
 
-def run(force: bool = False, dry_run: bool = False) -> dict:
-    """Do the refresh. Returns the meta dict written to disk (or would-be meta on dry_run)."""
+def run(force: bool = False, dry_run: bool = False, rebuild: bool = False) -> dict:
+    """Do the refresh. Returns the meta dict written to disk (or would-be meta on dry_run).
+
+    rebuild=True re-filters the existing PBF without re-downloading; useful
+    after the filter logic changes (e.g. emitting multipolygon relations).
+    """
     cfg = _config.load()
     paths = _paths(cfg)
     paths["dir"].mkdir(parents=True, exist_ok=True)
+
+    if rebuild:
+        if not paths["pbf"].exists():
+            raise FileNotFoundError(
+                f"--rebuild requires {paths['pbf']} to exist; run without --rebuild first."
+            )
+        prior = read_meta(cfg) or {}
+        _acquire_lock(paths["lock"])
+        t_start = time.monotonic()
+        try:
+            _log(f"rebuild: reusing {paths['pbf']} ({paths['pbf'].stat().st_size} bytes)")
+            pbf_sha = prior.get("pbf_sha256") or _sha256_file(paths["pbf"])
+            pbf_bytes = paths["pbf"].stat().st_size
+
+            _log(f"filtering with pyosmium to bbox {cfg.osm_toronto_bbox}")
+            t_filter = time.monotonic()
+            elements, counts = _filter(paths["pbf"], cfg.osm_toronto_bbox)
+            filter_s = time.monotonic() - t_filter
+            _log(f"filter done in {filter_s:.1f}s — {counts}")
+
+            body = json.dumps(elements)
+            paths["json"].write_text(body, encoding="utf-8")
+            json_sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
+            _log(f"wrote {paths['json']} ({len(body)} bytes, sha256 {json_sha[:16]}…)")
+
+            meta = {
+                "source_url": prior.get("source_url", cfg.osm_pbf_url),
+                "source_last_modified": prior.get("source_last_modified", ""),
+                "source_bytes": prior.get("source_bytes", pbf_bytes),
+                "pbf_sha256": pbf_sha,
+                "json_sha256": json_sha,
+                "json_bytes": len(body),
+                "element_counts": counts,
+                "toronto_bbox": list(cfg.osm_toronto_bbox),
+                "downloaded_at": prior.get("downloaded_at", _iso_now()),
+                "rebuilt_at": _iso_now(),
+                "filter_duration_s": round(filter_s, 2),
+                "total_duration_s": round(time.monotonic() - t_start, 2),
+            }
+            paths["meta"].write_text(json.dumps(meta, indent=2), encoding="utf-8")
+            audit.log(actor="osm_refresh", event_type="OSM_EXTRACT_REFRESHED", payload=meta)
+            _log("done")
+            return meta
+        finally:
+            _release_lock(paths["lock"])
 
     _log(f"HEAD {cfg.osm_pbf_url}")
     headers = _head(cfg.osm_pbf_url)
@@ -400,9 +518,12 @@ def _cli() -> int:
                         help="Re-download even if Geofabrik Last-Modified is unchanged.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Only HEAD-check the source; print what would happen.")
+    parser.add_argument("--rebuild", action="store_true",
+                        help="Re-filter the existing PBF (skip download). "
+                             "Use after the filter logic changes.")
     args = parser.parse_args()
     try:
-        run(force=args.force, dry_run=args.dry_run)
+        run(force=args.force, dry_run=args.dry_run, rebuild=args.rebuild)
         return 0
     except Exception as e:
         _log(f"ERROR: {e!r}")

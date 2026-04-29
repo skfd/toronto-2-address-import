@@ -79,12 +79,13 @@ def _in_bbox(lat: float | None, lon: float | None, bbox: tuple[float, float, flo
 def _element_in_bbox(el: dict, bbox: tuple[float, float, float, float]) -> bool:
     """Clip to run bbox using Overpass `(bbox)` semantics.
 
-    Nodes are point-in-bbox. Ways use their stored ``bounds`` (from the refresh
-    step) and pass if that rectangle intersects the run bbox — a way whose
-    center is just outside the bbox can still intersect it. If a cached extract
-    predates the ``bounds`` field we fall back to center-in-bbox.
+    Nodes are point-in-bbox. Ways and multipolygon relations use their stored
+    ``bounds`` (from the refresh step) and pass if that rectangle intersects
+    the run bbox — a feature whose center is just outside the bbox can still
+    intersect it. If a cached extract predates the ``bounds`` field we fall
+    back to center-in-bbox.
     """
-    if el.get("type") == "way":
+    if el.get("type") in ("way", "relation"):
         b = el.get("bounds")
         if b:
             return (
