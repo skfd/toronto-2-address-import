@@ -97,6 +97,21 @@
       });
   }
 
+  function jumpNeighbor(direction) {
+    if (document.body.classList.contains('static-export')) return;
+    if (!VIEWS.has(getView())) return;
+    const runId = getRunId();
+    if (runId == null) return;
+    fetch(`/runs/${runId}/neighbor?dir=${direction}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(j => {
+        if (j && j.run_id != null) {
+          window.location.href = `/runs/${j.run_id}/review`;
+        }
+      })
+      .catch(err => console.error('review-keys:', err));
+  }
+
   document.addEventListener('keydown', e => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (isTyping(e.target)) return;
@@ -107,6 +122,8 @@
     else if (k === 's') { e.preventDefault(); selectIndex(selectedIndex() + 1); }
     else if (k === 'a') { e.preventDefault(); act('APPROVED'); }
     else if (k === 'd') { e.preventDefault(); act('REJECTED'); }
+    else if (k === 'n') { e.preventDefault(); jumpNeighbor('prev'); }
+    else if (k === 'm') { e.preventDefault(); jumpNeighbor('next'); }
   });
 
   window.t2ReviewKeys = { act };

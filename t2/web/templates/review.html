@@ -2,7 +2,7 @@
 {% block title %}Review queue{% endblock %}
 {% block content %}
 <div class="card">
-  <h2>Review queue <span class="muted">(run #{{ run_id }}, {{ items|length }} shown)</span></h2>
+  <h2>Review queue <span class="muted">(run #{{ run_id }}{% if tile_index %} · tile {{ tile_index }}/{{ tile_total }}{% endif %}, {{ items|length }} shown)</span></h2>
   <p><a href="/runs/{{ run_id }}">← run</a></p>
   {% with form_id="review-filters",
           endpoint_url="/runs/" ~ run_id ~ "/review",

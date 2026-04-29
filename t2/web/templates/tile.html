@@ -5,6 +5,7 @@
   {% if not static_export.active %}<p class="muted"><a href="/map">← back to map</a></p>{% endif %}
   <h2>
     {{ tile.name }}
+    {% if tile_index %}<span class="muted">· tile {{ tile_index }}/{{ tile_total }}</span>{% endif %}
     {% if tile.is_orphan %}<span class="pill bad">unassigned</span>{% endif %}
     {% if tile.is_multipolygon %}<span class="pill warn">multipolygon piece</span>{% endif %}
   </h2>

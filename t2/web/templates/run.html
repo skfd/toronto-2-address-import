@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
   <div style="display: flex; align-items: center; gap: .6rem;">
-    <h2 style="margin: 0;">Run: {{ run.name }} <span class="muted">#{{ run.run_id }}</span></h2>
+    <h2 style="margin: 0;">Run: {{ run.name }} <span class="muted">#{{ run.run_id }}</span>{% if tile_index %} <span class="muted">· tile {{ tile_index }}/{{ tile_total }}</span>{% endif %}</h2>
     <form method="post" action="{{ url_for('runs_new') }}" class="inline" style="margin-left: auto;">
       <input type="hidden" name="name" value="{{ new_run_name }}"/>
       <input type="hidden" name="min_lat" value="{{ run.bbox_min_lat }}"/>

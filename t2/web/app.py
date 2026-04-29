@@ -138,6 +138,8 @@ def create_app() -> Flask:
         tile = by_id.get(tile_id)
         if not tile:
             abort(404)
+        tile_index = next((i + 1 for i, t in enumerate(tiles) if t["id"] == tile_id), None)
+        tile_total = len(tiles)
         b = tile["bbox"]
         conn = _db.connect()
         try:
@@ -155,9 +157,25 @@ def create_app() -> Flask:
         return render_template(
             "tile.html",
             tile=tile,
+            tile_index=tile_index,
+            tile_total=tile_total,
             prior_runs=prior_runs,
             prefill_name=prefill_name,
         )
+
+    def _tile_for_run(run: dict) -> tuple[dict | None, int | None, int]:
+        """Resolve (tile, 1-based-index, total_tiles) for a run by rounded bbox."""
+        tiles, _by_id, _meta = _load_tiles(cfg.data_dir / "tiles.json")
+        if not tiles:
+            return None, None, 0
+        target = (
+            round(run["bbox_min_lat"], 6), round(run["bbox_min_lon"], 6),
+            round(run["bbox_max_lat"], 6), round(run["bbox_max_lon"], 6),
+        )
+        for i, t in enumerate(tiles):
+            if tuple(t["bbox"]) == target:
+                return t, i + 1, len(tiles)
+        return None, None, len(tiles)
 
     @app.get("/runs/<int:run_id>")
     def run_view(run_id: int):
@@ -165,12 +183,7 @@ def create_app() -> Flask:
         counts = pipeline.counts_by_stage(run_id)
         toggles = _get_toggles(run_id)
         batches = batcher.list_batches(run_id)
-        tiles, _by_id, _meta = _load_tiles(cfg.data_dir / "tiles.json")
-        target = (
-            round(run["bbox_min_lat"], 6), round(run["bbox_min_lon"], 6),
-            round(run["bbox_max_lat"], 6), round(run["bbox_max_lon"], 6),
-        )
-        tile = next((t for t in tiles if tuple(t["bbox"]) == target), None)
+        tile, tile_index, tile_total = _tile_for_run(run)
         status = pipeline.stage_status(run_id)
         from datetime import datetime
         stamp = datetime.now().strftime("%Y-%m-%d-%H%M")
@@ -180,10 +193,52 @@ def create_app() -> Flask:
         )
         return render_template("run.html", run=run, counts=counts, toggles=toggles,
                                registry=REGISTRY, batches=batches, tile=tile,
+                               tile_index=tile_index, tile_total=tile_total,
                                status=status, stage_order=("ingest", "fetch", "conflate", "checks"),
                                ranges_count=candidates.count_ranges(run_id),
                                new_run_name=new_run_name,
                                missing_sample_every_nth=missing_sample_every_nth)
+
+    @app.get("/runs/<int:run_id>/neighbor")
+    def run_neighbor(run_id: int):
+        direction = request.args.get("dir")
+        if direction not in ("prev", "next"):
+            abort(400)
+        run = _get_run(run_id)
+        tiles, _by_id, _meta = _load_tiles(cfg.data_dir / "tiles.json")
+        if not tiles:
+            return jsonify({"run_id": None})
+        target = (
+            round(run["bbox_min_lat"], 6), round(run["bbox_min_lon"], 6),
+            round(run["bbox_max_lat"], 6), round(run["bbox_max_lon"], 6),
+        )
+        cur_idx = next((i for i, t in enumerate(tiles) if tuple(t["bbox"]) == target), None)
+        if cur_idx is None:
+            return jsonify({"run_id": None})
+        conn = _db.connect()
+        try:
+            rows = conn.execute(
+                "SELECT run_id, bbox_min_lat, bbox_min_lon, bbox_max_lat, bbox_max_lon "
+                "FROM runs ORDER BY created_at DESC, run_id DESC"
+            ).fetchall()
+        finally:
+            conn.close()
+        latest_by_bbox: dict[tuple, int] = {}
+        for r in rows:
+            key = (
+                round(r["bbox_min_lat"], 6), round(r["bbox_min_lon"], 6),
+                round(r["bbox_max_lat"], 6), round(r["bbox_max_lon"], 6),
+            )
+            latest_by_bbox.setdefault(key, r["run_id"])
+        step = 1 if direction == "next" else -1
+        i = cur_idx + step
+        while 0 <= i < len(tiles):
+            key = tuple(tiles[i]["bbox"])
+            hit = latest_by_bbox.get(key)
+            if hit is not None:
+                return jsonify({"run_id": hit})
+            i += step
+        return jsonify({"run_id": None})
 
     # ---- Stage triggers (HTMX) ----
 
@@ -285,6 +340,19 @@ def create_app() -> Flask:
         )
         partial = request.args.get("partial") == "1"
         template = "_review_list.html" if partial else "review.html"
+        tile_index = tile_total = None
+        if not partial:
+            conn = _db.connect()
+            try:
+                run_row = conn.execute(
+                    "SELECT bbox_min_lat, bbox_min_lon, bbox_max_lat, bbox_max_lon "
+                    "FROM runs WHERE run_id=?",
+                    (run_id,),
+                ).fetchone()
+            finally:
+                conn.close()
+            if run_row is not None:
+                _tile, tile_index, tile_total = _tile_for_run(dict(run_row))
         return render_template(
             template,
             run_id=run_id,
@@ -301,6 +369,8 @@ def create_app() -> Flask:
             selected_candidate_id=None,
             municipality_collisions=review.colliding_address_fulls(run_id),
             view="review",
+            tile_index=tile_index,
+            tile_total=tile_total,
         )
 
     def _review_detail_context(run_id: int, candidate_id: int):
