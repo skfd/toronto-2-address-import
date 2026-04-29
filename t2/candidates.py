@@ -30,6 +30,11 @@ def ingest(run_id: int, bbox: tuple[float, float, float, float], snapshot_id: in
                 address_class = (json.loads(extra_raw) if extra_raw else {}).get("ADDRESS_CLASS_DESC")
             except (ValueError, TypeError):
                 address_class = None
+            # Land Entrance rows model driveway/gate entry points (closest OSM
+            # concept is barrier=gate, not an address) and are out of scope for
+            # this import — see IMPORT_PROPOSAL.md §2.
+            if address_class == "Land Entrance":
+                continue
             values = (
                 run_id,
                 row["address_point_id"],

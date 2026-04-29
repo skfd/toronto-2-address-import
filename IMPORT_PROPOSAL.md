@@ -5,7 +5,7 @@
 **Last revised:** 2026-04-21
 **Contact:** toronto@comentality.com
 **Tooling:** <https://github.com/skfd/toronto-2-address-import> (this repo) + <https://github.com/skfd/toronto-addresses-import> (upstream scraper)
-**Pilot evidence:** <https://skfd.github.io/toronto-2-address-import/pilot/runs/15/> — read-only snapshot of one completed pilot run (tile `high-park-swansea-sw-se`, 252 candidates) rendered in the full review UI.
+**Pilot evidence:** <https://skfd.github.io/toronto-2-address-import/pilot/runs/15/> — read-only snapshot of one completed pilot run (tile `high-park-swansea-sw-se`, 250 candidates) rendered in the full review UI.
 
 ---
 
@@ -60,7 +60,7 @@ Phased roll-out, each phase shippable and independently reversible. Dates are ea
 - **Phase 3 — remaining tiles.** Same cadence, same review gating.
 - **Phase 4 — closeout.** Final reconciliation: re-fetch the bbox, publish a post-import report (counts, rejection reasons, outstanding `REVIEW_DEFERRED` items).
 
-Upload rate is capped at **1 changeset per minute** (config `upload.changesets_per_minute`) and **300 candidates per changeset** (config `upload.batch_size`). A theoretical full pass at these limits bounds wall-clock upload time at ~29 hours; the practical schedule is much longer because human review of the review queue dominates.
+Upload rate target is **≤1 changeset per minute** by manual cadence (the `upload.changesets_per_minute` config value is advisory — uploads are operator-triggered per batch, not throttled by the tool) and **300 candidates per changeset** (config `upload.batch_size`, enforced). A theoretical full pass at these limits bounds wall-clock upload time at ~29 hours; the practical schedule is much longer because human review of the review queue dominates.
 
 ## 4. Import data
 
@@ -99,7 +99,7 @@ All uploaded elements are **nodes**. No ways, no relations. The tag set is const
 | `addr:street` | `linear_name_full` | Copied verbatim (mixed case, e.g. `Amelia St`). Normalisation is only used for conflation matching (`STREET`→`ST`, etc.), not for the written tag. |
 | `addr:city` | static | `Toronto`. Used regardless of pre-amalgamation former municipality; see §5.1. |
 | `source` | static | `City of Toronto Open Data`. On the node *and* on the containing changeset. |
-| `addr:postcode` | enrichment | Written **only** when a same-address POI in the OSM snapshot already carries one. Never invented, never extrapolated. If the colocated POI's postcode disagrees with anything, we emit no postcode. Details in §6. |
+| `addr:postcode` | enrichment | Written **only** when a same-address POI in the OSM snapshot already carries one. Never invented, never extrapolated. We adopt the postcode from the nearest same-address POI when present; absent that, we emit no postcode. Details in §6. |
 | `entrance` | class-driven | `yes` — written **only** for `Structure Entrance` rows. Aligns with OSM's `entrance=yes` convention for door-level nodes. Absent on all other classes. |
 
 Fields deliberately **not** emitted:
@@ -176,9 +176,9 @@ Toronto absorbed five adjacent municipalities in 1998. Street names recur across
 
 ### Colocated duplicates within the source
 
-- **Shape:** non-`Land` row (`Structure`, `Structure Entrance`, or `Land Entrance`) sharing `(address_full, municipality_name)` with a `Land` row in the same run. ~436 rows city-wide on snapshot #28 (276 `Structure`, 13 `Structure Entrance`, 147 `Land Entrance`).
+- **Shape:** non-`Land` row (`Structure` or `Structure Entrance`) sharing `(address_full, municipality_name)` with a `Land` row in the same run. ~289 rows city-wide on snapshot #28 (276 `Structure`, 13 `Structure Entrance`). `Land Entrance` is excluded at ingest (§2) and so does not reach this pass.
 - **Behaviour:** dedup pass in conflation skips the non-`Land` row whenever a same-key `Land` sibling exists; the `Land` row is treated as the canonical record and is the only one that proceeds to review and upload. The check is purely key-based — no distance threshold — because within one former municipality the source treats one `address_full` as one civic address (the municipality component of the key handles cross-municipality string collisions like `48 Victor Ave`).
-- **Tiebreak rationale:** `Land` is the parcel-level "this lot has this address" point and maps cleanly to a standalone OSM address node. Non-`Land` classes (building centroid, door, driveway) are dropped only when a same-key `Land` sibling exists; otherwise they flow through normally and carry a unique address (see §3 source data summary).
+- **Tiebreak rationale:** `Land` is the parcel-level "this lot has this address" point and maps cleanly to a standalone OSM address node. Non-`Land` classes (building centroid, door) are dropped only when a same-key `Land` sibling exists; otherwise they flow through normally and carry a unique address (see §3 source data summary).
 
 ### Acknowledged duplicate-creation paths, deferred to a future phase
 
@@ -202,22 +202,20 @@ Two known OSM data shapes can cause this import to create a *colocated duplicate
 Every candidate advances through a deterministic sequence of stages recorded per-row in the DB:
 
 ```
-INGESTED → CONFLATED → CHECKED → REVIEW_PENDING → APPROVED → BATCHED → UPLOADED
-                                                ↘ REJECTED / DEFERRED
-                                                ↘ SKIPPED (range, etc.)
-                                                ↘ FAILED (audit-logged)
+INGESTED → CONFLATED → REVIEW_PENDING → APPROVED → BATCHED → UPLOADED
+                     ↘ REJECTED / DEFERRED
+                     ↘ SKIPPED (range, MATCH, colocated dup)
 ```
 
 Each stage is resumable — killing the process mid-run and restarting is safe. Re-running a stage skips work already done.
 
 ### Checks
 
-Seven automated checks (enabled in `config.toml`, all `severity=info|warn|block`):
+Six automated checks (enabled in `config.toml`, all `severity=info|warn|block`):
 
 | Check | Purpose |
 |---|---|
 | `match_far` | Matched housenumber/street is 15–100 m away — could be the same point, could be a different building. Always reviewed. |
-| `conflict` | Matched OSM node sits far from the source coordinates. |
 | `suffix_range` | Housenumber is a range (`100-110`) or contains digit-confusable letters. Blocks auto-approval. |
 | `city_duplicate` | Another candidate in the same run is within a few metres and has the same housenumber. |
 | `intra_source_duplicate` | Duplicate within the source dataset before conflation. |
@@ -278,7 +276,7 @@ These are documented so no reviewer has to ask whether we forgot them. Each woul
 |---|---|
 | Duplicate creation against an OSM address we didn't see. | Conflation against a fresh Geofabrik snapshot; 100 m search radius with normalised housenumber/street; re-fetch + re-conflate if conflation-to-upload lag exceeds 24 h; post-upload reconciliation so any duplicate raised by the community can be traced to its source row and corrected. |
 | Incorrect street name (pre/post amalgamation rename, City typo). | `match_far` and `city_duplicate` checks surface most cases; reviewer can defer to a follow-up. Street-name renames without a corresponding OSM change are escalated to local mappers, not force-pushed. |
-| Rate pressure on OSM API / planet feed. | Hard cap of 1 changeset/min; 300 items per changeset; pilot tile first; no parallel uploaders from this tool. |
+| Rate pressure on OSM API / planet feed. | Operator-triggered cadence targeting ≤1 changeset/min; 300 items per changeset (enforced); pilot tile first; no parallel uploaders from this tool. |
 | Scripted or bulk auto-approval drift. | `missing_sample` check force-reviews every Nth MISSING; Phases 1 and 2 hold ≥5% of AUTO_APPROVED items for manual click; reviewer actions and their actors are in the audit log. |
 | Mid-upload crash leaving orphan changesets. | `import:client_token` tag on each changeset; on retry the client searches open changesets for the token before opening a new one (`t2/osm_client.py`). Changesets are explicitly closed after upload. |
 | POI filter too narrow — a matched "pure address" node actually represents a shop. | `potential_amenity` check surfaces these as `severity=info`; reviewer can defer; `POI_TAG_KEYS` in `t2/conflate.py` is iterated as we find cases. |
@@ -346,3 +344,4 @@ These are the prior OSM import proposals this document was compared against. Sec
 | 2026-04-28 | §6 cross-class dedup: dropped the 50 m radius. The check now keys purely on `(address_full, municipality_name)` for non-`Land` rows. Snapshot #28 had no same-key cross-class pairs >50 m apart within one former municipality, so the radius was a no-op; removing it closes the theoretical gap and simplifies the rule. Code (`t2/conflate.py`), in-app glossary, and `SOURCE_DATA.md` updated to match. |
 | 2026-04-28 | §7 reconciliation: replaced phase-end attachment with per-tile + cumulative CSV publication. New `t2/upload_manifest.py` writes `(address_point_id, address_full, osm_node_id, changeset_id)` rows per uploaded candidate; `t2.static_export` and `t2.static_export_all` emit `uploads/<tile_id>.csv` per tile and `uploads/all.csv` cumulatively. Wiki page links to the cumulative file; reviewers can audit any uploaded node within hours rather than waiting for a phase boundary. |
 | 2026-04-28 | §11 Open questions: dropped items already settled elsewhere in the doc (`addr:province` omission — §5; pilot tile choice — §1, §2; rate cap — §2, §9). Added a new question on empty lots and recently demolished buildings, which need local-mapper input rather than pipeline-level decisions. |
+| 2026-04-28 | Doc/code reconciliation pass. (1) `Land Entrance` is now actually filtered at ingest in `t2/candidates.py`, matching the §1/§2/§5.2 claim; §6 cross-class dedup wording updated to reflect that only `Structure` and `Structure Entrance` reach the pass (~289 rows on snapshot #28). (2) §3 + §9 rate-cap language downgraded to "operator-triggered cadence targeting ≤1 changeset/min" — the `upload.changesets_per_minute` config value was never enforced in code and is advisory. (3) §7 dropped the duplicate `conflict` check row (the code has six checks, not seven; the `match_far` check covers the MATCH_FAR-distance case). (4) §5 `addr:postcode` row dropped the "disagrees with anything → emit no postcode" clause — the code adopts the nearest same-address POI's postcode when present and emits none otherwise. (5) §7 stage diagram simplified — dropped the `CHECKED` intermediate (rarely reached) and the `FAILED` branch (no code path sets stage='FAILED'; upload errors set `batches.status='needs_attention'` instead). (6) Pilot evidence link in §1 corrected from 252 → 250 candidates to match `tiles.json` and §3. |
