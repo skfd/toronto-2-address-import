@@ -21,6 +21,24 @@ from . import config as _config
 
 _CONFIG = _config.load()
 
+# Process-local cache for the shared filtered extract used by `local` source.
+# Keyed by (path_str, mtime) so a refreshed extract invalidates automatically.
+# Repeated bbox clips within one process (e.g. the run-for-all worker doing
+# 100+ tiles) would otherwise re-parse hundreds of MB of JSON every tile.
+_SHARED_EXTRACT_CACHE: dict[tuple[str, float], list[dict]] = {}
+
+
+def _load_shared_extract(path: Path) -> list[dict]:
+    key = (str(path), path.stat().st_mtime)
+    cached = _SHARED_EXTRACT_CACHE.get(key)
+    if cached is not None:
+        return cached
+    elements = json.loads(path.read_text(encoding="utf-8"))
+    # Drop stale entries — only the latest mtime is worth holding in memory.
+    _SHARED_EXTRACT_CACHE.clear()
+    _SHARED_EXTRACT_CACHE[key] = elements
+    return elements
+
 
 def _build_query(bbox: tuple[float, float, float, float], check_count: bool = False) -> str:
     bbox_str = f"{bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]}"
@@ -93,7 +111,7 @@ def _fetch_from_local(
             f"Local OSM extract not found at {shared}. "
             "Run `python -m t2.osm_refresh` (or click Refresh at /osm) first."
         )
-    all_elements = json.loads(shared.read_text(encoding="utf-8"))
+    all_elements = _load_shared_extract(shared)
     clipped = [el for el in all_elements if _element_in_bbox(el, bbox)]
     body = json.dumps(clipped)
     path.write_text(body, encoding="utf-8")

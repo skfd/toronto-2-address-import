@@ -1,27 +1,37 @@
 """Process every tile from data/tiles.json end-to-end (ingest -> fetch -> conflate -> checks).
 
-Canonical entry point: ``python -m t2.run_for_all``.
+Canonical entry point: ``python -m t2.run_for_all [--workers N]``.
 
 Coordination state lives under ``data/``:
 
-    run_for_all_status.json   per-tile state ({pending,running,done,error}, run_id, stage, error)
-    run_for_all.lock          PID of the running worker (present only while running)
-    run_for_all.stop          stop-request flag (touched by the UI; worker checks each tile)
+    run_for_all_status.json   per-tile state ({pending,running,done,skipped,error,cancelled})
+    run_for_all.lock          PID of the running parent (present only while running)
+    run_for_all.stop          stop-request flag (touched by the UI; checked between dispatches)
     run_for_all.log           stdout+stderr of the last worker invocation
 
-The worker is sequential by design — the tool DB is one SQLite file with WAL,
-so concurrent stage writes against the same DB would just serialize and
-contend on commits.
+Tiles are processed in parallel via ``ProcessPoolExecutor``. Workers push
+progress events into a Manager queue; the parent process is the sole writer
+of the status file (so the UI sees a consistent snapshot).
 
 Deterministic run names (``{tile_id}-batch-{YYYYMMDD}``) make re-clicking
-"Run for All" resume rather than duplicate: tiles whose runs already have all
-four stages green are skipped.
+"Run for All" resume rather than duplicate: tiles whose runs already have
+all four stages green are marked ``skipped`` and the worker returns fast.
+
+Each worker is a separate Python process with its own ``osm_fetch`` cache —
+the shared toronto-addresses.json is parsed once per worker, then reused for
+every tile that worker handles. Memory cost: ~one parsed copy of the extract
+per worker.
 """
 from __future__ import annotations
 
+import argparse
+import concurrent.futures
 import json
+import multiprocessing
 import os
+import queue as _queue
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -59,6 +69,10 @@ def stop_path(cfg=None) -> Path:
 
 def log_path(cfg=None) -> Path:
     return _paths(cfg)["log"]
+
+
+def default_workers() -> int:
+    return max(1, min(4, (os.cpu_count() or 1) // 2))
 
 
 def _pid_alive(pid: int) -> bool:
@@ -129,59 +143,90 @@ def _stage_status_complete(run_id: int) -> bool:
     return all(s.get(k) for k in ("ingest", "fetch", "conflate", "checks"))
 
 
-def _run_for_tile(tile: dict) -> int:
-    """Resolve a deterministic run for this tile: reopen if it already exists."""
-    bbox = tuple(tile["bbox"])
-    name = f"{tile['id']}-batch-{datetime.now().date().isoformat()}"
-    return pipeline.start_run(name, bbox)  # type: ignore[arg-type]
+# ---- Worker (runs in a child process) -------------------------------------
 
-
-def _process_tile(tile: dict, status: dict, status_file: Path) -> None:
+# Module-level so the function is picklable for spawn-based pools on Windows.
+def _run_tile_worker(tile: dict, msg_queue) -> dict:
     tid = tile["id"]
-    entry: dict[str, Any] = status["tiles"].setdefault(tid, {})
-    entry["state"] = "running"
-    entry["error"] = None
-    entry["updated_at"] = _iso_now()
-    status["current_tile"] = tid
-    _write_status(status_file, status)
+    bbox = tuple(tile["bbox"])
 
-    run_id = _run_for_tile(tile)
-    entry["run_id"] = run_id
+    def _push(event: str, **fields) -> None:
+        msg_queue.put({"event": event, "tile_id": tid, "ts": _iso_now(), **fields})
 
-    if _stage_status_complete(run_id):
-        entry["state"] = "skipped"
-        entry["stage"] = "checks"
-        entry["updated_at"] = _iso_now()
-        _write_status(status_file, status)
+    try:
+        name = f"{tid}-batch-{datetime.now().date().isoformat()}"
+        run_id = pipeline.start_run(name, bbox)  # type: ignore[arg-type]
+        _push("tile_start", run_id=run_id)
+
+        if _stage_status_complete(run_id):
+            _push("tile_done", run_id=run_id, state="skipped", stage="checks")
+            return {"tile_id": tid, "state": "skipped", "run_id": run_id}
+
+        stages = (
+            ("ingest", pipeline.ingest_stage),
+            ("fetch", pipeline.fetch_stage),
+            ("conflate", pipeline.conflate_stage),
+            ("checks", pipeline.run_checks),
+        )
+        for stage_name, fn in stages:
+            _push("stage", run_id=run_id, stage=stage_name)
+            fn(run_id)
+
+        _push("tile_done", run_id=run_id, state="done", stage="checks")
+        return {"tile_id": tid, "state": "done", "run_id": run_id}
+    except Exception as exc:
+        _push("tile_done", state="error", error=f"{type(exc).__name__}: {exc}")
+        return {"tile_id": tid, "state": "error", "error": str(exc)}
+
+
+# ---- Parent: event application + main loop --------------------------------
+
+def _apply_event(status: dict, msg: dict) -> None:
+    tid = msg.get("tile_id")
+    if not tid:
         return
+    entry = status["tiles"].setdefault(tid, {})
+    event = msg.get("event")
+    ts = msg.get("ts") or _iso_now()
+    if event == "tile_start":
+        entry["state"] = "running"
+        entry["run_id"] = msg.get("run_id")
+        entry["error"] = None
+        entry["stage"] = None
+        entry["updated_at"] = ts
+    elif event == "stage":
+        entry["state"] = "running"
+        entry["stage"] = msg.get("stage")
+        if msg.get("run_id"):
+            entry["run_id"] = msg["run_id"]
+        entry["updated_at"] = ts
+    elif event == "tile_done":
+        entry["state"] = msg.get("state", "done")
+        if msg.get("stage"):
+            entry["stage"] = msg["stage"]
+        if msg.get("error"):
+            entry["error"] = msg["error"]
+        if msg.get("run_id") and not entry.get("run_id"):
+            entry["run_id"] = msg["run_id"]
+        entry["updated_at"] = ts
 
-    for stage in ("ingest", "fetch", "conflate", "checks"):
-        entry["stage"] = stage
-        entry["updated_at"] = _iso_now()
-        status["current_stage"] = stage
-        _write_status(status_file, status)
-        runner = {
-            "ingest": pipeline.ingest_stage,
-            "fetch": pipeline.fetch_stage,
-            "conflate": pipeline.conflate_stage,
-            "checks": pipeline.run_checks,
-        }[stage]
-        runner(run_id)
 
-    entry["state"] = "done"
-    entry["stage"] = "checks"
-    entry["updated_at"] = _iso_now()
-    _write_status(status_file, status)
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Process every tile end-to-end in parallel.")
+    p.add_argument("--workers", type=int, default=default_workers(),
+                   help=f"Number of worker processes (default: {default_workers()})")
+    p.add_argument("--limit", type=int, default=0,
+                   help="Process only the first N tiles (0 = all). Useful for debugging.")
+    return p.parse_args(argv)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
     cfg = _config.load()
     paths = _paths(cfg)
     paths["status"].parent.mkdir(parents=True, exist_ok=True)
 
-    # Clear any lingering stop flag from a prior run.
     paths["stop"].unlink(missing_ok=True)
-
     paths["lock"].write_text(str(os.getpid()), encoding="utf-8")
     try:
         if not paths["tiles"].exists():
@@ -189,40 +234,90 @@ def main() -> int:
             return 1
         tiles_doc = json.loads(paths["tiles"].read_text(encoding="utf-8"))
         tiles: list[dict] = tiles_doc.get("tiles", [])
+        if args.limit and args.limit > 0:
+            tiles = tiles[: args.limit]
         if not tiles:
             print("[run_for_all] no tiles in tiles.json", flush=True)
             return 1
 
+        n_workers = max(1, args.workers)
         status = {
             "started_at": _iso_now(),
             "finished_at": None,
             "stopped": False,
             "total": len(tiles),
-            "current_tile": None,
-            "current_stage": None,
+            "workers": n_workers,
             "tiles": {},
         }
         _write_status(paths["status"], status)
+        print(f"[run_for_all] starting {n_workers} worker(s) over {len(tiles)} tile(s)", flush=True)
 
-        for tile in tiles:
-            if paths["stop"].exists():
-                status["stopped"] = True
-                break
-            tid = tile["id"]
-            print(f"[run_for_all] tile {tid}", flush=True)
-            try:
-                _process_tile(tile, status, paths["status"])
-            except Exception as exc:
-                entry = status["tiles"].setdefault(tid, {})
-                entry["state"] = "error"
-                entry["error"] = f"{type(exc).__name__}: {exc}"
-                entry["updated_at"] = _iso_now()
-                _write_status(paths["status"], status)
-                print(f"[run_for_all] tile {tid} failed: {exc}", flush=True)
+        with multiprocessing.Manager() as mgr:
+            msg_queue = mgr.Queue()
+            with concurrent.futures.ProcessPoolExecutor(max_workers=n_workers) as ex:
+                futures: dict[concurrent.futures.Future, str] = {
+                    ex.submit(_run_tile_worker, t, msg_queue): t["id"] for t in tiles
+                }
+                stopped_pending = False
+                last_write = 0.0
+
+                while futures:
+                    # Drain queue events from workers.
+                    drained = 0
+                    while True:
+                        try:
+                            msg = msg_queue.get_nowait()
+                        except _queue.Empty:
+                            break
+                        _apply_event(status, msg)
+                        drained += 1
+
+                    # Stop flag: cancel still-pending futures, let in-flight finish.
+                    if paths["stop"].exists() and not stopped_pending:
+                        cancelled = 0
+                        for f in list(futures):
+                            if f.cancel():
+                                tid = futures.pop(f)
+                                entry = status["tiles"].setdefault(tid, {})
+                                entry["state"] = "cancelled"
+                                entry["updated_at"] = _iso_now()
+                                cancelled += 1
+                        status["stopped"] = True
+                        stopped_pending = True
+                        print(f"[run_for_all] stop requested; cancelled {cancelled} pending tile(s)", flush=True)
+
+                    # Reap completed futures.
+                    done_futures = [f for f in futures if f.done()]
+                    for f in done_futures:
+                        tid = futures.pop(f)
+                        try:
+                            f.result()
+                        except concurrent.futures.CancelledError:
+                            pass
+                        except Exception as exc:
+                            entry = status["tiles"].setdefault(tid, {})
+                            if entry.get("state") not in ("error", "done", "skipped"):
+                                entry["state"] = "error"
+                                entry["error"] = f"{type(exc).__name__}: {exc}"
+                                entry["updated_at"] = _iso_now()
+
+                    now = time.monotonic()
+                    if drained or done_futures or now - last_write >= 1.0:
+                        _write_status(paths["status"], status)
+                        last_write = now
+
+                    if futures and not done_futures and not drained:
+                        time.sleep(0.1)
+
+            # Drain any final events still sitting in the queue post-shutdown.
+            while True:
+                try:
+                    msg = msg_queue.get_nowait()
+                except _queue.Empty:
+                    break
+                _apply_event(status, msg)
 
         status["finished_at"] = _iso_now()
-        status["current_tile"] = None
-        status["current_stage"] = None
         _write_status(paths["status"], status)
         return 0
     finally:

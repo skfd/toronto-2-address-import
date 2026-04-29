@@ -132,11 +132,18 @@ def create_app() -> Flask:
     @app.get("/map")
     def tiles_map():
         tiles, _by_id, meta = _load_tiles(cfg.data_dir / "tiles.json")
+        # Prefer the workers count from the active/last run so the input
+        # reflects what's actually running rather than reverting to the
+        # default after each form submit.
+        status = run_for_all.read_status(cfg)
+        initial_workers = (status or {}).get("workers") or run_for_all.default_workers()
         return render_template(
             "map.html",
             tiles=tiles,
             meta=meta,
             toronto_bbox=list(cfg.osm_toronto_bbox),
+            default_workers=initial_workers,
+            cpu_count=os.cpu_count() or 1,
         )
 
     @app.get("/tiles/<tile_id>")
@@ -193,8 +200,14 @@ def create_app() -> Flask:
             if ext_status in ("missing", "stale"):
                 flash(f"OSM extract is {ext_status}; refresh at /osm before Run for All.")
                 return redirect(url_for("tiles_map"))
+        try:
+            workers = int(request.form.get("workers") or run_for_all.default_workers())
+        except ValueError:
+            workers = run_for_all.default_workers()
+        max_workers = os.cpu_count() or 1
+        workers = max(1, min(max_workers, workers))
         cfg.data_dir.mkdir(parents=True, exist_ok=True)
-        args = [sys.executable, "-m", "t2.run_for_all"]
+        args = [sys.executable, "-m", "t2.run_for_all", "--workers", str(workers)]
         with open(run_for_all.log_path(cfg), "wb") as log_file:
             popen_kwargs: dict = {
                 "stdout": log_file,

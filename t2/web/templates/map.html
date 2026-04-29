@@ -10,6 +10,9 @@
     {% if not static_export.active %}
     <div class="run-all-bar">
       <form method="post" action="{{ url_for('run_for_all_start') }}" class="inline">
+        <label class="muted run-all-workers">workers
+          <input type="number" name="workers" value="{{ default_workers }}" min="1" max="{{ cpu_count }}" step="1"/>
+        </label>
         <button type="submit" class="run-all-btn">Run for All</button>
       </form>
       <form method="post" action="{{ url_for('run_for_all_stop') }}" class="inline">
@@ -20,12 +23,14 @@
         <button type="submit" class="danger">Reset State</button>
       </form>
       <span id="run-all-banner" class="muted run-all-banner"></span>
+      <span class="muted" style="margin-left:auto;font-size:.8rem;">cpu cores: {{ cpu_count }}</span>
     </div>
     <div class="run-all-legend muted">
       <span class="swatch swatch-pending"></span> pending
       <span class="swatch swatch-running"></span> running
       <span class="swatch swatch-done"></span> done
       <span class="swatch swatch-skipped"></span> already complete
+      <span class="swatch swatch-cancelled"></span> cancelled
       <span class="swatch swatch-error"></span> error
     </div>
     {% endif %}
@@ -47,11 +52,12 @@
       { maxZoom: 19, attribution: '© OSM' }).addTo(map);
 
     const STATE_COLORS = {
-      pending: { color: '#94a3b8', fill: '#94a3b8', fillOpacity: 0.05 },
-      running: { color: '#f59e0b', fill: '#f59e0b', fillOpacity: 0.35 },
-      done:    { color: '#16a34a', fill: '#16a34a', fillOpacity: 0.30 },
-      skipped: { color: '#16a34a', fill: '#16a34a', fillOpacity: 0.12 },
-      error:   { color: '#dc2626', fill: '#dc2626', fillOpacity: 0.30 },
+      pending:   { color: '#94a3b8', fill: '#94a3b8', fillOpacity: 0.05 },
+      running:   { color: '#f59e0b', fill: '#f59e0b', fillOpacity: 0.35 },
+      done:      { color: '#16a34a', fill: '#16a34a', fillOpacity: 0.30 },
+      skipped:   { color: '#16a34a', fill: '#16a34a', fillOpacity: 0.12 },
+      cancelled: { color: '#6b7280', fill: '#6b7280', fillOpacity: 0.20 },
+      error:     { color: '#dc2626', fill: '#dc2626', fillOpacity: 0.30 },
     };
     const ORPHAN = { color: '#ef4444', fill: '#ef4444', fillOpacity: 0.05 };
     const DEFAULT = { color: '#2563eb', fill: '#2563eb', fillOpacity: 0.05 };
@@ -97,7 +103,7 @@
         return false;
       }
       const tilesState = status.tiles || {};
-      let done = 0, errors = 0, running = 0, skipped = 0;
+      let done = 0, errors = 0, running = 0, skipped = 0, cancelled = 0;
       for (const [tid, poly] of polysById.entries()) {
         const entry = tilesState[tid];
         if (!entry) {
@@ -118,13 +124,16 @@
         else if (st === 'error') errors++;
         else if (st === 'running') running++;
         else if (st === 'skipped') skipped++;
+        else if (st === 'cancelled') cancelled++;
       }
       const total = status.total || polysById.size;
       const parts = [`${done + skipped}/${total} processed`];
-      if (skipped) parts.push(`${skipped} skipped`);
-      if (errors) parts.push(`${errors} error`);
-      if (payload.running && status.current_tile) {
-        parts.push(`running ${status.current_stage || '?'} on ${status.current_tile}`);
+      if (skipped)   parts.push(`${skipped} skipped`);
+      if (errors)    parts.push(`${errors} error`);
+      if (cancelled) parts.push(`${cancelled} cancelled`);
+      if (payload.running && running) {
+        const w = status.workers ? ` (${status.workers}w)` : '';
+        parts.push(`running on ${running} tile(s)${w}`);
       } else if (status.stopped) {
         parts.push('stopped');
       } else if (status.finished_at) {

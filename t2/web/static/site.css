@@ -81,11 +81,14 @@ body.static-export .kbd-bar { display: none; }
                   font-size: .82rem; margin: 0 0 .6rem; }
 .run-all-legend .swatch { display: inline-block; width: .8rem; height: .8rem;
                           border-radius: 2px; margin-right: .25rem; vertical-align: middle; }
-.run-all-legend .swatch-pending { background: #94a3b8; opacity: .5; }
-.run-all-legend .swatch-running { background: #f59e0b; }
-.run-all-legend .swatch-done    { background: #16a34a; }
-.run-all-legend .swatch-skipped { background: #16a34a; opacity: .35; }
-.run-all-legend .swatch-error   { background: #dc2626; }
+.run-all-legend .swatch-pending   { background: #94a3b8; opacity: .5; }
+.run-all-legend .swatch-running   { background: #f59e0b; }
+.run-all-legend .swatch-done      { background: #16a34a; }
+.run-all-legend .swatch-skipped   { background: #16a34a; opacity: .35; }
+.run-all-legend .swatch-cancelled { background: #6b7280; }
+.run-all-legend .swatch-error     { background: #dc2626; }
+.run-all-workers input { width: 3.5rem; margin-left: .25rem; padding: .2rem .35rem;
+                         border: 1px solid #d1d5db; border-radius: 3px; }
 [data-tip] { position: relative; cursor: help; }
 a[data-tip], button[data-tip] { cursor: pointer; }
 [data-tip]:hover::after {
