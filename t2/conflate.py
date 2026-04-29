@@ -316,7 +316,7 @@ def run(run_id: int, osm_snapshot_hash: str, match_radius_m: float, match_near_m
             (run_id,),
         ).fetchall()
 
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         for r in rows:
             cand = dict(r)
 

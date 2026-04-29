@@ -19,7 +19,7 @@ def compose(run_id: int, mode: str, size: int) -> int | None:
     token = str(uuid.uuid4())
     conn = _db.connect()
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         rows = conn.execute(
             "SELECT candidate_id FROM candidates WHERE run_id=? AND stage='APPROVED' "
             "ORDER BY candidate_id LIMIT ?",

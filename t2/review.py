@@ -42,7 +42,7 @@ def resolve(run_id: int, candidate_id: int, new_status: str, actor: str = "opera
     now = _iso()
     conn = _db.connect()
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         cand = conn.execute(
             "SELECT stage FROM candidates WHERE run_id=? AND candidate_id=?",
             (run_id, candidate_id),

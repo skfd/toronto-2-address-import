@@ -238,7 +238,7 @@ def upload(batch_id: int) -> None:
 
         conn = _db.connect()
         try:
-            conn.execute("BEGIN")
+            conn.execute("BEGIN IMMEDIATE")
             conn.execute(
                 "UPDATE batches SET changeset_id=?, status='uploading' WHERE batch_id=?",
                 (changeset_id, batch_id),
@@ -262,7 +262,7 @@ def upload(batch_id: int) -> None:
     except Exception as e:
         conn = _db.connect()
         try:
-            conn.execute("BEGIN")
+            conn.execute("BEGIN IMMEDIATE")
             conn.execute(
                 "UPDATE batches SET status='needs_attention', error_msg=? WHERE batch_id=?",
                 (str(e)[:500], batch_id),
@@ -280,7 +280,7 @@ def upload(batch_id: int) -> None:
     # transition to UPLOADED, but the operator must reconcile the rest.
     conn = _db.connect()
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         for local_id, new_id in mapping.items():
             conn.execute(
                 "UPDATE batch_items SET osm_node_id=?, upload_status='uploaded' "
@@ -321,7 +321,7 @@ def upload(batch_id: int) -> None:
     _close_changeset(changeset_id)
     conn = _db.connect()
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         conn.execute("UPDATE changesets SET closed_at=?, status='closed' WHERE changeset_id=?", (now, changeset_id))
         audit.log(actor="osm_client", event_type="CHANGESET_CLOSED",
                   run_id=run_id, batch_id=batch_id, payload={"changeset_id": changeset_id}, conn=conn)

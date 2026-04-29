@@ -42,7 +42,7 @@ def start_run(name: str, bbox: tuple[float, float, float, float] | None = None) 
     now = _iso()
     conn = _db.connect()
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         existing = conn.execute("SELECT run_id FROM runs WHERE name = ?", (name,)).fetchone()
         if existing:
             run_id = int(existing["run_id"])
@@ -193,7 +193,7 @@ def run_checks(run_id: int) -> dict[str, int]:
         rows = conn.execute(q, (run_id,)).fetchall()
 
         now = _iso()
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         for r in rows:
             try:
                 matched_tags = json.loads(r["matched_osm_tags_json"]) if r["matched_osm_tags_json"] else None
@@ -369,7 +369,7 @@ def set_check_param(run_id: int, check_id: str, key: str, value) -> None:
         params = cfg_obj.get("checks_params") or {}
         params.setdefault(check_id, {})[key] = value
         cfg_obj["checks_params"] = params
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         conn.execute(
             "UPDATE runs SET config_json=? WHERE run_id=?",
             (json.dumps(cfg_obj), run_id),
@@ -387,7 +387,7 @@ def set_check_param(run_id: int, check_id: str, key: str, value) -> None:
 def set_toggle(run_id: int, check_id: str, enabled: bool) -> None:
     conn = _db.connect()
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         conn.execute(
             "INSERT INTO check_toggles (run_id, check_id, enabled) VALUES (?, ?, ?) "
             "ON CONFLICT(run_id, check_id) DO UPDATE SET enabled = excluded.enabled",
@@ -465,7 +465,7 @@ def delete_all_runs() -> dict[str, int]:
     counts: dict[str, int] = {}
     conn = _db.connect()
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         for table in _RUN_SCOPED_TABLES:
             cur = conn.execute(f"DELETE FROM {table}")
             counts[table] = cur.rowcount or 0

@@ -143,7 +143,7 @@ def compute_for_run(run_id: int) -> int:
             cat = coverage_category(parity_present, parity_total) if snap_id is not None else "unknown"
             updates.append((cat, parity_present, parity_total, run_id, c["candidate_id"]))
 
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         conn.executemany(
             "UPDATE candidates SET range_coverage_cat=?, range_parity_present=?,"
             "                      range_parity_total=? "

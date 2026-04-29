@@ -21,7 +21,7 @@ def ingest(run_id: int, bbox: tuple[float, float, float, float], snapshot_id: in
     now = datetime.now(timezone.utc).isoformat()
     conn = _db.connect()
     try:
-        conn.execute("BEGIN")
+        conn.execute("BEGIN IMMEDIATE")
         for row in source_db.iter_active_addresses_in_bbox(bbox, snapshot_id):
             street_raw = _street_from_row(row)
             housenumber = row.get("address_number") or ""
