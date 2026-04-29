@@ -9,6 +9,21 @@ reviewer via a web UI, and uploads approved batches to the OpenStreetMap
 **dev sandbox** (`master.apis.dev.openstreetmap.org`). Every auto and manual
 action is written to an append-only audit log.
 
+## Status
+
+Live status of the [import proposal](IMPORT_PROPOSAL.md) against the [OSM Import Guidelines](https://wiki.openstreetmap.org/wiki/Import/Guidelines) workflow:
+
+| Stage | State |
+|---|---|
+| Draft proposal | Complete (last revised 2026-04-29) |
+| OSM Community Forum discussion | Open — [thread](https://community.openstreetmap.org/t/address-import-for-toronto/119368) |
+| Wiki page (`Toronto/Import/AddressPoints`) | Not yet published |
+| `imports@openstreetmap.org` announcement | Not yet posted |
+| Two-week feedback window | Not yet started |
+| Phase 1 pilot upload (production) | Blocked on the above |
+
+All uploads from this tool to date have used the OSM dev sandbox (`master.apis.dev.openstreetmap.org`). No production edits have been made and none will be made until the proposal has cleared the customary feedback window. The OSM account used for production uploads will be [`skfd imports`](https://www.openstreetmap.org/user/skfd%20imports) (dedicated, not the maintainer's personal account).
+
 ## Terminology
 
 **Candidate** and **AddressMatch** are synonyms — both refer to one row from
