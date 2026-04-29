@@ -7,7 +7,7 @@
   </button>
   <span class="muted">· <span class="kbd">W</span>/<span class="kbd">S</span> prev/next · <span class="kbd">N</span>/<span class="kbd">M</span> prev/next tile</span>
 </div>
-<h3>{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}
+<h3>{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}{% if candidate.address_class == 'Structure Entrance' %}{% include "_entrance_icon.html" %}{% endif %}
   {% if candidate.address_class and candidate.address_class != 'Land' %}
     <span class="pill" data-tip="{{ tip('pill.address_class') }}">{{ candidate.address_class }}</span>
   {% endif %}

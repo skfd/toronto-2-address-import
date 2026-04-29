@@ -62,6 +62,7 @@ GLOSSARY: dict[str, str] = {
     "pill.poi_acknowledged": "A shop/amenity node sits at this address but isn't a canonical address feature — ignored for matching.",
     "pill.postcode_from_poi": "Postal code copied from the nearby POI node; included in the proposed tags.",
     "pill.address_class": "Source address class. Non-Land rows (Structure, Structure Entrance, Land Entrance) mark building centroids, doors, or driveways rather than the parcel.",
+    "pill.entrance": "Structure Entrance row — models a building door, not the parcel. Exported with entrance=yes.",
     "pill.intra_source_duplicate": "Another Land row in the source has the exact same address_full + municipality. Click to jump to the sibling.",
     "pill.municipality": "This address_full also exists in another former municipality in this run — the municipality badge disambiguates the two rows.",
 
