@@ -1088,7 +1088,7 @@ def create_app() -> Flask:
             osm_client.upload(batch_id)
             flash(f"Uploaded batch {batch_id}.")
         except osm_client.OsmAuthError as e:
-            flash(f"Not authorized: {e}. Visit /oauth/start.")
+            flash(f"Not authorized: {e}. Visit /oauth to set up.")
         except Exception as e:
             flash(f"Upload failed: {e}")
         return redirect(url_for("batch_view", batch_id=batch_id))
@@ -1281,11 +1281,78 @@ def create_app() -> Flask:
 
     # ---- OAuth ----
 
+    def _oauth_status() -> dict:
+        applications_url = f"{cfg.osm_api_base.rstrip('/')}/oauth2/applications"
+        token_present = False
+        token_unreadable = False
+        token_stored_at = None
+        token_scope = None
+        try:
+            tokens = osm_client.load_tokens()
+        except osm_client.OsmAuthError:
+            tokens = None
+        if tokens is None:
+            # Distinguish "no row" from "row but undecryptable" so the user
+            # knows whether to authorize or to fix FERNET_KEY.
+            try:
+                conn = _db.connect()
+                row = conn.execute("SELECT 1 FROM kv WHERE key='osm_oauth_tokens'").fetchone()
+                conn.close()
+                if row:
+                    token_unreadable = True
+            except Exception:
+                pass
+        else:
+            token_present = True
+            token_scope = tokens.get("scope")
+            try:
+                conn = _db.connect()
+                row = conn.execute("SELECT value FROM kv WHERE key='osm_oauth_stored_at'").fetchone()
+                conn.close()
+                if row:
+                    token_stored_at = row["value"]
+            except Exception:
+                pass
+        client_id_set = bool(cfg.osm_client_id)
+        client_secret_set = bool(cfg.osm_client_secret)
+        fernet_set = bool(cfg.fernet_key)
+        flask_secret_set = bool(cfg.flask_secret_key) and cfg.flask_secret_key != "dev-secret"
+        return {
+            "api_base": cfg.osm_api_base,
+            "redirect_uri": cfg.osm_redirect_uri,
+            "applications_url": applications_url,
+            "client_id_set": client_id_set,
+            "client_secret_set": client_secret_set,
+            "fernet_set": fernet_set,
+            "flask_secret_set": flask_secret_set,
+            "ready": client_id_set and client_secret_set and fernet_set,
+            "token_present": token_present,
+            "token_unreadable": token_unreadable,
+            "token_stored_at": token_stored_at,
+            "token_scope": token_scope,
+        }
+
+    @app.get("/oauth")
+    def oauth_view():
+        return render_template("oauth.html", status=_oauth_status())
+
     @app.get("/oauth/start")
     def oauth_start():
-        if not cfg.osm_client_id:
-            return ("OSM_CLIENT_ID not set in .env. Register an OAuth2 app on "
-                    f"{cfg.osm_api_base}/oauth2/applications first.", 500)
+        status = _oauth_status()
+        if not status["ready"]:
+            missing = []
+            if not status["client_id_set"]:
+                missing.append("OSM_CLIENT_ID")
+            if not status["client_secret_set"]:
+                missing.append("OSM_CLIENT_SECRET")
+            if not status["fernet_set"]:
+                missing.append("FERNET_KEY")
+            return render_template(
+                "oauth.html",
+                status=status,
+                error=f"Missing required setting(s): {', '.join(missing)}.",
+                error_detail="Add them to .env at the repo root and restart the server.",
+            ), 400
         url, _state = osm_client.build_auth_url()
         return redirect(url)
 
@@ -1293,11 +1360,41 @@ def create_app() -> Flask:
     def oauth_callback():
         code = request.args.get("code")
         state = request.args.get("state")
+        provider_error = request.args.get("error")
+        if provider_error:
+            return render_template(
+                "oauth.html",
+                status=_oauth_status(),
+                error=f"OSM rejected the authorization: {provider_error}.",
+                error_detail=request.args.get("error_description") or
+                    "Check that the redirect URI registered on OSM matches OSM_REDIRECT_URI exactly.",
+            ), 400
         if not code or not state:
-            return "missing code/state", 400
-        osm_client.exchange_code(code, state)
+            return render_template(
+                "oauth.html",
+                status=_oauth_status(),
+                error="Missing code/state on OAuth callback.",
+                error_detail="This URL is only meant to be hit by OSM after you authorize. "
+                             "Start the flow from the Authorize button below.",
+            ), 400
+        try:
+            osm_client.exchange_code(code, state)
+        except osm_client.OsmAuthError as e:
+            return render_template(
+                "oauth.html",
+                status=_oauth_status(),
+                error="Token exchange failed.",
+                error_detail=str(e),
+            ), 400
+        except Exception as e:
+            return render_template(
+                "oauth.html",
+                status=_oauth_status(),
+                error="Token exchange failed.",
+                error_detail=f"{type(e).__name__}: {e}",
+            ), 502
         flash("OSM authorization complete.")
-        return redirect(url_for("index"))
+        return redirect(url_for("oauth_view"))
 
     return app
 

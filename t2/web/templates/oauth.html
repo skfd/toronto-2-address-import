@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}OSM auth{% endblock %}
+{% block content %}
+
+{% if error %}
+<div class="card" style="border-color:#fca5a5; background:#fef2f2;">
+  <h2 style="margin-top:0; color:#991b1b;">Authorization error</h2>
+  <p style="margin:.2rem 0 .4rem;"><strong>{{ error }}</strong></p>
+  {% if error_detail %}<p class="muted" style="margin:.2rem 0;">{{ error_detail }}</p>{% endif %}
+  <p class="muted" style="margin:.4rem 0 0;">Fix the issue below and retry.</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2 style="margin-top:0;">OSM authorization</h2>
+  <p>This tool uploads address edits to OSM on your behalf. Authorization uses
+  OAuth2 PKCE against the configured OSM server. Tokens are stored encrypted in
+  the local tool DB (<code>data/tool.db</code>) using <code>FERNET_KEY</code>.</p>
+
+  <table>
+    <tr>
+      <th style="width:14rem;">Target server</th>
+      <td>
+        <span class="osm-target osm-target-{{ osm_target.class }}">{{ osm_target.label }}</span>
+        <code>{{ status.api_base }}</code>
+      </td>
+    </tr>
+    <tr>
+      <th>OSM_CLIENT_ID</th>
+      <td>{% if status.client_id_set %}<span class="pill ok">set</span>{% else %}<span class="pill bad">missing</span>{% endif %}</td>
+    </tr>
+    <tr>
+      <th>OSM_CLIENT_SECRET</th>
+      <td>{% if status.client_secret_set %}<span class="pill ok">set</span>{% else %}<span class="pill bad">missing</span>{% endif %}</td>
+    </tr>
+    <tr>
+      <th>OSM_REDIRECT_URI</th>
+      <td><code>{{ status.redirect_uri }}</code></td>
+    </tr>
+    <tr>
+      <th>FERNET_KEY</th>
+      <td>{% if status.fernet_set %}<span class="pill ok">set</span>{% else %}<span class="pill bad">missing</span>{% endif %}</td>
+    </tr>
+    <tr>
+      <th>FLASK_SECRET_KEY</th>
+      <td>{% if status.flask_secret_set %}<span class="pill ok">set</span>{% else %}<span class="pill warn">default (dev only)</span>{% endif %}</td>
+    </tr>
+    <tr>
+      <th>Stored tokens</th>
+      <td>
+        {% if status.token_present %}
+          <span class="pill ok">present</span>
+          {% if status.token_stored_at %}<span class="muted">stored {{ status.token_stored_at }}</span>{% endif %}
+          {% if status.token_scope %}<br><span class="muted">scope: <code>{{ status.token_scope }}</code></span>{% endif %}
+        {% elif status.token_unreadable %}
+          <span class="pill bad">unreadable</span>
+          <span class="muted">tokens exist but can't be decrypted (FERNET_KEY changed?)</span>
+        {% else %}
+          <span class="pill warn">none</span>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin-top:1rem;">
+    {% if status.ready %}
+      <a class="btn" href="{{ url_for('oauth_start') }}">
+        {% if status.token_present %}Re-authorize with OSM{% else %}Authorize with OSM{% endif %}
+      </a>
+      <span class="muted" style="margin-left:.6rem;">Opens the OSM consent screen on <code>{{ status.api_base }}</code>.</span>
+    {% else %}
+      <button disabled title="Fix the missing config below first">Authorize with OSM</button>
+      <span class="muted" style="margin-left:.6rem;">Complete the setup steps below before authorizing.</span>
+    {% endif %}
+  </p>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0;">Setup</h2>
+  <p>One-time per OSM server (the dev sandbox and real OSM each have their own
+  application registry, so a prod run needs a separate registration).</p>
+
+  <h3>1. Register an OAuth2 application</h3>
+  <p>Log into the target server and register a new application:</p>
+  <p>
+    <a class="btn" href="{{ status.applications_url }}" target="_blank" rel="noopener">
+      Open {{ osm_target.label }} OAuth2 applications &nearr;
+    </a>
+  </p>
+  <ul>
+    <li><strong>Name:</strong> anything (e.g. <code>t2-address-import-dev</code>).</li>
+    <li><strong>Redirect URI:</strong> <code>{{ status.redirect_uri }}</code> &mdash; must match exactly.</li>
+    <li><strong>Confidential application:</strong> yes (we use a client secret).</li>
+    <li><strong>Permissions:</strong> tick
+      <code>read_prefs</code> (read user preferences),
+      <code>write_api</code> (modify the map),
+      <code>write_changesets</code> (comment on changesets).
+    </li>
+  </ul>
+  <p>Save, then copy the resulting <strong>Client ID</strong> and <strong>Client Secret</strong>.</p>
+
+  <h3>2. Fill <code>.env</code> at the repo root</h3>
+  <p>Copy <code>.env.example</code> to <code>.env</code> and fill in:</p>
+<pre style="background:#f3f4f6; padding:.6rem .8rem; border-radius:4px; overflow:auto;"><code>OSM_API_BASE={{ status.api_base }}
+OSM_CLIENT_ID=&lt;from step 1&gt;
+OSM_CLIENT_SECRET=&lt;from step 1&gt;
+OSM_REDIRECT_URI={{ status.redirect_uri }}
+FLASK_SECRET_KEY=&lt;any random string&gt;
+FERNET_KEY=&lt;generate with the command below&gt;</code></pre>
+  <p>Generate a Fernet key:</p>
+<pre style="background:#f3f4f6; padding:.6rem .8rem; border-radius:4px; overflow:auto;"><code>python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"</code></pre>
+  <p class="muted">Don't lose <code>FERNET_KEY</code>: changing it makes any
+  previously stored OSM tokens unreadable, and you'll have to re-authorize.</p>
+
+  <h3>3. Restart the server and authorize</h3>
+  <p>The app reads <code>.env</code> at startup, so restart <code>python run.py</code>
+  after editing it. Then click <strong>Authorize with OSM</strong> above &mdash;
+  you'll be sent to OSM, approve the scopes, and bounced back to
+  <code>{{ status.redirect_uri }}</code> with a success flash.</p>
+
+  <h3>Switching between dev and prod</h3>
+  <p>The DEV/PROD badge in the header reflects <code>OSM_API_BASE</code>.
+  To switch, set the env var inline (it wins over <code>.env</code> because
+  loading uses <code>setdefault</code>):</p>
+<pre style="background:#f3f4f6; padding:.6rem .8rem; border-radius:4px; overflow:auto;"><code># PowerShell (prod)
+$env:OSM_API_BASE="https://api.openstreetmap.org"
+$env:OSM_CLIENT_ID="&lt;prod-client-id&gt;"
+$env:OSM_CLIENT_SECRET="&lt;prod-client-secret&gt;"
+python run.py</code></pre>
+</div>
+
+{% endblock %}
