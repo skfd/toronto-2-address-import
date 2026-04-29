@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_from_directory, url_for
+from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file, send_from_directory, url_for
 
 from .. import audit, batcher, candidates, config as _config, db as _db, multi_addresses as _multi_addresses, multi_fixes as _multi_fixes, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, source_db, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
@@ -935,13 +935,59 @@ def create_app() -> Flask:
             batch = dict(conn.execute("SELECT * FROM batches WHERE batch_id=?", (batch_id,)).fetchone() or {})
         finally:
             conn.close()
-        return render_template("batch.html", batch=batch, items=items)
+        cs_tags = osm_export.changeset_tags(batch_id) if batch else {}
+        cs_tags_tsv = "\n".join(f"{k}\t{v}" for k, v in cs_tags.items())
+        josm_url = _josm_remote_url(batch_id, cs_tags) if batch else ""
+        return render_template("batch.html", batch=batch, items=items,
+                               cs_tags=cs_tags, cs_tags_tsv=cs_tags_tsv,
+                               josm_url=josm_url)
+
+    def _josm_remote_url(batch_id: int, cs_tags: dict[str, str]) -> str:
+        """JOSM Remote Control /import URL: load the .osm file and pre-fill changeset tags.
+
+        JOSM listens on http://127.0.0.1:8111 when Remote Control is enabled
+        (Preferences -> Remote Control). `comment` and `source` go in their
+        own dedicated params; everything else rides in `changeset_tags` as
+        pipe-separated `key=value` pairs.
+
+        IMPORTANT: `url=` MUST be the last parameter. JOSM's /import handler
+        does not strictly parse `url=` as a single query value — it appends
+        any subsequent query-string text to the URL it fetches, producing
+        a malformed request (path ends up like `.../export.osm&new_layer=true`).
+        Putting `url=` last ensures nothing follows it.
+        """
+        from urllib.parse import urlencode
+        data_url = url_for("batch_export_get", batch_id=batch_id, _external=True)
+        extra = {k: v for k, v in cs_tags.items() if k not in ("comment", "source")}
+        # Order matters: url must come last (see docstring).
+        params = [
+            ("new_layer", "true"),
+            ("layer_name", f"batch_{batch_id}"),
+            ("changeset_comment", cs_tags.get("comment", "")),
+            ("changeset_source", cs_tags.get("source", "")),
+            ("changeset_tags", "|".join(f"{k}={v}" for k, v in extra.items())),
+            ("url", data_url),
+        ]
+        return "http://127.0.0.1:8111/import?" + urlencode(params)
+
+    def _send_batch_osm(batch_id: int, as_attachment: bool):
+        path = osm_export.write_xml(batch_id)
+        return send_file(
+            path,
+            mimetype="application/xml",
+            as_attachment=as_attachment,
+            download_name=path.name,
+        )
 
     @app.post("/batches/<int:batch_id>/export")
     def batch_export(batch_id: int):
-        path = osm_export.write_xml(batch_id)
-        flash(f"Wrote {path.name} to data/")
-        return redirect(url_for("batch_view", batch_id=batch_id))
+        return _send_batch_osm(batch_id, as_attachment=True)
+
+    @app.get("/batches/<int:batch_id>/export.osm")
+    def batch_export_get(batch_id: int):
+        # Inline (not as_attachment) so JOSM Remote Control fetches the body
+        # directly rather than receiving a download header it doesn't need.
+        return _send_batch_osm(batch_id, as_attachment=False)
 
     @app.post("/batches/<int:batch_id>/upload")
     def batch_upload(batch_id: int):

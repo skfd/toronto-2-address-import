@@ -177,18 +177,10 @@ def find_changeset_by_client_token(client_token: str) -> int | None:
     return None
 
 
-def _create_changeset(comment: str, client_token: str) -> int:
+def _create_changeset(batch_id: int) -> int:
     payload = ET.Element("osm")
     cs = ET.SubElement(payload, "changeset")
-    tags = {
-        "comment": comment,
-        "source": "City of Toronto Open Data",
-        "import": "yes",
-        "bot": "no",
-        "created_by": "t2-address-import",
-        "import:client_token": client_token,
-    }
-    for k, v in tags.items():
+    for k, v in osm_export.changeset_tags(batch_id).items():
         ET.SubElement(cs, "tag", k=k, v=v)
     body = ET.tostring(payload, encoding="utf-8")
     r = _request("PUT", f"{_API}/changeset/create", data=body, headers={"Content-Type": "text/xml"})
@@ -242,7 +234,7 @@ def upload(batch_id: int) -> None:
         if existing:
             changeset_id = existing
         else:
-            changeset_id = _create_changeset(comment, client_token)
+            changeset_id = _create_changeset(batch_id)
 
         conn = _db.connect()
         try:

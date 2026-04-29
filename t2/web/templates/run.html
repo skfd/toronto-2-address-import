@@ -68,6 +68,18 @@
 
 <div class="card" id="batches">
   <h3>Batches</h3>
+  {% set approved_avail = counts.get('APPROVED', 0) %}
+  {% set batched_n = counts.get('BATCHED', 0) %}
+  {% set uploaded_n = counts.get('UPLOADED', 0) %}
+  {% set total_changes = approved_avail + batched_n + uploaded_n %}
+  {% set size_cap = approved_avail if approved_avail > 0 else 10000 %}
+  {% set size_default = (300 if approved_avail >= 300 else approved_avail) if approved_avail > 0 else 300 %}
+  <p class="muted">
+    <strong>{{ approved_avail }}</strong> APPROVED available to compose
+    · {{ batched_n }} already batched
+    · {{ uploaded_n }} uploaded
+    · <strong>{{ total_changes }}</strong> total changes
+  </p>
   <form method="post" action="/runs/{{ run.run_id }}/batches">
     <label title="{{ tip('field.mode') }}">Mode
       <select name="mode" title="{{ tip('field.mode') }}">
@@ -75,8 +87,8 @@
         <option value="osm_api">osm_api</option>
       </select>
     </label>
-    <label title="{{ tip('field.size') }}">Size <input name="size" type="number" value="300" min="1" max="10000" title="{{ tip('field.size') }}"/></label>
-    <button title="{{ tip('btn.compose_batch') }}">Compose batch</button>
+    <label title="{{ tip('field.size') }}">Size <input name="size" type="number" value="{{ size_default }}" min="1" max="{{ size_cap }}" title="{{ tip('field.size') }}"/> <span class="muted">/ {{ approved_avail }}</span></label>
+    <button title="{{ tip('btn.compose_batch') }}" {% if approved_avail == 0 %}disabled{% endif %}>Compose batch</button>
   </form>
   {% if batches %}
   <table>

@@ -11,10 +11,56 @@
   <form method="post" action="/batches/{{ batch.batch_id }}/export" class="inline">
     <button title="{{ tip('btn.export_osm') }}">Export .osm (JOSM)</button>
   </form>
+  {% if josm_url %}
+  <button type="button" class="btn" id="josm-open-btn"
+          data-josm-url="{{ josm_url }}"
+          title="Loads the .osm into JOSM via Remote Control (Preferences → Remote Control must be enabled in JOSM) and pre-fills the changeset comment, source, and tags. Stays on this page.">Open in JOSM</button>
+  <span id="josm-open-status" class="muted" style="margin-left:.4rem;"></span>
+  <script>
+    (function () {
+      const btn = document.getElementById('josm-open-btn');
+      const status = document.getElementById('josm-open-status');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const original = btn.textContent;
+        btn.disabled = true;
+        status.textContent = 'Sending to JOSM…';
+        // mode:'no-cors' lets the request leave the browser even though
+        // 127.0.0.1:8111 doesn't send CORS headers. The response is opaque,
+        // but resolution = JOSM accepted it; rejection = JOSM unreachable.
+        fetch(btn.dataset.josmUrl, { mode: 'no-cors' })
+          .then(() => { status.textContent = 'Sent to JOSM'; })
+          .catch(() => { status.textContent = 'JOSM not reachable. Enable Remote Control (Preferences → Remote Control).'; })
+          .finally(() => {
+            btn.disabled = false;
+            btn.textContent = original;
+            setTimeout(() => { status.textContent = ''; }, 4000);
+          });
+      });
+    })();
+  </script>
+  {% endif %}
   <form method="post" action="/batches/{{ batch.batch_id }}/upload" class="inline">
     <button {% if batch.status == 'uploaded' %}disabled{% endif %} title="{{ tip('btn.upload_api') }}">Upload via OSM API</button>
   </form>
 </div>
+
+{% if cs_tags %}
+<div class="card">
+  <h3>Changeset tags</h3>
+  <p class="muted">Applied automatically when uploading via OSM API. For the JOSM flow, copy below and use <strong>Paste Tags</strong> (Ctrl+Shift+V) on the changeset in JOSM's upload dialog &mdash; tab-separated <code>key&lt;TAB&gt;value</code> is what JOSM's <code>TextTagParser</code> expects.</p>
+  <textarea id="cs-tags-tsv" readonly rows="{{ cs_tags|length }}"
+            style="width: 100%; font-family: monospace; white-space: pre; resize: vertical;">{{- cs_tags_tsv -}}</textarea>
+  <button type="button" class="secondary" onclick="
+    const t = document.getElementById('cs-tags-tsv');
+    t.select();
+    navigator.clipboard.writeText(t.value).then(
+      () => { this.textContent = 'Copied'; setTimeout(() => this.textContent = 'Copy for JOSM Paste Tags', 1500); },
+      () => { document.execCommand('copy'); }
+    );
+  ">Copy for JOSM Paste Tags</button>
+</div>
+{% endif %}
 
 <div class="card">
   <h3>Items ({{ items|length }})</h3>
