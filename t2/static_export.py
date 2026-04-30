@@ -130,6 +130,7 @@ _VIEW_ALIAS_RE = re.compile(r"^/runs/(\d+)/(approved|skipped)/(\d+)$")
 _STATIC_BUNDLES: tuple[tuple[str, str], ...] = (
     ("site.css", "site.css"),
     ("detail-map.js", "detail-map.js"),
+    ("review-keys.js", "review-keys.js"),
 )
 
 # Popup links inside the Leaflet map JS. These are built at runtime with JS
