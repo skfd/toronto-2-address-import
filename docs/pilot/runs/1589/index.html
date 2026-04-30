@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Run high-park-swansea-sw-se-batch-2026-04-28</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="../../assets/detail-map.js"></script>
+  <script src="../../assets/review-keys.js" defer></script>
+  <link rel="stylesheet" href="../../assets/site.css">
+  
+  <style>
+    .static-banner { background: #fef3c7; border-bottom: 2px solid #f59e0b;
+                     padding: .6rem 1.2rem; font-size: .88rem; color: #78350f;
+                     text-align: center; }
+    .static-banner a { color: #78350f; font-weight: 600; }
+    body.static-export form[method="post"],
+    body.static-export [hx-post] { opacity: .6; cursor: not-allowed; }
+    body.static-export form[method="post"] button,
+    body.static-export form[method="post"] input[type="submit"],
+    body.static-export form[method="post"] select,
+    body.static-export form[method="post"] input[type="text"],
+    body.static-export form[method="post"] input[type="number"],
+    body.static-export [hx-post] button,
+    body.static-export [hx-post] input[type="checkbox"] { pointer-events: none; }
+  </style>
+  
+</head>
+<body class="static-export">
+  <header>
+    <span class="nav">
+      <a href="../../index.html"><strong>t2 address import</strong></a>
+      
+      
+      <a href="../../osm/index.html">OSM extract</a>
+      
+      
+      <a href="../../data/index.html">Data</a>
+      
+    </span>
+    <span class="meta">
+      <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">·</span>
+      <a href="https://community.openstreetmap.org/t/address-import-for-toronto/119368" target="_blank" rel="noopener">OSM discussion</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/skfd/toronto-2-address-import/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+      <span class="sep">·</span>
+      <a href="https://open.toronto.ca/open-data-licence/" target="_blank" rel="noopener">Toronto Open Data</a>
+      &amp;
+      &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>
+    </span>
+  </header>
+  
+  <div class="static-banner">
+    Static snapshot of run <strong>high-park-swansea-sw-se-batch-2026-04-28</strong>
+    as of 2026-04-29 —
+    pilot evidence for the
+    <a href="https://github.com/skfd/toronto-2-address-import/blob/main/IMPORT_PROPOSAL.md" target="_blank" rel="noopener">Toronto address import proposal</a>.
+    Interactive actions (stages, review decisions, uploads) are disabled.
+    <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">Run the live tool</a>
+    to exercise them.
+  </div>
+  <script>
+    // Teach the page to behave on the static site, where Flask isn't around
+    // to partial-render HX-Request responses or route absolute hx-get paths.
+    // Three things we need to undo / substitute:
+    //   1. Disable htmx's history machinery entirely. hx-push-url="true"
+    //      would rewrite the address bar to the clicked row's relative
+    //      hx-get target (.../<view>/<cid>/index.html). On the next click
+    //      the sibling rows' relative hx-gets then resolve against that new
+    //      path, producing a nested .../<view>/<cid1>/<cid2>/index.html
+    //      that 404s.
+    //   2. Extract the target fragment from full-page responses — we can't
+    //      branch on HX-Request, so every hx-get returns the whole page;
+    //      adding hx-select=<target> with hx-swap=outerHTML pulls out just
+    //      the fragment htmx would have otherwise inlined verbatim.
+    //   3. Neuter POST forms / hx-post actions so the disabled visual
+    //      doesn't lie if someone clicks through the pointer-events guard.
+    if (window.htmx && window.htmx.config) window.htmx.config.historyEnabled = false;
+    (function () {
+      function each(scope, selector, fn) {
+        if (scope.matches && scope.matches(selector)) fn(scope);
+        if (scope.querySelectorAll) scope.querySelectorAll(selector).forEach(fn);
+      }
+      function process(scope) {
+        if (!scope) return;
+        each(scope, 'form[method="post"], form[method="POST"]', function (f) {
+          f.addEventListener('submit', function (e) { e.preventDefault(); });
+        });
+        each(scope, '[hx-post]', function (el) { el.removeAttribute('hx-post'); });
+        each(scope, '[hx-get][hx-target]', function (el) {
+          if (el.getAttribute('hx-push-url') === 'true') el.removeAttribute('hx-push-url');
+          if (el.hasAttribute('hx-select')) return;
+          el.setAttribute('hx-select', el.getAttribute('hx-target'));
+          el.setAttribute('hx-swap', 'outerHTML');
+        });
+      }
+      document.addEventListener('DOMContentLoaded', function () { process(document); });
+      document.addEventListener('htmx:afterSwap', function (evt) { process(evt.target); });
+    })();
+  </script>
+  
+  <main>
+    
+      
+    
+    
+<div class="card">
+  <div style="display: flex; align-items: center; gap: .6rem;">
+    <h2 style="margin: 0;">Run: high-park-swansea-sw-se-batch-2026-04-28 <span class="muted">#1589</span> <span class="muted">· tile 1592/2493</span></h2>
+    <form method="post" action="/runs/new" class="inline" style="margin-left: auto;">
+      <input type="hidden" name="name" value="high-park-swansea-sw-se-2026-04-29-2259"/>
+      <input type="hidden" name="min_lat" value="43.633436"/>
+      <input type="hidden" name="min_lon" value="-79.480592"/>
+      <input type="hidden" name="max_lat" value="43.639157"/>
+      <input type="hidden" name="max_lon" value="-79.469502"/>
+      <button class="secondary" title="Start a new run with the same bbox">New run on this tile</button>
+    </form>
+  </div>
+  <p class="muted"><span data-tip="Bounding box: min_lat, min_lon → max_lat, max_lon.">bbox 43.63344, -79.48059 → 43.63916, -79.46950</span>
+    · <span data-tip="OSM snapshot identifier this run was conflated against.">source snapshot 34</span>
+    · <a href="audit/index.html">audit log</a></p>
+  <div id="run-map" style="height: 320px; border-radius: 4px; margin: .6rem 0;"></div>
+  <script>
+    (function(){
+      const bounds = [[43.633436, -79.480592],
+                      [43.639157, -79.469502]];
+      const map = L.map('run-map').fitBounds(bounds, { padding: [20, 20] });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { maxZoom: 19, attribution: '© OSM' }).addTo(map);
+      
+      const shape = L.polygon([[[43.634685, -79.471919], [43.634669, -79.47195], [43.634628, -79.472043], [43.634588, -79.472136], [43.634547, -79.472227], [43.634544, -79.472234], [43.634507, -79.472319], [43.6345, -79.472334], [43.634462, -79.472411], [43.634417, -79.472501], [43.634377, -79.472591], [43.634332, -79.472681], [43.634291, -79.472771], [43.634242, -79.47286], [43.634197, -79.472948], [43.634152, -79.473036], [43.634107, -79.473123], [43.634057, -79.47321], [43.634012, -79.473297], [43.633963, -79.473383], [43.633913, -79.473468], [43.633868, -79.473553], [43.633819, -79.473637], [43.633769, -79.473721], [43.633715, -79.473805], [43.633666, -79.473888], [43.633616, -79.47397], [43.633562, -79.474052], [43.633513, -79.474133], [43.633459, -79.474213], [43.633436, -79.474245], [43.633477, -79.474356], [43.633522, -79.474449], [43.633647, -79.474703], [43.633855, -79.475128], [43.634107, -79.475499], [43.634436, -79.475702], [43.634755, -79.475838], [43.635039, -79.476009], [43.635354, -79.476175], [43.635484, -79.476251], [43.635637, -79.47634], [43.635966, -79.476527], [43.636232, -79.476713], [43.636271, -79.476734], [43.636443, -79.47683], [43.636748, -79.476872], [43.636988, -79.476975], [43.637213, -79.477085], [43.637408, -79.477215], [43.637533, -79.477292], [43.637733, -79.477499], [43.637873, -79.477839], [43.637993, -79.478118], [43.638069, -79.478455], [43.638119, -79.478847], [43.638131, -79.479361], [43.638135, -79.479851], [43.638112, -79.480397], [43.638104, -79.480592], [43.639157, -79.480592], [43.639157, -79.469502], [43.635751, -79.469502], [43.634709, -79.471857], [43.634685, -79.471919]]],
+        { color: '#2563eb', weight: 2, fillOpacity: 0.08 }).addTo(map);
+      
+      shape.bindTooltip("high-park-swansea-sw-se-batch-2026-04-28", { permanent: true, direction: 'center', className: 'run-label' });
+    })();
+  </script>
+  <style>
+    .run-label { background: rgba(37, 99, 235, 0.85); color: #fff; border: 0; font-weight: 600; padding: 4px 10px; }
+    .leaflet-tooltip.run-label:before { display: none; }
+  </style>
+</div>
+
+<div class="card">
+  <h3>Pipeline stages</h3>
+  
+    
+<div id="pipeline" class="pipeline">
+  <div class="pipeline-header">
+    <form hx-post="/runs/1589/stage/all"
+          hx-target="#pipeline"
+          hx-swap="outerHTML"
+          hx-indicator="#pipeline"
+          class="inline">
+      <button class="run-all" title="Run Ingest → Fetch → Conflate → Checks in one click. Each stage is idempotent; re-running is safe.">Run all stages</button>
+    </form>
+    <span class="htmx-indicator pipeline-spinner" aria-hidden="true"></span>
+    <span class="htmx-indicator muted pipeline-hint">working…</span>
+  </div>
+
+  <ol class="stepper">
+    
+    
+    <li class="step done">
+      <span class="step-badge"
+            data-tip="This stage has produced output. Re-running resumes or refreshes idempotently.">
+        &#10003;
+      </span>
+      <form hx-post="/runs/1589/stage/ingest"
+            hx-target="#pipeline"
+            hx-swap="outerHTML"
+            hx-indicator="#pipeline"
+            class="inline">
+        <button class="stage-btn secondary"
+                title="Load the input CSV into the candidates table.">Ingest</button>
+      </form>
+    </li>
+    
+    
+    <li class="step done">
+      <span class="step-badge"
+            data-tip="This stage has produced output. Re-running resumes or refreshes idempotently.">
+        &#10003;
+      </span>
+      <form hx-post="/runs/1589/stage/fetch"
+            hx-target="#pipeline"
+            hx-swap="outerHTML"
+            hx-indicator="#pipeline"
+            class="inline">
+        <button class="stage-btn secondary"
+                title="Download the OSM snapshot for this bbox and build the spatial index.">Fetch OSM</button>
+      </form>
+    </li>
+    
+    
+    <li class="step done">
+      <span class="step-badge"
+            data-tip="This stage has produced output. Re-running resumes or refreshes idempotently.">
+        &#10003;
+      </span>
+      <form hx-post="/runs/1589/stage/conflate"
+            hx-target="#pipeline"
+            hx-swap="outerHTML"
+            hx-indicator="#pipeline"
+            class="inline">
+        <button class="stage-btn secondary"
+                title="Match candidates to OSM using distance + fuzzy name logic.">Conflate</button>
+      </form>
+    </li>
+    
+    
+    <li class="step done">
+      <span class="step-badge"
+            data-tip="This stage has produced output. Re-running resumes or refreshes idempotently.">
+        &#10003;
+      </span>
+      <form hx-post="/runs/1589/stage/checks"
+            hx-target="#pipeline"
+            hx-swap="outerHTML"
+            hx-indicator="#pipeline"
+            class="inline">
+        <button class="stage-btn secondary"
+                title="Run all enabled checks and flag candidates for review.">Run checks</button>
+      </form>
+    </li>
+    
+  </ol>
+
+  
+
+  
+  
+  <p class="stage-counts">
+    
+      
+      
+      <a class="pill" href="approved/index.html" data-tip="Cleared for upload.">APPROVED: 173</a>
+      
+    
+      
+      
+      <a class="pill" href="review/index.html" data-tip="Flagged by a check; awaiting operator decision.">REVIEW_PENDING: 7</a>
+      
+    
+      
+      
+      <a class="pill" href="skipped/index.html" data-tip="Not uploading (MATCH, range, or duplicate).">SKIPPED: 72</a>
+      
+    
+    
+    <a class="pill" href="ranges/index.html">RANGES: 1</a>
+    
+  </p>
+  
+</div>
+  
+</div>
+
+<div class="card">
+  <h3>Check toggles</h3>
+  <div id="toggles">
+    <table>
+  <thead><tr><th>Check</th><th>Version</th><th>Enabled</th><th>Description</th></tr></thead>
+  <tbody>
+    
+    <tr>
+      <td><code data-tip="Flags candidates where the matching OSM address exists but sits far from the candidate coordinates.">match_far</code></td>
+      <td>2</td>
+      <td>
+        <form hx-post="/runs//toggle/match_far" hx-target="#toggles" class="inline">
+          <input type="hidden" name="enabled" value="0" />
+          <button class="" title="Enable or disable this check for the current run.">
+            ON
+          </button>
+        </form>
+      </td>
+      <td class="muted">Flags candidates where the matching OSM address exists but sits far from the candidate coordinates.</td>
+    </tr>
+    
+    <tr>
+      <td><code data-tip="Flags housenumber ranges (100-110) and digit-confusable suffix letters (I, O, Q). Other suffixes (A, B, R, 1/2, …) pass.">suffix_range</code></td>
+      <td>2</td>
+      <td>
+        <form hx-post="/runs//toggle/suffix_range" hx-target="#toggles" class="inline">
+          <input type="hidden" name="enabled" value="0" />
+          <button class="" title="Enable or disable this check for the current run.">
+            ON
+          </button>
+        </form>
+      </td>
+      <td class="muted">Flags housenumber ranges (100-110) and digit-confusable suffix letters (I, O, Q). Other suffixes (A, B, R, 1/2, …) pass.</td>
+    </tr>
+    
+    <tr>
+      <td><code data-tip="Flags candidates that are within a few metres of another City point in the same run.">city_duplicate</code></td>
+      <td>1</td>
+      <td>
+        <form hx-post="/runs//toggle/city_duplicate" hx-target="#toggles" class="inline">
+          <input type="hidden" name="enabled" value="0" />
+          <button class="" title="Enable or disable this check for the current run.">
+            ON
+          </button>
+        </form>
+      </td>
+      <td class="muted">Flags candidates that are within a few metres of another City point in the same run.</td>
+    </tr>
+    
+    <tr>
+      <td><code data-tip="Flags Land candidates that share (address_full, municipality) with another active Land row in the same run.">intra_source_duplicate</code></td>
+      <td>1</td>
+      <td>
+        <form hx-post="/runs//toggle/intra_source_duplicate" hx-target="#toggles" class="inline">
+          <input type="hidden" name="enabled" value="0" />
+          <button class="" title="Enable or disable this check for the current run.">
+            ON
+          </button>
+        </form>
+      </td>
+      <td class="muted">Flags Land candidates that share (address_full, municipality) with another active Land row in the same run.</td>
+    </tr>
+    
+    <tr>
+      <td><code data-tip="Flags every Nth MISSING candidate for spot-check review.">missing_sample</code></td>
+      <td>1</td>
+      <td>
+        <form hx-post="/runs//toggle/missing_sample" hx-target="#toggles" class="inline">
+          <input type="hidden" name="enabled" value="0" />
+          <button class="" title="Enable or disable this check for the current run.">
+            ON
+          </button>
+        </form>
+      </td>
+      <td class="muted">Flags every Nth MISSING candidate for spot-check review.</td>
+    </tr>
+    
+    <tr>
+      <td><code data-tip="Flags MATCH/MATCH_FAR where the matched OSM node carries non-address, non-metadata tags — hints the POI filter may need to grow.">potential_amenity</code></td>
+      <td>3</td>
+      <td>
+        <form hx-post="/runs//toggle/potential_amenity" hx-target="#toggles" class="inline">
+          <input type="hidden" name="enabled" value="0" />
+          <button class="" title="Enable or disable this check for the current run.">
+            ON
+          </button>
+        </form>
+      </td>
+      <td class="muted">Flags MATCH/MATCH_FAR where the matched OSM node carries non-address, non-metadata tags — hints the POI filter may need to grow.</td>
+    </tr>
+    
+  </tbody>
+</table>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Check parameters</h3>
+  <form method="post" action="/runs/1589/sample_rate" class="inline">
+    <label title="One in every N MISSING candidates is flagged for operator spot-check. 50 by default; 0 disables. Per-run override; applies the next time checks run.">
+      missing_sample every_nth
+      <input type="number" name="every_nth" min="0" value="50" size="6"/>
+    </label>
+    <button class="secondary">Save</button>
+  </form>
+  <p class="muted">0 disables sampling; higher values flag fewer MISSINGs for spot-check. Change before re-running checks.</p>
+</div>
+
+<div class="card" id="batches">
+  <h3>Batches</h3>
+  
+  
+  
+  
+  
+  
+  <p class="muted">
+    <strong>173</strong> APPROVED available to compose
+    · 0 already batched
+    · 0 uploaded
+    · <strong>173</strong> total changes
+  </p>
+  <form method="post" action="/runs/1589/batches">
+    <label title="josm_xml = write a .osm file for JOSM; osm_api = upload directly to OSM.">Mode
+      <select name="mode" title="josm_xml = write a .osm file for JOSM; osm_api = upload directly to OSM.">
+        <option value="josm_xml">josm_xml</option>
+        <option value="osm_api">osm_api</option>
+      </select>
+    </label>
+    <label title="Maximum candidates per batch (default 300).">Size <input name="size" type="number" value="173" min="1" max="173" title="Maximum candidates per batch (default 300)."/> <span class="muted">/ 173</span></label>
+    <button title="Bundle APPROVED candidates into an upload batch." >Compose batch</button>
+  </form>
+  
+</div>
+
+  </main>
+</body>
+</html>

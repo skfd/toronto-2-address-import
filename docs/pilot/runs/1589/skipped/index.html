@@ -1,0 +1,1937 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Skipped</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="../../../assets/detail-map.js"></script>
+  <script src="../../../assets/review-keys.js" defer></script>
+  <link rel="stylesheet" href="../../../assets/site.css">
+  
+  <style>
+    .static-banner { background: #fef3c7; border-bottom: 2px solid #f59e0b;
+                     padding: .6rem 1.2rem; font-size: .88rem; color: #78350f;
+                     text-align: center; }
+    .static-banner a { color: #78350f; font-weight: 600; }
+    body.static-export form[method="post"],
+    body.static-export [hx-post] { opacity: .6; cursor: not-allowed; }
+    body.static-export form[method="post"] button,
+    body.static-export form[method="post"] input[type="submit"],
+    body.static-export form[method="post"] select,
+    body.static-export form[method="post"] input[type="text"],
+    body.static-export form[method="post"] input[type="number"],
+    body.static-export [hx-post] button,
+    body.static-export [hx-post] input[type="checkbox"] { pointer-events: none; }
+  </style>
+  
+</head>
+<body class="static-export">
+  <header>
+    <span class="nav">
+      <a href="../../../index.html"><strong>t2 address import</strong></a>
+      
+      
+      <a href="../../../osm/index.html">OSM extract</a>
+      
+      
+      <a href="../../../data/index.html">Data</a>
+      
+    </span>
+    <span class="meta">
+      <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">GitHub</a>
+      <span class="sep">·</span>
+      <a href="https://community.openstreetmap.org/t/address-import-for-toronto/119368" target="_blank" rel="noopener">OSM discussion</a>
+      <span class="sep">·</span>
+      <a href="https://github.com/skfd/toronto-2-address-import/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+      <span class="sep">·</span>
+      <a href="https://open.toronto.ca/open-data-licence/" target="_blank" rel="noopener">Toronto Open Data</a>
+      &amp;
+      &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>
+    </span>
+  </header>
+  
+  <div class="static-banner">
+    Static snapshot of run <strong>high-park-swansea-sw-se-batch-2026-04-28</strong>
+    as of 2026-04-29 —
+    pilot evidence for the
+    <a href="https://github.com/skfd/toronto-2-address-import/blob/main/IMPORT_PROPOSAL.md" target="_blank" rel="noopener">Toronto address import proposal</a>.
+    Interactive actions (stages, review decisions, uploads) are disabled.
+    <a href="https://github.com/skfd/toronto-2-address-import" target="_blank" rel="noopener">Run the live tool</a>
+    to exercise them.
+  </div>
+  <script>
+    // Teach the page to behave on the static site, where Flask isn't around
+    // to partial-render HX-Request responses or route absolute hx-get paths.
+    // Three things we need to undo / substitute:
+    //   1. Disable htmx's history machinery entirely. hx-push-url="true"
+    //      would rewrite the address bar to the clicked row's relative
+    //      hx-get target (.../<view>/<cid>/index.html). On the next click
+    //      the sibling rows' relative hx-gets then resolve against that new
+    //      path, producing a nested .../<view>/<cid1>/<cid2>/index.html
+    //      that 404s.
+    //   2. Extract the target fragment from full-page responses — we can't
+    //      branch on HX-Request, so every hx-get returns the whole page;
+    //      adding hx-select=<target> with hx-swap=outerHTML pulls out just
+    //      the fragment htmx would have otherwise inlined verbatim.
+    //   3. Neuter POST forms / hx-post actions so the disabled visual
+    //      doesn't lie if someone clicks through the pointer-events guard.
+    if (window.htmx && window.htmx.config) window.htmx.config.historyEnabled = false;
+    (function () {
+      function each(scope, selector, fn) {
+        if (scope.matches && scope.matches(selector)) fn(scope);
+        if (scope.querySelectorAll) scope.querySelectorAll(selector).forEach(fn);
+      }
+      function process(scope) {
+        if (!scope) return;
+        each(scope, 'form[method="post"], form[method="POST"]', function (f) {
+          f.addEventListener('submit', function (e) { e.preventDefault(); });
+        });
+        each(scope, '[hx-post]', function (el) { el.removeAttribute('hx-post'); });
+        each(scope, '[hx-get][hx-target]', function (el) {
+          if (el.getAttribute('hx-push-url') === 'true') el.removeAttribute('hx-push-url');
+          if (el.hasAttribute('hx-select')) return;
+          el.setAttribute('hx-select', el.getAttribute('hx-target'));
+          el.setAttribute('hx-swap', 'outerHTML');
+        });
+      }
+      document.addEventListener('DOMContentLoaded', function () { process(document); });
+      document.addEventListener('htmx:afterSwap', function (evt) { process(evt.target); });
+    })();
+  </script>
+  
+  <main>
+    
+      
+    
+    
+<div class="card">
+  <h2>Skipped <span class="muted">(run #1589, 72)</span></h2>
+  <p><a href="../index.html">← run</a></p>
+  <p class="muted">Not uploaded. <code>MATCH</code> = already in OSM. <code>SKIPPED</code> = address range (kept for reference only). Click an item to review details and override the decision.</p>
+  
+    
+<form id="skipped-filters"
+      hx-get="index.html"
+      hx-trigger="change"
+      hx-target="#skipped-list"
+      hx-swap="outerHTML"
+      hx-push-url="true"
+      hx-include="this"
+      hx-vals='{"partial": "1"}'>
+  
+  <div>
+    <span class="muted" style="margin-right:.4rem;">Verdict:</span>
+    
+      <label><input type="checkbox" name="verdicts" value="MATCH"
+                    > MATCH</label>
+    
+      <label><input type="checkbox" name="verdicts" value="MATCH_FAR"
+                    > MATCH_FAR</label>
+    
+      <label><input type="checkbox" name="verdicts" value="MISSING"
+                    > MISSING</label>
+    
+      <label><input type="checkbox" name="verdicts" value="SKIPPED"
+                    > SKIPPED</label>
+    
+    <label style="margin-left:.6rem;"><input type="checkbox" name="poi_ack" value="1"
+                  > POI acknowledged</label>
+    <label><input type="checkbox" name="postcode_from_poi" value="1"
+                  > Postcode from POI</label>
+    <label data-tip="Show only Structure Entrance rows (door candidates) — hides Land/Structure parcel rows."><input type="checkbox" name="door_only" value="1"
+                  > Doors only</label>
+  </div>
+  
+</form>
+
+<script>
+  (function(){
+    const form = document.getElementById("skipped-filters");
+    if (!form) return;
+    form.addEventListener('htmx:configRequest', function(evt){
+      const p = evt.detail.parameters;
+      for (const field of ['statuses', 'verdicts', 'reasons']) {
+        const boxes = form.querySelectorAll('input[name="' + field + '"]:checked');
+        if (boxes.length || form.querySelector('input[name="' + field + '"]')) {
+          p[field] = Array.from(boxes).map(b => b.value).join(',');
+        }
+      }
+      for (const field of ['auto', 'poi_ack', 'postcode_from_poi', 'door_only']) {
+        if (form.querySelector('input[name="' + field + '"]') &&
+            !form.querySelector('input[name="' + field + '"]:checked')) {
+          p[field] = '0';
+        }
+      }
+    });
+  })();
+</script>
+  
+</div>
+
+<div class="grid-2">
+  <div class="card" id="skipped-list" style="max-height: 70vh; overflow: auto;">
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>65 Windermere Ave</strong>
+      
+        <span class="pill" data-tip="Source address class. Non-Land rows (Structure, Structure Entrance, Land Entrance) mark building centroids, doors, or driveways rather than the parcel.">Structure</span>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63906&mlon=-79.47154#map=19/43.63906/-79.47154"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #33409401 · <span data-tip="Distance in metres to the nearest OSM feature.">6.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>37 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6381&mlon=-79.47607#map=19/43.6381/-79.47607"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600442 · <span data-tip="Distance in metres to the nearest OSM feature.">2.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>161 Riverside Dr</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63873&mlon=-79.47742#map=19/43.63873/-79.47742"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600469 · <span data-tip="Distance in metres to the nearest OSM feature.">3.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>38 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63808&mlon=-79.47659#map=19/43.63808/-79.47659"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #1284806375 · <span data-tip="Distance in metres to the nearest OSM feature.">10.1 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>19 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63735&mlon=-79.47566#map=19/43.63735/-79.47566"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600434 · <span data-tip="Distance in metres to the nearest OSM feature.">5.0 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>20 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6374&mlon=-79.47215#map=19/43.6374/-79.47215"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #33409394 · <span data-tip="Distance in metres to the nearest OSM feature.">4.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>26-28 Ripley Ave</strong>
+      
+        <span class="pill" data-tip="Source address class. Non-Land rows (Structure, Structure Entrance, Land Entrance) mark building centroids, doors, or driveways rather than the parcel.">Structure</span>
+      
+      
+      
+        <span class="muted">(range 26–28)</span>
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63879&mlon=-79.4761#map=19/43.63879/-79.4761"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        
+          <span class="pill" data-tip="Address range (e.g. 10–14) — reference only, not uploaded.">range</span>
+        
+      
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>17 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63725&mlon=-79.47551#map=19/43.63725/-79.47551"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600433 · <span data-tip="Distance in metres to the nearest OSM feature.">2.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>45 Ripley Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6385&mlon=-79.47518#map=19/43.6385/-79.47518"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #143672138 · <span data-tip="Distance in metres to the nearest OSM feature.">9.1 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>15 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63709&mlon=-79.47526#map=19/43.63709/-79.47526"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600432 · <span data-tip="Distance in metres to the nearest OSM feature.">4.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>48 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63871&mlon=-79.477#map=19/43.63871/-79.477"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600465 · <span data-tip="Distance in metres to the nearest OSM feature.">2.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>165 Riverside Dr</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63888&mlon=-79.47769#map=19/43.63888/-79.47769"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600472 · <span data-tip="Distance in metres to the nearest OSM feature.">2.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>54 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63908&mlon=-79.47719#map=19/43.63908/-79.47719"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600470 · <span data-tip="Distance in metres to the nearest OSM feature.">0.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>1 Ripley Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63681&mlon=-79.47419#map=19/43.63681/-79.47419"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #33409409 · <span data-tip="Distance in metres to the nearest OSM feature.">6.0 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>42 Coe Hill Dr</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63906&mlon=-79.46965#map=19/43.63906/-79.46965"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598947 · <span data-tip="Distance in metres to the nearest OSM feature.">2.7 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>11 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63747&mlon=-79.4711#map=19/43.63747/-79.4711"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604017496 · <span data-tip="Distance in metres to the nearest OSM feature.">3.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>20 Ripley Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63834&mlon=-79.47574#map=19/43.63834/-79.47574"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #417422932 · <span data-tip="Distance in metres to the nearest OSM feature.">2.6 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>103 The Queensway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6363&mlon=-79.47021#map=19/43.6363/-79.47021"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #170273236 · <span data-tip="Distance in metres to the nearest OSM feature.">13.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>47 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6386&mlon=-79.47108#map=19/43.6386/-79.47108"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598962 · <span data-tip="Distance in metres to the nearest OSM feature.">1.4 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>40 Coe Hill Dr</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.639&mlon=-79.46957#map=19/43.639/-79.46957"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598909 · <span data-tip="Distance in metres to the nearest OSM feature.">1.7 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>19 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63762&mlon=-79.47125#map=19/43.63762/-79.47125"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604006857 · <span data-tip="Distance in metres to the nearest OSM feature.">3.7 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>50 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63889&mlon=-79.47709#map=19/43.63889/-79.47709"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600466 · <span data-tip="Distance in metres to the nearest OSM feature.">1.7 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>45 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6391&mlon=-79.47259#map=19/43.6391/-79.47259"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #32253957 · <span data-tip="Distance in metres to the nearest OSM feature.">4.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>35 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63799&mlon=-79.47608#map=19/43.63799/-79.47608"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600441 · <span data-tip="Distance in metres to the nearest OSM feature.">3.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>29 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63777&mlon=-79.4759#map=19/43.63777/-79.4759"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600438 · <span data-tip="Distance in metres to the nearest OSM feature.">3.1 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>51 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63911&mlon=-79.47647#map=19/43.63911/-79.47647"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600456 · <span data-tip="Distance in metres to the nearest OSM feature.">3.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>35 Ripley Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63805&mlon=-79.47468#map=19/43.63805/-79.47468"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #143672142 · <span data-tip="Distance in metres to the nearest OSM feature.">1.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>21 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63744&mlon=-79.47572#map=19/43.63744/-79.47572"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600435 · <span data-tip="Distance in metres to the nearest OSM feature.">5.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>39 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63836&mlon=-79.4709#map=19/43.63836/-79.4709"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598949 · <span data-tip="Distance in metres to the nearest OSM feature.">1.4 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>41 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63836&mlon=-79.47616#map=19/43.63836/-79.47616"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600444 · <span data-tip="Distance in metres to the nearest OSM feature.">0.8 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>27 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63767&mlon=-79.47587#map=19/43.63767/-79.47587"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600437 · <span data-tip="Distance in metres to the nearest OSM feature.">2.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>23 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6377&mlon=-79.47132#map=19/43.6377/-79.47132"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604006855 · <span data-tip="Distance in metres to the nearest OSM feature.">4.4 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>105 The Queensway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63579&mlon=-79.47125#map=19/43.63579/-79.47125"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #256670779 · <span data-tip="Distance in metres to the nearest OSM feature.">5.0 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>24 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63759&mlon=-79.47302#map=19/43.63759/-79.47302"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #33409393 · <span data-tip="Distance in metres to the nearest OSM feature.">2.4 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>44 Coe Hill Dr</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63911&mlon=-79.46973#map=19/43.63911/-79.46973"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598952 · <span data-tip="Distance in metres to the nearest OSM feature.">1.8 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>23 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63755&mlon=-79.47574#map=19/43.63755/-79.47574"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600436 · <span data-tip="Distance in metres to the nearest OSM feature.">1.1 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>37 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63827&mlon=-79.47084#map=19/43.63827/-79.47084"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598948 · <span data-tip="Distance in metres to the nearest OSM feature.">4.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>33 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63794&mlon=-79.47601#map=19/43.63794/-79.47601"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600440 · <span data-tip="Distance in metres to the nearest OSM feature.">2.1 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>45 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63851&mlon=-79.47097#map=19/43.63851/-79.47097"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598951 · <span data-tip="Distance in metres to the nearest OSM feature.">0.9 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>21 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63854&mlon=-79.47007#map=19/43.63854/-79.47007"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #406954737 · <span data-tip="Distance in metres to the nearest OSM feature.">10.8 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>39 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6382&mlon=-79.47608#map=19/43.6382/-79.47608"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600443 · <span data-tip="Distance in metres to the nearest OSM feature.">2.7 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>29 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63823&mlon=-79.47069#map=19/43.63823/-79.47069"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #399555154 · <span data-tip="Distance in metres to the nearest OSM feature.">2.7 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>15 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63755&mlon=-79.47117#map=19/43.63755/-79.47117"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604017494 · <span data-tip="Distance in metres to the nearest OSM feature.">4.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>49 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63876&mlon=-79.47638#map=19/43.63876/-79.47638"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600448 · <span data-tip="Distance in metres to the nearest OSM feature.">1.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>41 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63842&mlon=-79.47091#map=19/43.63842/-79.47091"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598950 · <span data-tip="Distance in metres to the nearest OSM feature.">0.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>27 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63777&mlon=-79.4714#map=19/43.63777/-79.4714"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604006853 · <span data-tip="Distance in metres to the nearest OSM feature.">3.9 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>31 Ripley Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63774&mlon=-79.47459#map=19/43.63774/-79.47459"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #143672144 · <span data-tip="Distance in metres to the nearest OSM feature.">9.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>49 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63867&mlon=-79.47116#map=19/43.63867/-79.47116"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598963 · <span data-tip="Distance in metres to the nearest OSM feature.">1.0 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>31 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63785&mlon=-79.47594#map=19/43.63785/-79.47594"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600439 · <span data-tip="Distance in metres to the nearest OSM feature.">1.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>47 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63865&mlon=-79.47636#map=19/43.63865/-79.47636"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600447 · <span data-tip="Distance in metres to the nearest OSM feature.">2.6 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>45 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63856&mlon=-79.47631#map=19/43.63856/-79.47631"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600446 · <span data-tip="Distance in metres to the nearest OSM feature.">1.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>18 Ripley Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63815&mlon=-79.47563#map=19/43.63815/-79.47563"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #33409412 · <span data-tip="Distance in metres to the nearest OSM feature.">1.8 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>167 Riverside Dr</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63895&mlon=-79.47786#map=19/43.63895/-79.47786"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600473 · <span data-tip="Distance in metres to the nearest OSM feature.">3.9 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>13 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63751&mlon=-79.47114#map=19/43.63751/-79.47114"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604017495 · <span data-tip="Distance in metres to the nearest OSM feature.">3.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>25 Ripley Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63741&mlon=-79.47423#map=19/43.63741/-79.47423"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #143672141 · <span data-tip="Distance in metres to the nearest OSM feature.">0.4 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>163 Riverside Dr</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.6388&mlon=-79.47757#map=19/43.6388/-79.47757"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600471 · <span data-tip="Distance in metres to the nearest OSM feature.">1.4 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>31 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63786&mlon=-79.4715#map=19/43.63786/-79.4715"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604006851 · <span data-tip="Distance in metres to the nearest OSM feature.">4.7 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>51 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63879&mlon=-79.47118#map=19/43.63879/-79.47118"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659598964 · <span data-tip="Distance in metres to the nearest OSM feature.">4.9 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>29 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63781&mlon=-79.47144#map=19/43.63781/-79.47144"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604006852 · <span data-tip="Distance in metres to the nearest OSM feature.">4.1 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>110 The Queensway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63588&mlon=-79.47362#map=19/43.63588/-79.47362"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #214781551 · <span data-tip="Distance in metres to the nearest OSM feature.">2.1 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>43 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63847&mlon=-79.47627#map=19/43.63847/-79.47627"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600445 · <span data-tip="Distance in metres to the nearest OSM feature.">3.3 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>60 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63879&mlon=-79.47384#map=19/43.63879/-79.47384"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #32253954 · <span data-tip="Distance in metres to the nearest OSM feature.">5.6 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>55 Ormskirk Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63887&mlon=-79.47616#map=19/43.63887/-79.47616"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #9708083738 · <span data-tip="Distance in metres to the nearest OSM feature.">10.1 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>29 Ripley Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63761&mlon=-79.4744#map=19/43.63761/-79.4744"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #143672143 · <span data-tip="Distance in metres to the nearest OSM feature.">2.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>25 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63774&mlon=-79.47137#map=19/43.63774/-79.47137"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604006854 · <span data-tip="Distance in metres to the nearest OSM feature.">4.0 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>21 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63766&mlon=-79.47129#map=19/43.63766/-79.47129"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604006856 · <span data-tip="Distance in metres to the nearest OSM feature.">3.7 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>159 Riverside Dr</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63861&mlon=-79.47719#map=19/43.63861/-79.47719"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600468 · <span data-tip="Distance in metres to the nearest OSM feature.">1.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>9 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63744&mlon=-79.47106#map=19/43.63744/-79.47106"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604017497 · <span data-tip="Distance in metres to the nearest OSM feature.">4.0 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>16 Ripley Ave</strong><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="entrance" style="vertical-align:-0.15em;margin-left:.25rem" data-tip="Structure Entrance row — models a building door, not the parcel. Exported with entrance=yes."><title>entrance</title><path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14"/><path d="M2 20h20"/><path d="M14 12v.01"/></svg>
+      
+        <span class="pill" data-tip="Source address class. Non-Land rows (Structure, Structure Entrance, Land Entrance) mark building centroids, doors, or driveways rather than the parcel.">Structure Entrance</span>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63798&mlon=-79.47551#map=19/43.63798/-79.47551"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #33409411 · <span data-tip="Distance in metres to the nearest OSM feature.">8.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>52 South Kingsway</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63899&mlon=-79.47716#map=19/43.63899/-79.47716"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #659600467 · <span data-tip="Distance in metres to the nearest OSM feature.">1.8 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>17 Southport St</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63759&mlon=-79.47121#map=19/43.63759/-79.47121"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· node #6604017493 · <span data-tip="Distance in metres to the nearest OSM feature.">4.2 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+    <div style="border-bottom:1px solid #eee; padding:.3rem 0;"
+         >
+      <strong>25 Windermere Ave</strong>
+      
+      
+      
+      
+      <a href="https://www.openstreetmap.org/?mlat=43.63809&mlon=-79.47056#map=19/43.63809/-79.47056"
+         target="_blank" rel="noopener" class="muted" onclick="event.stopPropagation()"
+         title="Open in OpenStreetMap">OSM↗</a>
+      
+      <br>
+      
+        <span class="pill ok" data-tip="Same housenumber+street already in OSM within the near threshold — skip.">MATCH</span>
+        <span class="muted">already in OSM</span>
+      
+      
+        <span class="muted">· way #399555153 · <span data-tip="Distance in metres to the nearest OSM feature.">2.5 m</span></span>
+      
+      
+      
+      
+    </div>
+  
+</div>
+<script>
+  (function(){
+    const sel = document.getElementById('list-selected');
+    if (!sel) return;
+    let list = sel.parentElement;
+    while (list && list !== document.body) {
+      const s = getComputedStyle(list);
+      if (s.overflowY === 'auto' || s.overflowY === 'scroll') break;
+      list = list.parentElement;
+    }
+    if (!list || list === document.body) return;
+    const offset = sel.offsetTop - list.offsetTop - (list.clientHeight - sel.clientHeight) / 2;
+    list.scrollTop = Math.max(0, offset);
+  })();
+</script>
+
+  <div class="card" id="detail">
+    
+      <p class="muted">Select an item on the left.</p>
+    
+  </div>
+</div>
+
+  </main>
+</body>
+</html>
