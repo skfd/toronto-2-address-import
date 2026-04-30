@@ -171,7 +171,15 @@ def _rewrite_links(html: str, output_path: str, url_to_path: dict[str, str]) -> 
         keyed = path + (f"?{split.query}" if split.query else "")
         target = url_to_path.get(keyed) or url_to_path.get(path)
         if target is None:
-            # Unknown URL — leave untouched. Dead link on the static site but not fatal.
+            # Unresolved absolute paths on action= / hx-post= belong to POST
+            # controls that the static-banner JS already neutralizes (form
+            # submit preventDefault + hx-post stripping). Blank them so the
+            # rendered HTML doesn't ship dev-server URLs in dead attributes.
+            attr = prefix.split("=", 1)[0].strip().lower()
+            if attr in ("action", "hx-post"):
+                return f"{prefix}{quote}#{quote}"
+            # Unknown URL on a navigational attr — leave untouched. Dead link
+            # on the static site but not fatal.
             return m.group(0)
         rel = _rel_from(here, Path(target))
         if split.fragment:

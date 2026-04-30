@@ -109,8 +109,8 @@
 <div class="card">
   <div style="display: flex; align-items: center; gap: .6rem;">
     <h2 style="margin: 0;">Run: high-park-swansea-sw-se-batch-2026-04-28 <span class="muted">#1589</span> <span class="muted">· tile 1592/2493</span></h2>
-    <form method="post" action="/runs/new" class="inline" style="margin-left: auto;">
-      <input type="hidden" name="name" value="high-park-swansea-sw-se-2026-04-29-2259"/>
+    <form method="post" action="#" class="inline" style="margin-left: auto;">
+      <input type="hidden" name="name" value="high-park-swansea-sw-se-2026-04-29-2305"/>
       <input type="hidden" name="min_lat" value="43.633436"/>
       <input type="hidden" name="min_lon" value="-79.480592"/>
       <input type="hidden" name="max_lat" value="43.639157"/>
@@ -148,7 +148,7 @@
     
 <div id="pipeline" class="pipeline">
   <div class="pipeline-header">
-    <form hx-post="/runs/1589/stage/all"
+    <form hx-post="#"
           hx-target="#pipeline"
           hx-swap="outerHTML"
           hx-indicator="#pipeline"
@@ -167,7 +167,7 @@
             data-tip="This stage has produced output. Re-running resumes or refreshes idempotently.">
         &#10003;
       </span>
-      <form hx-post="/runs/1589/stage/ingest"
+      <form hx-post="#"
             hx-target="#pipeline"
             hx-swap="outerHTML"
             hx-indicator="#pipeline"
@@ -183,7 +183,7 @@
             data-tip="This stage has produced output. Re-running resumes or refreshes idempotently.">
         &#10003;
       </span>
-      <form hx-post="/runs/1589/stage/fetch"
+      <form hx-post="#"
             hx-target="#pipeline"
             hx-swap="outerHTML"
             hx-indicator="#pipeline"
@@ -199,7 +199,7 @@
             data-tip="This stage has produced output. Re-running resumes or refreshes idempotently.">
         &#10003;
       </span>
-      <form hx-post="/runs/1589/stage/conflate"
+      <form hx-post="#"
             hx-target="#pipeline"
             hx-swap="outerHTML"
             hx-indicator="#pipeline"
@@ -215,7 +215,7 @@
             data-tip="This stage has produced output. Re-running resumes or refreshes idempotently.">
         &#10003;
       </span>
-      <form hx-post="/runs/1589/stage/checks"
+      <form hx-post="#"
             hx-target="#pipeline"
             hx-swap="outerHTML"
             hx-indicator="#pipeline"
@@ -268,7 +268,7 @@
       <td><code data-tip="Flags candidates where the matching OSM address exists but sits far from the candidate coordinates.">match_far</code></td>
       <td>2</td>
       <td>
-        <form hx-post="/runs//toggle/match_far" hx-target="#toggles" class="inline">
+        <form hx-post="#" hx-target="#toggles" class="inline">
           <input type="hidden" name="enabled" value="0" />
           <button class="" title="Enable or disable this check for the current run.">
             ON
@@ -282,7 +282,7 @@
       <td><code data-tip="Flags housenumber ranges (100-110) and digit-confusable suffix letters (I, O, Q). Other suffixes (A, B, R, 1/2, …) pass.">suffix_range</code></td>
       <td>2</td>
       <td>
-        <form hx-post="/runs//toggle/suffix_range" hx-target="#toggles" class="inline">
+        <form hx-post="#" hx-target="#toggles" class="inline">
           <input type="hidden" name="enabled" value="0" />
           <button class="" title="Enable or disable this check for the current run.">
             ON
@@ -296,7 +296,7 @@
       <td><code data-tip="Flags candidates that are within a few metres of another City point in the same run.">city_duplicate</code></td>
       <td>1</td>
       <td>
-        <form hx-post="/runs//toggle/city_duplicate" hx-target="#toggles" class="inline">
+        <form hx-post="#" hx-target="#toggles" class="inline">
           <input type="hidden" name="enabled" value="0" />
           <button class="" title="Enable or disable this check for the current run.">
             ON
@@ -310,7 +310,7 @@
       <td><code data-tip="Flags Land candidates that share (address_full, municipality) with another active Land row in the same run.">intra_source_duplicate</code></td>
       <td>1</td>
       <td>
-        <form hx-post="/runs//toggle/intra_source_duplicate" hx-target="#toggles" class="inline">
+        <form hx-post="#" hx-target="#toggles" class="inline">
           <input type="hidden" name="enabled" value="0" />
           <button class="" title="Enable or disable this check for the current run.">
             ON
@@ -324,7 +324,7 @@
       <td><code data-tip="Flags every Nth MISSING candidate for spot-check review.">missing_sample</code></td>
       <td>1</td>
       <td>
-        <form hx-post="/runs//toggle/missing_sample" hx-target="#toggles" class="inline">
+        <form hx-post="#" hx-target="#toggles" class="inline">
           <input type="hidden" name="enabled" value="0" />
           <button class="" title="Enable or disable this check for the current run.">
             ON
@@ -338,7 +338,7 @@
       <td><code data-tip="Flags MATCH/MATCH_FAR where the matched OSM node carries non-address, non-metadata tags — hints the POI filter may need to grow.">potential_amenity</code></td>
       <td>3</td>
       <td>
-        <form hx-post="/runs//toggle/potential_amenity" hx-target="#toggles" class="inline">
+        <form hx-post="#" hx-target="#toggles" class="inline">
           <input type="hidden" name="enabled" value="0" />
           <button class="" title="Enable or disable this check for the current run.">
             ON
@@ -355,7 +355,7 @@
 
 <div class="card">
   <h3>Check parameters</h3>
-  <form method="post" action="/runs/1589/sample_rate" class="inline">
+  <form method="post" action="#" class="inline">
     <label title="One in every N MISSING candidates is flagged for operator spot-check. 50 by default; 0 disables. Per-run override; applies the next time checks run.">
       missing_sample every_nth
       <input type="number" name="every_nth" min="0" value="50" size="6"/>
@@ -379,7 +379,7 @@
     · 0 uploaded
     · <strong>173</strong> total changes
   </p>
-  <form method="post" action="/runs/1589/batches">
+  <form method="post" action="#">
     <label title="josm_xml = write a .osm file for JOSM; osm_api = upload directly to OSM.">Mode
       <select name="mode" title="josm_xml = write a .osm file for JOSM; osm_api = upload directly to OSM.">
         <option value="josm_xml">josm_xml</option>
