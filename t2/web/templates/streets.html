@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Streets{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Streets <span class="muted">global source vs OSM</span></h2>
+  <p class="muted">
+    Every active source address and every OSM <code>addr:housenumber</code> feature
+    inside the Toronto bbox, grouped by normalized street name. Read-only — this
+    page surfaces data quality, it doesn't propose any OSM edit.
+  </p>
+
+  {% if data %}
+  <table>
+    <tr><th>Computed</th><td><code>{{ data.computed_at }}</code></td></tr>
+    <tr><th>Source snapshot</th><td>#{{ data.source_snapshot_id }} <span class="muted">(downloaded {{ data.source_snapshot_downloaded or '—' }})</span></td></tr>
+    <tr><th>OSM extract</th><td>{{ data.osm_extract_downloaded or '—' }} <span class="muted">· sha256 <code>{{ (data.osm_extract_json_sha256 or '')[:16] }}…</code></span></td></tr>
+    <tr><th>Bbox</th><td><code>{{ '%.3f, %.3f → %.3f, %.3f' % (data.toronto_bbox[0], data.toronto_bbox[1], data.toronto_bbox[2], data.toronto_bbox[3]) }}</code></td></tr>
+    <tr><th>Totals</th><td>
+      source streets <strong>{{ data.totals.source_streets }}</strong> ·
+      OSM streets <strong>{{ data.totals.osm_streets }}</strong> ·
+      <span class="pill bad">missing {{ data.totals.missing }}</span>
+      <span class="pill warn">extra {{ data.totals.extra }}</span>
+      <span class="pill ok">matched {{ data.totals.matched }}</span>
+    </td></tr>
+  </table>
+  {% else %}
+  <p class="muted">No analysis on disk yet. Click Regenerate to compute.</p>
+  {% endif %}
+
+  <div>
+    <form method="post" action="{{ url_for('streets_regenerate') }}" class="inline">
+      <button>Regenerate</button>
+    </form>
+    <span class="muted">&nbsp;CLI equivalent: <code>python -m t2.streets</code> · re-run after a source DB or OSM extract refresh.</span>
+  </div>
+</div>
+
+{% if data %}
+<div class="card">
+  <h3>Missing in OSM <span class="muted">({{ data.totals.missing }})</span></h3>
+  <p class="muted">Streets where source has addresses but OSM has none.</p>
+  {% if data.missing %}
+  <table>
+    <thead><tr><th>Street (source)</th><th>Source addresses</th></tr></thead>
+    <tbody>
+      {% for s in data.missing %}
+      <tr>
+        <td>{{ s.street_raw }} <span class="muted">· <code>{{ s.street_norm }}</code></span></td>
+        <td>{{ s.source_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">None.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Extra in OSM <span class="muted">({{ data.totals.extra }})</span></h3>
+  <p class="muted">Streets where OSM has addresses but source has none. Out of scope to act on (see README); shown for data quality review only.</p>
+  {% if data.extra %}
+  <table>
+    <thead><tr><th>Street (OSM)</th><th>OSM addresses</th></tr></thead>
+    <tbody>
+      {% for s in data.extra %}
+      <tr>
+        <td>{{ s.street_raw }} <span class="muted">· <code>{{ s.street_norm }}</code></span></td>
+        <td>{{ s.osm_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">None.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Matched <span class="muted">({{ data.totals.matched }})</span></h3>
+  <p class="muted">Streets present in both, with each side's address count.</p>
+  {% if data.matched %}
+  <table>
+    <thead><tr><th>Street</th><th>Source raw</th><th>OSM raw</th><th>Source addresses</th><th>OSM addresses</th></tr></thead>
+    <tbody>
+      {% for s in data.matched %}
+      <tr>
+        <td><code>{{ s.street_norm }}</code></td>
+        <td>{{ s.street_raw }}</td>
+        <td>{{ s.osm_raw }}</td>
+        <td>{{ s.source_count }}</td>
+        <td>{{ s.osm_count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">None.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

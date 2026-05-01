@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template, request, send_file, send_from_directory, url_for
 
-from .. import audit, batcher, candidates, config as _config, db as _db, multi_addresses as _multi_addresses, multi_fixes as _multi_fixes, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, run_for_all, source_db, tag_diff, tiles_build
+from .. import audit, batcher, candidates, config as _config, db as _db, multi_addresses as _multi_addresses, multi_fixes as _multi_fixes, osm_client, osm_export, osm_refresh, pipeline, ranges as _ranges, review, run_for_all, source_db, streets as _streets, tag_diff, tiles_build
 from ..conflate import _proposed_tags, _is_poi_node, POI_TAG_KEYS, normalize_street
 from ..checks import REGISTRY
 from .glossary import GLOSSARY
@@ -1126,6 +1126,22 @@ def create_app() -> Flask:
     def data_view():
         stats = _collect_data_stats(cfg)
         return render_template("data.html", stats=stats)
+
+    # ---- Streets (global source vs OSM) ----
+
+    @app.get("/streets")
+    def streets_view():
+        data = _streets.read(cfg)
+        return render_template("streets.html", data=data)
+
+    @app.post("/streets/regenerate")
+    def streets_regenerate():
+        try:
+            _streets.regenerate(cfg)
+            flash("Streets analysis regenerated.")
+        except Exception as exc:
+            flash(f"Regenerate failed: {exc}")
+        return redirect(url_for("streets_view"))
 
     # ---- Local OSM extract ----
 
