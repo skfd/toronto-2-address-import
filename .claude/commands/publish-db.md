@@ -17,8 +17,10 @@ finalizing a maintenance month.
 ## What it does
 
 1. Confirm the web app is stopped (it holds `tool.db`; `VACUUM` needs a clean
-   read lock). If `run.py` is running, stop it first.
-2. Build the artifact: `python -m scripts.publish_db [--date <YYYYMMDD>]`. This
+   read lock). If the engine's `run.py` is running, stop it first.
+2. Build the artifact — the script lives in the engine checkout
+   `../address-importer-friend`, run it from there with this repo as the city
+   dir: `T2_CITY_DIR=<this repo> python -m scripts.publish_db [--date <YYYYMMDD>]`. This
    compacts the DB into `data/release/tool-db-<date>.db`, **deletes the OAuth /
    PKCE rows from `kv`** (keeping the maintenance watermark), self-verifies that
    no credential rows remain, and xz-compresses it to
@@ -31,7 +33,8 @@ finalizing a maintenance month.
    ```
    The output must contain `maintenance.watermark_snapshot` and **no**
    `osm_oauth*` or `pkce:*` keys. Delete the temp copy afterward.
-4. Upload using the `gh release create` command the script prints, e.g.:
+4. Upload using the `gh release create` command the script prints — run it
+   from **this repo** (the release belongs to the city repo, not the engine), e.g.:
    ```
    gh release create tool-db-<date> "data/release/tool-db-<date>.db.xz" \
      --title "tool.db snapshot <date>" \

@@ -1,9 +1,0 @@
-{#- Out-of-band swaps appended to the HTMX partial response from
-   /runs/<id>/review/<cid>. Updates the H2 in review.html (#page-header) and
-   the document <title> to reflect the freshly selected candidate without
-   reloading the whole page. -#}
-<h2 id="page-header" hx-swap-oob="true">
-  {{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}
-  <span class="muted">(run #{{ run_id }}{% if selected_position %} · {{ selected_position }} of {{ queue_total }}{% endif %})</span>
-</h2>
-<title id="page-title" hx-swap-oob="true">{{ candidate.address_full or (candidate.housenumber ~ ' ' ~ candidate.street_raw) }}</title>

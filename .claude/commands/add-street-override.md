@@ -4,8 +4,14 @@ argument-hint: <Source Name> -> <OSM Name>
 ---
 
 Add a new entry to `STREET_NAME_OVERRIDES` (the hardcoded source-name to
-OSM-canonical-name table in `t2/conflate.py`), then apply it to any
-already-ingested runs that still carry the old name.
+OSM-canonical-name table in the engine's `t2/conflate.py`), then apply it to
+any already-ingested runs that still carry the old name.
+
+**Split layout:** the engine lives in the sibling checkout
+`../address-importer-friend` (ENGINE below); this repo is the Toronto city
+checkout (CITY). Code and test edits happen in ENGINE; the changelog row and
+the DB refresh happen in CITY. Run engine Python from ENGINE with
+`T2_CITY_DIR` set to CITY.
 
 ## Input
 
@@ -23,16 +29,16 @@ names before continuing.
 
 ## 1. Code changes
 
-**`t2/conflate.py`** — add `"<SOURCE>": "<OSM>",` to the `STREET_NAME_OVERRIDES`
+**`ENGINE/t2/conflate.py`** — add `"<SOURCE>": "<OSM>",` to the `STREET_NAME_OVERRIDES`
 dict. Insert it as the last entry *before* the `# OSM's canonical name carries
 no street-type suffix...` comment block — that Sunnyslope block must stay last
 because its comment documents that one entry.
 
-**`tests/test_street_override.py`** — in `test_known_overrides_use_osm_canonical_name`,
+**`ENGINE/tests/test_street_override.py`** — in `test_known_overrides_use_osm_canonical_name`,
 add `assert apply_street_override("<SOURCE>") == "<OSM>"` on the line before the
 `Sunnyslope Ave` assertion.
 
-**`IMPORT_PROPOSAL_CHANGELOG.md`** — add a row with today's date after the most
+**`IMPORT_PROPOSAL_CHANGELOG.md`** (in CITY) — add a row with today's date after the most
 recent `STREET_NAME_OVERRIDES` row:
 `` | <today> | `STREET_NAME_OVERRIDES`: added `<SOURCE> → <OSM>` — <shape>. | ``
 `<shape>` is one short clause: proper-noun spacing split / suffix correction /
@@ -40,7 +46,7 @@ suffixless OSM name.
 
 ## 2. Verify the override
 
-Run `python -m pytest tests/test_street_override.py -q`.
+Run `python -m pytest tests/test_street_override.py -q` from ENGINE.
 `test_override_table_entries_are_self_consistent` fails if the override does not
 change the normalized form — that means the normalizer already covers this case
 and the override is a no-op. If so, revert the three edits and tell the user.
@@ -84,4 +90,5 @@ re-ingest path (`ingest` is `INSERT OR IGNORE`; `conflate` only touches
 
 Report the before/after stage breakdown and the backup path.
 
-This command does not commit — run `/gh-push` afterward to commit and push.
+This command does not commit — run `/gh-push` afterward, in **both** repos
+(ENGINE for the code/test edits, CITY for the changelog).
