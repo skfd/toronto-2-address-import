@@ -15,6 +15,21 @@ neighbourhoods_url = "https://ckan0.cf.opendata.inter.prod-toronto.ca/dataset/fc
 [source]
 sqlite_path = "C:/Users/kk/Code/ontario-address-changes/data/toronto/toronto.db"
 
+# Per-city projection recipe (multi-city Tier 2) — where each logical field
+# lives in the tracker DB. Every Toronto field is declared and the generated
+# SQL is asserted byte-identical to the pre-Tier-2 hardcoded projection
+# (engine tests/test_source_fields.py), so tool.db behaviour cannot move.
+[source_fields]
+street_from = "street"                     # linear_name_full, typed on 99% of rows
+full_from = "full"
+municipality = "props:MUNICIPALITY_NAME"   # cross-municipality dedup keying
+ward = "props:WARD_NAME"
+lo_num = "props:LO_NUM"                    # ranges: suffix_range check,
+lo_num_suf = "props:LO_NUM_SUF"            # range coverage + safety gate
+hi_num = "props:HI_NUM"
+hi_num_suf = "props:HI_NUM_SUF"
+address_class = "props:ADDRESS_CLASS_DESC" # Land Entrance skip + Land dedup
+
 [run_defaults]
 # Small downtown rectangle for first test run
 bbox = [43.645, -79.42, 43.665, -79.39]
