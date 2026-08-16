@@ -11,6 +11,11 @@ name = "Toronto"
 # the quadtree then splits `[osm] city_bbox` directly and names the tiles after
 # `name` above. Toronto's is the City's official 158-neighbourhood layer.
 neighbourhoods_url = "https://ckan0.cf.opendata.inter.prod-toronto.ca/dataset/fc443770-ef0a-4025-9c2c-2cb558bfab00/resource/0719053b-28b7-48ea-b863-068823a93aaa/download/neighbourhoods-4326.geojson"
+# Declared 2026-08-15 (engine contract change, 02-city-config-contract.md,
+# settled by Quinte West): verified against the cached layer; behaviour is
+# identical to the old sniff — the declaration exists so an upstream field
+# rename fails loudly instead of minting "neighbourhood-?" tiles.
+neighbourhood_name_field = "AREA_NAME"
 
 [source]
 sqlite_path = "C:/Users/kk/Code/ontario-address-changes/data/toronto/toronto.db"
