@@ -1,18 +1,19 @@
 {{Map of imports| name = Toronto Address Points
-| description = One-time, human-reviewed import of missing civic address points from the City of Toronto open dataset.
+| description = Human-reviewed import of missing civic address points from the City of Toronto open dataset — bulk rollout complete 2026-05-28, continuously maintained against City updates since.
 | user = [[https://www.openstreetmap.org/user/skfd%20imports|skfd imports]]
 | status = Imported
 }}
 
 == Status ==
 
-* '''Stage:''' Imported — Phases 1–3 complete (2026-05-13 → 2026-05-28). Phase 4 closeout in progress; 90-day post-import monitoring window runs through 2026-08-26.
-* '''Last revised:''' 2026-05-28
+* '''Stage:''' Imported and '''continuously maintained'''. Phases 1–3 complete (2026-05-13 → 2026-05-28); Phase 4 closeout done and the 90-day post-import monitoring window closed 2026-08-26 with no community-raised issues. The import did not stop there — see [[#Continuous maintenance|§ Continuous maintenance]].
+* '''Last revised:''' 2026-08-27
 * '''Contact:''' toronto@comentality.com
 * '''OSM import account:''' [[osm:user/skfd imports|skfd imports]] — dedicated to this import; the maintainer's personal OSM account ([[User:skfd|skfd]]) is not used for any upload from this tooling.
 * '''Discussion:''' [https://community.openstreetmap.org/t/address-import-for-toronto/119368 OSM Community Forum thread] — the announcement venue under the current [[Import/Guidelines|OSM Import Guidelines]]. Thread tagged <code>import</code>; this proposal was posted with the wiki-page link on 2026-05-01.
 * '''Tooling:''' [https://github.com/skfd/toronto-2-address-import toronto-2-address-import] (this repo) + [https://github.com/skfd/toronto-addresses-import toronto-addresses-import] (upstream scraper)
 * '''Citywide rollout:''' 1,297 production changesets ([https://www.openstreetmap.org/changeset/182585291 182585291] … [https://www.openstreetmap.org/changeset/183305851 183305851], 2026-05-13 → 2026-05-28) covering every tile in the partition; ~449,052 addresses uploaded, ~310,596 skipped (mostly already in OSM, plus 72 range-housenumber rows and intra-source duplicates), ~9,221 operator-rejected at review time. Complete upload history on the [https://www.openstreetmap.org/user/skfd%20imports/history skfd imports account history].
+* '''Maintenance since rollout:''' 3 further changesets, 54 addresses, 2026-06-05 → 2026-07-23 — see [[#Continuous maintenance|§ Continuous maintenance]]. Running total on the account: '''1,300 changesets'''.
 * '''Pilot evidence:''' [https://www.openstreetmap.org/changeset/182585291 changeset 182585291] (2026-05-13) — Phase 1 pilot, tile <code>high-park-swansea-sw-se</code>, 252 source candidates (176 uploaded, 72 skipped as ranges, 4 manually rejected). Read-only review-UI snapshot at [https://skfd.github.io/toronto-2-address-import/pilot/runs/1298/ run 1298].
 * '''Upload manifest:''' [https://skfd.github.io/toronto-2-address-import/pilot/uploads/all.csv uploads/all.csv] — cumulative <code>(address_point_id, address_full, osm_node_id, changeset_id)</code> CSV covering every uploaded item across all 1,297 changesets. Per-tile files alongside, e.g. [https://skfd.github.io/toronto-2-address-import/pilot/uploads/high-park-swansea-sw-se.csv high-park-swansea-sw-se.csv].
 * '''Operator field notes:''' day-by-day blog from the 13-day rollout — surprises, recurring failure modes, and city-side data bugs found while reviewing — committed alongside the tooling as [https://github.com/skfd/toronto-2-address-import/blob/main/blog.md blog.md].
@@ -25,7 +26,9 @@ This proposal targets the [[Import/Guidelines|OSM Import Guidelines]]. The 14-da
 
 == Summary ==
 
-One-time, human-reviewed import of '''missing civic address points''' from the City of Toronto's "Address Points (Municipal) – Toronto One Address Repository" open dataset into OpenStreetMap, conflated against a fresh OSM snapshot so that only addresses OSM does not already have are created. Every run is reviewed in a local web UI before it leaves the machine; every upload is a distinct, tagged changeset; every action (automatic or manual) is written to an append-only audit log.
+Human-reviewed import of '''missing civic address points''' from the City of Toronto's "Address Points (Municipal) – Toronto One Address Repository" open dataset into OpenStreetMap, conflated against a fresh OSM snapshot so that only addresses OSM does not already have are created. Every run is reviewed in a local web UI before it leaves the machine; every upload is a distinct, tagged changeset; every action (automatic or manual) is written to an append-only audit log.
+
+The bulk rollout was a one-time operation and finished 2026-05-28. '''Upkeep since then is continuous''': the City keeps publishing new addresses, and the same tooling re-conflates and uploads them as they appear, under the same review rule. That is a change from this proposal as originally written, made explicit in [[#Continuous maintenance|§ Continuous maintenance]] rather than left to be inferred from the account history.
 
 '''Geographic scope:''' the City of Toronto, Ontario — OSM admin boundary [https://www.openstreetmap.org/relation/324211 relation 324211], covering the post-1998 amalgamated city (former municipalities of Toronto, East York, Etobicoke, North York, Scarborough, and York). The 1,297 review tiles named in [[#Schedule|§ Schedule]] partition this boundary.
 
@@ -80,7 +83,9 @@ Each phase is shippable and independently reversible. Phases 1–3 completed 202
 * '''Phase 0 — community review. Completed 2026-05-15.''' Wiki page <code>Toronto/Import/AddressPoints</code> published 2026-05-01; [[Import/Catalogue]] index entry added; announcement posted on the existing [https://community.openstreetmap.org/t/address-import-for-toronto/119368 OSM Community Forum thread] (tagged <code>import</code>) the same day — under the current [[Import/Guidelines|OSM Import Guidelines]], the Community Forum has supplanted the deprecated <code>imports@openstreetmap.org</code> mailing list as the import-announcement venue. 14-day feedback window closed 2026-05-15 with no objections requiring scope change.
 * '''Phase 1 — pilot (1 tile). Completed 2026-05-13.''' Tile <code>high-park-swansea-sw-se</code> — a depth-2 quadrant of the High Park-Swansea neighbourhood, bbox <code>(43.633436, -79.480592, 43.639157, -79.469502)</code>, 252 source candidates pre-conflation. 176 uploaded as [https://www.openstreetmap.org/changeset/182585291 changeset 182585291] (source snapshot #42), 72 skipped (range housenumbers), 4 manually rejected. End-to-end human review by the maintainer; the 8 candidates flagged by any check received explicit operator decisions in the review UI (4 approve, 4 reject), and the AUTO_APPROVED queue was surveyed by eye before upload was triggered. One-week hold observed before Phase 2.
 * '''Phase 2 + Phase 3 — citywide rollout. Completed 2026-05-28.''' All 1,296 non-pilot tiles processed one at a time over thirteen working days (2026-05-13 → 2026-05-28). 1,297 production changesets total (including the pilot): [https://www.openstreetmap.org/changeset/182585291 182585291] through [https://www.openstreetmap.org/changeset/183305851 183305851], all under the [https://www.openstreetmap.org/user/skfd%20imports/history skfd imports] account. Aggregate per the local tool DB: ~449,052 addresses uploaded, ~310,596 skipped (~100k MATCH already in OSM + ~207k MISSING-but-deduped intra-source siblings + ~3.5k range housenumbers), ~9,221 operator-rejected at review time (the bulk being MATCH_FAR candidates where the operator judged the match real or the geometry wrong). 19 candidates remain in <code>REVIEW_PENDING</code> as the operator's intentional defer-pile; the closeout report enumerates them. Day-by-day surprises, recurring failure modes, and the running list of city-side data bugs caught during review are recorded in [https://github.com/skfd/toronto-2-address-import/blob/main/blog.md blog.md].
-* '''Phase 4 — closeout. In progress.''' Post-import report published on the OSM Community Forum thread and as a closeout section on this wiki page (counts, rejection reasons, outstanding <code>REVIEW_DEFERRED</code> items, known limitations carried forward). Cumulative upload manifest at [https://skfd.github.io/toronto-2-address-import/pilot/uploads/all.csv uploads/all.csv] linked from this page. 90-day post-import monitoring window per § Open questions #2 runs through 2026-08-26 — the maintainer watches the forum thread and the [https://www.openstreetmap.org/user/skfd%20imports/history skfd imports user-history feed] for community-raised issues and responds per § Revert plan. The post-import follow-ups listed below are scoped and queued separately; none gate closeout of this proposal.
+* '''Phase 4 — closeout. Completed 2026-08-26.''' Post-import report published on the OSM Community Forum thread and as a closeout section on this wiki page (counts, rejection reasons, outstanding <code>REVIEW_DEFERRED</code> items, known limitations carried forward). Cumulative upload manifest at [https://skfd.github.io/toronto-2-address-import/pilot/uploads/all.csv uploads/all.csv] linked from this page. 90-day post-import monitoring window per § Open questions #2 runs through 2026-08-26 — the maintainer watches the forum thread and the [https://www.openstreetmap.org/user/skfd%20imports/history skfd imports user-history feed] for community-raised issues and responds per § Revert plan. The post-import follow-ups listed below are scoped and queued separately; none gate closeout of this proposal.
+
+* '''Phase 5 — continuous maintenance. Ongoing since 2026-06-05.''' No end date. See [[#Continuous maintenance|§ Continuous maintenance]].
 
 === Post-import follow-ups (scoped separately) ===
 
@@ -89,6 +94,37 @@ Each phase is shippable and independently reversible. Phases 1–3 completed 202
 * '''<code>addr:interpolation</code> cleanup mapping party''' — local-mapper-organised effort, separate forum thread, out of scope for this tool. Mentioned here only so reviewers can locate the cross-references.
 
 Upload rate target is '''≤1 changeset per minute''' by manual cadence (the <code>upload.changesets_per_minute</code> config value is advisory — uploads are operator-triggered per run, not throttled by the tool). One run uploads as one changeset, and the tile design above keeps each run at 250–750 source addresses, so changeset size is bounded by the tile rather than a separate cap. The practical schedule is dominated by human review of the queue, not by upload throughput.
+
+== Continuous maintenance ==
+
+The bulk rollout finished 2026-05-28, but the City of Toronto keeps publishing addresses, and this import keeps taking them. Recording that plainly here, because an import page that reads "Imported, done" while its account continues to upload is the wrong description of what is happening.
+
+'''What has run so far''', all from [[osm:user/skfd imports|skfd imports]] and all reviewed candidate-by-candidate in the same UI as the rollout:
+
+{| class="wikitable"
+! Changeset !! Run !! Date !! Uploaded !! Rejected !! Skipped
+|-
+| [https://www.openstreetmap.org/changeset/183717565 183717565] || <code>maint-snap56</code> || 2026-06-05 || 3 || 1 || 0
+|-
+| [https://www.openstreetmap.org/changeset/183758255 183758255] || <code>maint-catchup-snap45-56</code> || 2026-06-06 || 25 || 3 || 7
+|-
+| [https://www.openstreetmap.org/changeset/186209651 186209651] || <code>maint-snap90</code> || 2026-07-23 || 26 || 3 || 20
+|-
+! Total !! !! !! 54 !! 7 !! 27
+|}
+
+Roughly 20–30 addresses a snapshot, against ~449,052 in the rollout. This is a small, quiet trickle and is expected to stay one.
+
+'''The rules are the rollout's rules, unchanged.''' Nothing about the tagging plan, conflation, checks, review requirement, changeset tagging or revert plan differs for a maintenance run — the only difference is that the candidate list comes from a City snapshot diff rather than a tile sweep. Specifically:
+
+* Every candidate is approved by a human in the review UI before a changeset opens. Nothing uploads on a timer.
+* The recurring part is the ''conflation'', which is read-only. The ''upload'' is an operator decision each time.
+* Create-only. No deletions, no mutation of existing objects — [[#Goals and non-goals|§ Non-goals]] continues to hold in full.
+* Changesets keep <code>import=yes</code> / <code>bot=no</code> and this page as <code>import_plan</code>. These are small reviewed imports, not automated edits under the [[Automated Edits code of conduct]]. If that ever stops being true, this page changes before the behaviour does.
+
+'''Announcement:''' maintenance batches are not individually announced on the [https://community.openstreetmap.org/t/address-import-for-toronto/119368 forum thread] — at 20–30 addresses a batch that would be noise. The thread stays open and monitored, this table is the running record, and anything unusual (a large batch, a source change, a new failure mode) gets a post.
+
+The same approach is proposed for Guelph at [[Guelph/Address_Import/Continuous]], where the ''only'' product is maintenance because the bulk import was done by someone else in 2025.
 
 == Import data ==
 

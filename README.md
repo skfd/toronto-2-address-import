@@ -30,14 +30,14 @@ live **here**: `config.toml`, `.env.*`, `data/toronto/tool.db`, `data/osm/`
 
 | Stage | State |
 |---|---|
-| Draft proposal | [Complete](IMPORT_PROPOSAL.mediawiki) (last revised 2026-05-28) |
+| Draft proposal | [Complete](IMPORT_PROPOSAL.mediawiki) (last revised 2026-08-27 — declares the import continuously maintained) |
 | Wiki page (`Toronto/Import/AddressPoints`) | [Published 2026-05-01](https://wiki.openstreetmap.org/wiki/Toronto/Import/AddressPoints) |
 | OSM Community Forum announcement | Posted 2026-05-01 — [thread](https://community.openstreetmap.org/t/address-import-for-toronto/119368) (tagged `import`; the [Import Guidelines](https://wiki.openstreetmap.org/wiki/Import/Guidelines) route announcements through the forum now, not the deprecated `imports@` list) |
 | 14-day feedback window | Closed 2026-05-15 (measured from wiki publication; discussion resolved) |
 | Phase 1 pilot upload (production) | Completed 2026-05-13 — [changeset 182585291](https://www.openstreetmap.org/changeset/182585291) (tile `high-park-swansea-sw-se`, 176 uploaded, 72 skipped, 4 rejected) |
 | Phases 2 + 3 (citywide rollout) | Completed 2026-05-28 — all 1,297 tiles processed; 1,297 changesets (`182585291` … `183305851`) on the [`skfd imports`](https://www.openstreetmap.org/user/skfd%20imports/history) account; ~449k addresses uploaded, ~311k skipped (mostly already in OSM), ~9.2k operator-rejected. Day-by-day notes in [`blog.md`](blog.md). |
-| Phase 4 — closeout | In progress. [Cumulative upload manifest](https://skfd.github.io/toronto-2-address-import/pilot/uploads/all.csv) published. Post-import report on the community forum + wiki page pending. 90-day post-import monitoring window (per § Open questions #2 of the proposal) runs through 2026-08-26. |
-| Monthly maintenance | Ongoing — `maint-snap56` + catch-up (2026-06), `maint-snap90` (2026-07). Run from the engine's maintenance page against this checkout. |
+| Phase 4 — closeout | Completed 2026-08-26. [Cumulative upload manifest](https://skfd.github.io/toronto-2-address-import/pilot/uploads/all.csv) published; the 90-day post-import monitoring window closed with no community-raised issues. |
+| Phase 5 — continuous maintenance | Ongoing since 2026-06-05, no end date. 3 changesets, 54 addresses so far: `maint-snap56` ([183717565](https://www.openstreetmap.org/changeset/183717565), 2026-06-05), `maint-catchup-snap45-56` ([183758255](https://www.openstreetmap.org/changeset/183758255), 2026-06-06), `maint-snap90` ([186209651](https://www.openstreetmap.org/changeset/186209651), 2026-07-23). Account total 1,300 changesets. Run from the engine's maintenance page against this checkout. Batches are not individually announced on the forum thread — see § Continuous maintenance in the proposal. |
 | Post-import follow-ups (separate proposals) | (a) `source` → `addr:source` tag rewrite. (b) MapRoulette challenge for ~1,580 OSM buildings with `addr:housenumber` but no street anchor. (c) Interpolation-cleanup mapping party — separate forum thread, organized by Toronto local mappers. Sketches live in the engine repo's `future-work/`. |
 
 Production uploads were made from the dedicated
