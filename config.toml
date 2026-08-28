@@ -100,3 +100,13 @@ changeset_comment_template = "{city} Open Data address import, run={run_name}"
 attribution = "City of Toronto Open Data"
 # Changeset `import_plan` tag — the wiki page documenting this city's import.
 import_plan = "https://wiki.openstreetmap.org/wiki/Toronto/Import/AddressPoints"
+
+# Wrap-up page (/stats). Toronto's published one-pager was built in the TTC
+# subway palette — Line 1 yellow, Line 2 green, corporate red — so the config
+# carries those rather than the engine's neutral default. Omit the whole
+# section for a city with no colours of its own.
+[stats]
+accent = "#DA291C"    # TTC corporate red
+accent_2 = "#FFCD32"  # Line 1 Yonge-University
+accent_3 = "#00923F"  # Line 2 Bloor-Danforth
+badge = "Toronto · Open Data · OSM"

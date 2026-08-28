@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Toronto Address Import — Wrap-Up</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --accent: #DA291C;
+      --accent-2: #FFCD32;
+      --accent-3: #00923F;
+      --ink: #ffffff;
+      --ink-dim: rgba(255,255,255,0.72);
+      --ink-faint: rgba(255,255,255,0.55);
+      --surface: rgba(255,255,255,0.05);
+      --surface-2: rgba(255,255,255,0.09);
+      --stroke: rgba(255,255,255,0.14);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+      color: var(--ink); background: #050505; padding: 16px; min-height: 100vh;
+    }
+    .page {
+      width: 800px; margin: 0 auto; padding: 36px 40px 28px;
+      border-radius: 28px; position: relative; overflow: hidden;
+      background:
+        radial-gradient(110% 55% at 100% 0%, #DA291C47, transparent 60%),
+        radial-gradient(100% 60% at 0% 100%, #FFCD321a, transparent 55%),
+        linear-gradient(165deg, #0a0a0a 0%, #161616 45%, #1c1c1c 100%);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    }
+    .page::before {
+      content: ""; position: absolute; top: -120px; right: -120px;
+      width: 360px; height: 360px; border-radius: 50%;
+      background: radial-gradient(circle, #DA291C8c, transparent 65%);
+      filter: blur(20px); pointer-events: none;
+    }
+    .header {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 22px; position: relative; z-index: 1; gap: 20px;
+    }
+    .badge {
+      font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+      color: var(--accent-2); font-weight: 700;
+    }
+    .title {
+      font-size: 38px; font-weight: 900; line-height: 1.0; margin: 6px 0 0;
+      letter-spacing: -0.5px;
+    }
+    .title em { font-style: normal; color: var(--accent); }
+    .subtitle { font-size: 13px; color: var(--ink-dim); margin-top: 8px; }
+    .stamp {
+      text-align: right; font-size: 11px; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--ink-faint); line-height: 1.5;
+      white-space: nowrap;
+    }
+    .stamp strong {
+      color: var(--ink); font-weight: 700; font-size: 14px;
+      letter-spacing: 0.5px; text-transform: none;
+    }
+
+    .notice {
+      background: var(--surface-2); border: 1px solid var(--stroke);
+      border-left: 3px solid var(--accent-2); border-radius: 12px;
+      padding: 12px 16px; margin-bottom: 16px; font-size: 12.5px;
+      color: var(--ink-dim); position: relative; z-index: 1;
+    }
+    .notice b { color: var(--ink); }
+
+    .hero {
+      background: var(--surface); border: 1px solid var(--stroke);
+      border-radius: 20px; padding: 26px 28px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 24px;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(120deg, transparent 40%, #FFCD321a 100%);
+    }
+    .hero-num {
+      font-size: 78px; font-weight: 900; line-height: 0.95; letter-spacing: -2px;
+      background: linear-gradient(90deg, #fff 30%, var(--accent-2) 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero-label {
+      font-size: 14px; color: var(--ink-dim); margin-top: 4px;
+      max-width: 260px; line-height: 1.4;
+    }
+    .hero-label strong { color: #fff; }
+
+    .grid-4 {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      background: var(--surface); border: 1px solid var(--stroke);
+      border-radius: 14px; padding: 14px 16px; text-align: center;
+    }
+    .stat-num {
+      font-size: 24px; font-weight: 800; letter-spacing: -0.5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-label {
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px;
+      color: var(--ink-faint); margin-top: 4px;
+    }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--stroke);
+      border-radius: 18px; padding: 18px 20px; margin-bottom: 16px;
+      position: relative; z-index: 1;
+    }
+    .section-title {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1.8px;
+      color: var(--ink-faint); margin-bottom: 14px; font-weight: 700;
+    }
+    .section-meta { text-transform: none; letter-spacing: 0; color: var(--ink-dim); }
+    .section-meta b { color: var(--ink); }
+
+    .chart {
+      display: flex; align-items: flex-end; gap: 5px; height: 120px;
+    }
+    .bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+    .fill {
+      background: linear-gradient(180deg, var(--accent-3), #00923F66);
+      border-radius: 4px 4px 0 0; position: relative; min-height: 0;
+    }
+    .bar.peak .fill { background: linear-gradient(180deg, var(--accent-2), #FFCD3266); }
+    .chart-hours .fill { background: linear-gradient(180deg, var(--accent), #DA291C66); }
+    .chart-hours .bar.peak .fill { background: linear-gradient(180deg, var(--accent-2), #FFCD3266); }
+    .val {
+      position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+      font-size: 9.5px; color: var(--ink-dim); white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .day {
+      text-align: center; font-size: 9.5px; color: var(--ink-faint);
+      margin-top: 5px; font-variant-numeric: tabular-nums;
+    }
+
+    .funnel { display: flex; align-items: stretch; gap: 10px; }
+    .step {
+      flex: 1; background: var(--surface-2); border: 1px solid var(--stroke);
+      border-radius: 14px; padding: 14px 16px;
+    }
+    .step .big {
+      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .step .lab { font-size: 12px; color: var(--ink); margin-top: 3px; font-weight: 600; }
+    .step .pct { font-size: 10.5px; color: var(--ink-faint); margin-top: 3px; }
+
+    .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .twocol .card { margin-bottom: 16px; }
+    .list { list-style: none; margin: 0; padding: 0; }
+    .list li {
+      display: flex; align-items: baseline; gap: 8px; padding: 4px 0;
+      font-size: 12.5px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .list li:last-child { border-bottom: 0; }
+    .rank { color: var(--accent-2); font-weight: 800; width: 14px; flex: none; }
+    .list .name { flex: 1; color: var(--ink-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .list .name b { color: var(--ink); font-weight: 600; }
+    .list .num { font-variant-numeric: tabular-nums; color: var(--ink-dim); flex: none; }
+
+    .auto-row { display: flex; align-items: center; gap: 20px; }
+    .auto-pct { font-size: 40px; font-weight: 900; letter-spacing: -1.5px; color: var(--accent-3); flex: none; }
+    .auto-pct small {
+      display: block; font-size: 10px; letter-spacing: 1.5px; color: var(--ink-faint);
+      font-weight: 700; text-align: center;
+    }
+    .auto-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; }
+    .seg-auto { background: var(--accent-3); }
+    .seg-man { background: var(--accent-2); }
+    .auto-text { font-size: 12px; color: var(--ink-dim); margin-top: 8px; line-height: 1.5; }
+    .auto-text .hl, .auto-text b { color: var(--ink); font-weight: 700; }
+
+    .funfacts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+    .fact {
+      background: var(--surface); border: 1px solid var(--stroke);
+      border-radius: 14px; padding: 12px 14px;
+    }
+    .fact .tag {
+      font-size: 9.5px; text-transform: uppercase; letter-spacing: 1.2px;
+      color: var(--accent-2); font-weight: 700; margin-bottom: 5px;
+    }
+    .fact .body { font-size: 11.5px; color: var(--ink-dim); line-height: 1.45; }
+    .fact .body b { color: var(--ink); }
+
+    .footer {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; color: var(--ink-faint); padding-top: 6px;
+      position: relative; z-index: 1; gap: 16px;
+    }
+    .footer a { color: var(--ink-dim); }
+    .flow b { color: var(--ink-dim); }
+    .arrow { color: var(--accent); font-weight: 700; }
+
+    @media (max-width: 860px) {
+      .page { width: 100%; padding: 24px 20px; }
+      .grid-4, .funfacts { grid-template-columns: repeat(2, 1fr); }
+      .twocol, .funnel { grid-template-columns: 1fr; display: grid; }
+      .header { flex-direction: column; align-items: flex-start; }
+      .stamp { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div>
+        <div class="badge">Toronto · Open Data · OSM</div>
+        <h1 class="title">Import <em>Wrap-Up</em></h1>
+        <div class="subtitle">Municipal address points imported to OpenStreetMap</div>
+      </div>
+      <div class="stamp">
+        
+        <strong>May 13 – 28, 2026</strong><br>
+        16&nbsp;days&nbsp;end-to-end
+        
+      </div>
+    </div>
+
+    
+
+    <div class="hero">
+      <div>
+        <div class="hero-num">449,052</div>
+        <div class="hero-label">
+          <strong>address nodes</strong> uploaded to OpenStreetMap across
+          1,297 changesets
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-4">
+      <div class="stat">
+        <div class="stat-num">768,888</div>
+        <div class="stat-label">Source pool</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">206,621</div>
+        <div class="stat-label">Dupes caught</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">8,967</div>
+        <div class="stat-label">Streets touched</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">1,297</div>
+        <div class="stat-label">Changesets</div>
+      </div>
+    </div>
+
+    
+    <div class="card">
+      <div class="section-title">
+        Daily uploads
+        <span class="section-meta">· May 13 – 28, 2026</span>
+      </div>
+      <div class="chart">
+        
+        <div class="bar">
+          <div class="fill" style="height: 2%">
+            <span class="val">176</span>
+          </div>
+          <div class="day">13</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 0%">
+            
+          </div>
+          <div class="day">14</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 4%">
+            <span class="val">3.1k</span>
+          </div>
+          <div class="day">15</div>
+        </div>
+        
+        <div class="bar peak">
+          <div class="fill" style="height: 100%">
+            <span class="val">76.5k</span>
+          </div>
+          <div class="day">16</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 0%">
+            
+          </div>
+          <div class="day">17</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 76%">
+            <span class="val">58.1k</span>
+          </div>
+          <div class="day">18</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 33%">
+            <span class="val">24.9k</span>
+          </div>
+          <div class="day">19</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 7%">
+            <span class="val">5.5k</span>
+          </div>
+          <div class="day">20</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 92%">
+            <span class="val">70.1k</span>
+          </div>
+          <div class="day">21</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 21%">
+            <span class="val">16.1k</span>
+          </div>
+          <div class="day">22</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 64%">
+            <span class="val">48.9k</span>
+          </div>
+          <div class="day">23</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 7%">
+            <span class="val">5.0k</span>
+          </div>
+          <div class="day">24</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 51%">
+            <span class="val">38.9k</span>
+          </div>
+          <div class="day">25</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 45%">
+            <span class="val">34.3k</span>
+          </div>
+          <div class="day">26</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 4%">
+            <span class="val">3.2k</span>
+          </div>
+          <div class="day">27</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 84%">
+            <span class="val">64.4k</span>
+          </div>
+          <div class="day">28</div>
+        </div>
+        
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        Hands-on time
+        <span class="section-meta">— <b>62h</b>
+        across 25 sessions</span>
+      </div>
+      <div class="chart chart-hours">
+        
+        <div class="bar">
+          <div class="fill" style="height: 2%">
+            <span class="val">0.1h</span>
+          </div>
+          <div class="day">13</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 0%">
+            
+          </div>
+          <div class="day">14</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 46%">
+            <span class="val">5.8h</span>
+          </div>
+          <div class="day">15</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 22%">
+            <span class="val">2.8h</span>
+          </div>
+          <div class="day">16</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 0%">
+            
+          </div>
+          <div class="day">17</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 42%">
+            <span class="val">5.3h</span>
+          </div>
+          <div class="day">18</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 46%">
+            <span class="val">5.8h</span>
+          </div>
+          <div class="day">19</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 24%">
+            <span class="val">3.0h</span>
+          </div>
+          <div class="day">20</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 48%">
+            <span class="val">6.0h</span>
+          </div>
+          <div class="day">21</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 0%">
+            
+          </div>
+          <div class="day">22</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 43%">
+            <span class="val">5.4h</span>
+          </div>
+          <div class="day">23</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 4%">
+            <span class="val">0.5h</span>
+          </div>
+          <div class="day">24</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 57%">
+            <span class="val">7.2h</span>
+          </div>
+          <div class="day">25</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 50%">
+            <span class="val">6.3h</span>
+          </div>
+          <div class="day">26</div>
+        </div>
+        
+        <div class="bar">
+          <div class="fill" style="height: 6%">
+            <span class="val">0.8h</span>
+          </div>
+          <div class="day">27</div>
+        </div>
+        
+        <div class="bar peak">
+          <div class="fill" style="height: 100%">
+            <span class="val">12.6h</span>
+          </div>
+          <div class="day">28</div>
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="card">
+      <div class="section-title">Conflation funnel</div>
+      <div class="funnel">
+        
+        <div class="step">
+          <div class="big">768,888</div>
+          <div class="lab">Ingested from source</div>
+          <div class="pct">source address points</div>
+        </div>
+        
+        <div class="step">
+          <div class="big">656,440</div>
+          <div class="lab">Missing in OSM</div>
+          <div class="pct">85.4% of source — absent from OSM</div>
+        </div>
+        
+        <div class="step">
+          <div class="big">449,052</div>
+          <div class="lab">Uploaded</div>
+          <div class="pct">68.4% of missing</div>
+        </div>
+        
+      </div>
+    </div>
+
+    <div class="twocol">
+      <div class="card">
+        <div class="section-title">Top streets by uploads</div>
+        <ul class="list">
+          
+          <li><span class="rank">1</span>
+              <span class="name"><b>Yonge Street</b></span>
+              <span class="num">2,042</span></li>
+          
+          <li><span class="rank">2</span>
+              <span class="name"><b>Dundas Street West</b></span>
+              <span class="num">1,991</span></li>
+          
+          <li><span class="rank">3</span>
+              <span class="name"><b>Danforth Avenue</b></span>
+              <span class="num">1,911</span></li>
+          
+          <li><span class="rank">4</span>
+              <span class="name"><b>Kingston Road</b></span>
+              <span class="num">1,718</span></li>
+          
+          <li><span class="rank">5</span>
+              <span class="name"><b>Bloor Street West</b></span>
+              <span class="num">1,617</span></li>
+          
+        </ul>
+      </div>
+      <div class="card">
+        <div class="section-title">Top neighbourhoods</div>
+        <ul class="list">
+          
+          <li><span class="rank">1</span>
+              <span class="name"><b>South Riverdale</b></span>
+              <span class="num">9,022</span></li>
+          
+          <li><span class="rank">2</span>
+              <span class="name"><b>West Humber-Clairville</b></span>
+              <span class="num">8,013</span></li>
+          
+          <li><span class="rank">3</span>
+              <span class="name"><b>Birchcliffe-Cliffside</b></span>
+              <span class="num">7,197</span></li>
+          
+          <li><span class="rank">4</span>
+              <span class="name"><b>Wexford/Maryvale</b></span>
+              <span class="num">6,744</span></li>
+          
+          <li><span class="rank">5</span>
+              <span class="name"><b>Danforth East York</b></span>
+              <span class="num">6,700</span></li>
+          
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Automation vs. human review</div>
+      <div class="auto-row">
+        <div class="auto-pct">94%<small>AUTO</small></div>
+        <div style="flex:1">
+          <div class="auto-bar">
+            <div class="seg-auto" style="width: 94.2%"></div>
+            <div class="seg-man" style="width: 5.799999999999997%"></div>
+          </div>
+          <div class="auto-text">
+            <span class="hl">627,390</span> candidates sailed
+            through auto-approval. <b>38,373</b> manual
+            review decisions on the trickier ones — spot-checks, city duplicates,
+            far matches, street-name variants.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="funfacts">
+      
+      <div class="fact">
+        <div class="tag">★ Biggest day</div>
+        <div class="body"><b>May 16</b> —
+          76,531 addresses uploaded in a single day</div>
+      </div>
+      
+      
+      <div class="fact">
+        <div class="tag">★ Biggest changeset</div>
+        <div class="body"><b>2,439</b> nodes
+          in one push (South Riverdale-NE-NW-2-SW-SW)</div>
+      </div>
+      
+      <div class="fact">
+        <div class="tag">★ Average run</div>
+        <div class="body"><b>357</b> addresses uploaded
+          per pipeline run, across 1,258 runs</div>
+      </div>
+      <div class="fact">
+        <div class="tag">★ Coverage</div>
+        <div class="body"><b>100%</b> of Toronto
+          neighbourhoods touched in 16 days</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="flow"><b>Toronto open data</b> <span class="arrow">→</span>
+        <b>OpenStreetMap</b></span>
+      
+      <span>+103 since, over
+        4 maintenance runs (to 2026-08-28)</span>
+      
+    </div>
+  </div>
+</body>
+</html>
