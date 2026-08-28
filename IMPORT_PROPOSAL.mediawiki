@@ -89,7 +89,7 @@ Each phase is shippable and independently reversible. Phases 1–3 completed 202
 
 === Post-import follow-ups (scoped separately) ===
 
-* '''Per-node <code>source</code> → <code>addr:source</code> rewrite.''' The per-node attribution tag this import wrote (<code>source=City of Toronto Open Data</code>) is better expressed as <code>addr:source</code> — it sources the address, sits more cleanly in the <code>addr:*</code> namespace, and survives merges into building polygons without ambiguity. A single follow-up campaign from the same <code>skfd imports</code> account will rewrite the ~449k nodes the upload manifest enumerates, with per-node version checking and value pinning. Sketch in [https://github.com/skfd/toronto-2-address-import/blob/main/future-work/source-tag-rewrite.md future-work/source-tag-rewrite.md]. The changeset-level <code>source</code> tag and the proposal's § Tagging plan text are not changed retroactively — this is a forward-only correction to the tag actually written on imported nodes.
+* '''Per-node <code>source</code> → <code>addr:source</code> rewrite.''' The per-node attribution tag this import wrote (<code>source=City of Toronto Open Data</code>) is better expressed as <code>addr:source</code> — it sources the address, sits more cleanly in the <code>addr:*</code> namespace, and survives merges into building polygons without ambiguity. '''New nodes already write <code>addr:source</code>''' as of 2026-08-27 (see § Tagging plan), so this campaign's scope is now fixed rather than growing: a single follow-up from the same <code>skfd imports</code> account rewriting the ~449k rollout nodes the upload manifest enumerates, with per-node version checking and value pinning. Sketch in [https://github.com/skfd/toronto-2-address-import/blob/main/future-work/source-tag-rewrite.md future-work/source-tag-rewrite.md]. The changeset-level <code>source</code> tag and the proposal's § Tagging plan text are not changed retroactively — this is a forward-only correction to the tag actually written on imported nodes.
 * '''MapRoulette challenge for unanchored OSM buildings''' (~1,580 elements with <code>addr:housenumber</code> but no <code>addr:street</code>/<code>addr:place</code>/<code>addr:housename</code>) — already referenced under § Deferred work as the durable resolution of the third acknowledged duplicate-creation path. Sketch in [https://github.com/skfd/toronto-2-address-import/blob/main/future-work/no-anchor-osm-buildings.md future-work/no-anchor-osm-buildings.md].
 * '''<code>addr:interpolation</code> cleanup mapping party''' — local-mapper-organised effort, separate forum thread, out of scope for this tool. Mentioned here only so reviewers can locate the cross-references.
 
@@ -160,7 +160,7 @@ All uploaded elements are '''nodes'''. No ways, no relations. The tag set is uni
 |-
 | <code>addr:street</code> || <code>linear_name_full</code> || Short suffix and trailing direction expanded to the OSM full form at ingest (<code>Amelia St</code> → <code>Amelia Street</code>, <code>Bloor St W</code> → <code>Bloor Street West</code>); the proper-noun part is copied verbatim, including a leading "St" standing for "Saint" (<code>St Clair Ave E</code> → <code>St Clair Avenue East</code>). A standalone <code>Mc</code> followed by a surname token is glued (<code>Mc Caul St</code> → <code>McCaul Street</code>), matching OSM Toronto's convention. See <code>STREET_SUFFIX_EXPAND</code> / <code>expand_street_name()</code> in <code>t2/conflate.py</code>. Normalisation is used only for conflation matching, not for the written tag.
 |-
-| <code>source</code> || static || <code>City of Toronto Open Data</code>. On the node ''and'' on the containing changeset.
+| <code>source</code> / <code>addr:source</code> || static || <code>City of Toronto Open Data</code>. The '''rollout''' wrote a bare <code>source</code> on the node; '''maintenance runs from 2026-08-27 write <code>addr:source</code>''' instead — the address is what is being sourced, and the tag then survives a merge into a building polygon without appearing to source the building. This brings the correction in [[#Post-import follow-ups (scoped separately)|§ Post-import follow-ups]] forward for new nodes only; the ~449k nodes already carrying <code>source</code> are still that campaign's job. The changeset keeps the plain <code>source</code> key throughout — that one describes the edit.
 |-
 | <code>addr:postcode</code> || enrichment || Written '''only''' when a same-address POI in the OSM snapshot already carries one. Never invented, never extrapolated. We adopt the postcode from the nearest same-address POI when present; absent that, we emit no postcode. Details in [[#Conflation|§ Conflation]].
 |}
@@ -209,7 +209,7 @@ Each changeset opened against the OSM API carries:
 |-
 | <code>bot</code> || <code>no</code>
 |-
-| <code>created_by</code> || <code>t2-address-import</code>
+| <code>created_by</code> || <code>t2-address-import</code> for the rollout; <code>address-importer-friend</code> from 2026-08-27, the engine having been renamed when it was forked out for multi-city use
 |-
 | <code>import:client_token</code> || random per-run UUID — used only for server-side idempotent retry after a network failure; looked up before reopening a changeset so a dropped connection never results in two parallel uploads of the same run.
 |-
@@ -388,7 +388,7 @@ These are documented so no reviewer has to ask whether we forgot them. Each woul
 
 == Revert plan ==
 
-Every run is uploaded as a single changeset tagged <code>import=yes</code>, <code>created_by=t2-address-import</code>, and <code>import:client_token=&lt;uuid&gt;</code>. The revert surface is therefore per-changeset, which makes routine rollback straightforward.
+Every run is uploaded as a single changeset tagged <code>import=yes</code>, <code>created_by</code> (<code>t2-address-import</code> for the rollout, <code>address-importer-friend</code> since), and <code>import:client_token=&lt;uuid&gt;</code>. The revert surface is therefore per-changeset, which makes routine rollback straightforward.
 
 * '''Routine revert (one bad changeset).''' A changeset later identified as problematic is reverted using the [[JOSM/Plugins/Reverter|JOSM Reverter plugin]]. The changeset id is available in the audit log for every uploaded candidate, and the published OSM-ID list (see [[#Workflow and QA|§ Post-upload reconciliation]]) groups candidates by changeset for quick lookup.
 * '''Systemic issue mid-import.''' If the community flags a class of problems — a tag error, a conflation false-positive pattern, a streetname misspelling that slipped through — uploads pause immediately. The pipeline is fixed, conflation is re-run on the affected tiles, and resumption only happens after a fresh human review pass. Any already-uploaded runs produced by the defective code are reverted before we resume.
