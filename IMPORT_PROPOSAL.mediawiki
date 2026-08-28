@@ -7,13 +7,13 @@
 == Status ==
 
 * '''Stage:''' Imported and '''continuously maintained'''. Phases 1–3 complete (2026-05-13 → 2026-05-28); Phase 4 closeout done and the 90-day post-import monitoring window closed 2026-08-26 with no community-raised issues. The import did not stop there — see [[#Continuous maintenance|§ Continuous maintenance]].
-* '''Last revised:''' 2026-08-27
+* '''Last revised:''' 2026-08-28
 * '''Contact:''' toronto@comentality.com
 * '''OSM import account:''' [[osm:user/skfd imports|skfd imports]] — dedicated to this import; the maintainer's personal OSM account ([[User:skfd|skfd]]) is not used for any upload from this tooling.
 * '''Discussion:''' [https://community.openstreetmap.org/t/address-import-for-toronto/119368 OSM Community Forum thread] — the announcement venue under the current [[Import/Guidelines|OSM Import Guidelines]]. Thread tagged <code>import</code>; this proposal was posted with the wiki-page link on 2026-05-01.
 * '''Tooling:''' [https://github.com/skfd/toronto-2-address-import toronto-2-address-import] (this repo) + [https://github.com/skfd/toronto-addresses-import toronto-addresses-import] (upstream scraper)
 * '''Citywide rollout:''' 1,297 production changesets ([https://www.openstreetmap.org/changeset/182585291 182585291] … [https://www.openstreetmap.org/changeset/183305851 183305851], 2026-05-13 → 2026-05-28) covering every tile in the partition; ~449,052 addresses uploaded, ~310,596 skipped (mostly already in OSM, plus 72 range-housenumber rows and intra-source duplicates), ~9,221 operator-rejected at review time. Complete upload history on the [https://www.openstreetmap.org/user/skfd%20imports/history skfd imports account history].
-* '''Maintenance since rollout:''' 3 further changesets, 54 addresses, 2026-06-05 → 2026-07-23 — see [[#Continuous maintenance|§ Continuous maintenance]]. Running total on the account: '''1,300 changesets'''.
+* '''Maintenance since rollout:''' 4 further changesets, 103 addresses, 2026-06-05 → 2026-08-28 — see [[#Continuous maintenance|§ Continuous maintenance]]. Running total on the account: '''1,301 changesets'''.
 * '''Pilot evidence:''' [https://www.openstreetmap.org/changeset/182585291 changeset 182585291] (2026-05-13) — Phase 1 pilot, tile <code>high-park-swansea-sw-se</code>, 252 source candidates (176 uploaded, 72 skipped as ranges, 4 manually rejected). Read-only review-UI snapshot at [https://skfd.github.io/toronto-2-address-import/pilot/runs/1298/ run 1298].
 * '''Upload manifest:''' [https://skfd.github.io/toronto-2-address-import/pilot/uploads/all.csv uploads/all.csv] — cumulative <code>(address_point_id, address_full, osm_node_id, changeset_id)</code> CSV covering every uploaded item across all 1,297 changesets. Per-tile files alongside, e.g. [https://skfd.github.io/toronto-2-address-import/pilot/uploads/high-park-swansea-sw-se.csv high-park-swansea-sw-se.csv].
 * '''Operator field notes:''' day-by-day blog from the 13-day rollout — surprises, recurring failure modes, and city-side data bugs found while reviewing — committed alongside the tooling as [https://github.com/skfd/toronto-2-address-import/blob/main/blog.md blog.md].
@@ -110,10 +110,12 @@ The bulk rollout finished 2026-05-28, but the City of Toronto keeps publishing a
 |-
 | [https://www.openstreetmap.org/changeset/186209651 186209651] || <code>maint-snap90</code> || 2026-07-23 || 26 || 3 || 20
 |-
-! Total !! !! !! 54 !! 7 !! 27
+| [https://www.openstreetmap.org/changeset/188123936 188123936] || <code>maint-snap113</code> || 2026-08-28 || 49 || 10 || 18
+|-
+! Total !! !! !! 103 !! 17 !! 45
 |}
 
-Roughly 20–30 addresses a snapshot, against ~449,052 in the rollout. This is a small, quiet trickle and is expected to stay one.
+Roughly 20–50 addresses a window, against ~449,052 in the rollout. This is a small, quiet trickle and is expected to stay one; <code>maint-snap113</code> is the largest so far at 49, over a five-week window rather than a month.
 
 '''The rules are the rollout's rules, unchanged.''' Nothing about the tagging plan, conflation, checks, review requirement, changeset tagging or revert plan differs for a maintenance run — the only difference is that the candidate list comes from a City snapshot diff rather than a tile sweep. Specifically:
 
