@@ -35,6 +35,43 @@ hi_num = "props:HI_NUM"
 hi_num_suf = "props:HI_NUM_SUF"
 address_class = "props:ADDRESS_CLASS_DESC" # Land Entrance skip + Land dedup
 
+# Streets where this city's source and OSM disagree on the actual name — not on
+# how to abbreviate it, which the normalizer already handles. Two shapes show up
+# in practice: proper-noun spacing the normalizer cannot bridge (source "Deane
+# Field Cres" vs OSM "Deanefield Crescent"), and outright suffix corrections
+# where the source has the street type wrong (source "Kathleen Ave" sits on what
+# OSM and signage call "Kathleen Crescent").
+#
+# Applied at ingest, so the candidate's street_raw and street_norm — and
+# therefore both conflation matching and the uploaded addr:street tag — carry
+# the OSM name local mappers already know. Values keep the source's short
+# suffixes; expansion runs after the override and rewrites those to the OSM
+# full form. Lookup is case- and whitespace-insensitive. An entry that does not
+# change the normalized form is refused at load, since the normalizer already
+# covers it. Each entry is a candidate for retirement once the source and OSM
+# converge; the `nearby_street_mismatch` review check surfaces fresh ones.
+#
+# Omit the whole section for a city with no such disagreements (Guelph,
+# Hamilton) — the engine then leaves every street name exactly as written.
+[streets.overrides]
+"Deane Field Cres" = "Deanefield Cres"
+"Golfcrest Rd" = "Golf Crest Rd"
+"Forest View Rd" = "Forestview Rd"
+"Greenhouse Rd" = "Green House Rd"
+"Kathleen Ave" = "Kathleen Cres"
+"Meadow Crest Rd" = "Meadowcrest Rd"
+"Posthorn Grv" = "Post Horn Grv"
+"Scenic Millway" = "Scenic Mill Way"
+"Mac Gregor Ave" = "MacGregor Ave"
+"Governor's Rd" = "Governors Road"
+"St Andrews Gdns" = "St. Andrew's Gardens"
+"St Leonard's Ave" = "Saint Leonard's Avenue"
+# OSM's canonical name carries no street-type suffix at all (way/27371860
+# name="Sunny Slope", alt_name="Sunnyslope Avenue"); the existing OSM building
+# addresses use addr:street="Sunny Slope". This is the one entry whose value
+# intentionally has no short suffix — don't "fix" it by appending one.
+"Sunnyslope Ave" = "Sunny Slope"
+
 [run_defaults]
 # Small downtown rectangle for first test run
 bbox = [43.645, -79.42, 43.665, -79.39]
