@@ -40,6 +40,12 @@ live **here**: `config.toml`, `.env.*`, `data/toronto/tool.db`, `data/osm/`
 | Phase 5 — continuous maintenance | Ongoing since 2026-06-05, no end date. 4 changesets, 103 addresses so far: `maint-snap56` ([183717565](https://www.openstreetmap.org/changeset/183717565), 2026-06-05), `maint-catchup-snap45-56` ([183758255](https://www.openstreetmap.org/changeset/183758255), 2026-06-06), `maint-snap90` ([186209651](https://www.openstreetmap.org/changeset/186209651), 2026-07-23), `maint-snap113` ([188123936](https://www.openstreetmap.org/changeset/188123936), 2026-08-28; 22 retirements deleted by hand). Account total 1,301 changesets. Run from the engine's maintenance page against this checkout. Batches are not individually announced on the forum thread — see § Continuous maintenance in the proposal. |
 | Post-import follow-ups (separate proposals) | (a) `source` → `addr:source` tag rewrite. (b) MapRoulette challenge for ~1,580 OSM buildings with `addr:housenumber` but no street anchor. (c) Interpolation-cleanup mapping party — separate forum thread, organized by Toronto local mappers. Sketches live in the engine repo's `future-work/`. |
 
+**The Phase 5 row is the run-by-run ledger of record.** The wiki proposal
+carries the rules and deliberately does not duplicate it: a changeset already
+publishes its own id, date and counts, so a table on that page could only be
+stale or retyped (proposal changelog, 2026-08-29). Add the run here when you
+close a month; paste the proposal onto the wiki when a *rule* changes.
+
 Production uploads were made from the dedicated
 [`skfd imports`](https://www.openstreetmap.org/user/skfd%20imports) OSM
 account (not the maintainer's personal account).
