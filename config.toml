@@ -72,6 +72,25 @@ address_class = "props:ADDRESS_CLASS_DESC" # Land Entrance skip + Land dedup
 # intentionally has no short suffix — don't "fix" it by appending one.
 "Sunnyslope Ave" = "Sunny Slope"
 
+# Operator-facing chrome — where the tool's own header and footer point for
+# this city. Everything is optional: omit the section and the pages fall back
+# to the engine's own repo and licence and show no city credit, rather than
+# another city's (before 2026-08-29 the chrome was Toronto's for every city).
+[links]
+# This city checkout's repo. Footer "GitHub", and the static export's "Run the
+# live tool" link.
+repo = "https://github.com/skfd/toronto-2-address-import"
+# The OSM community thread where this import is discussed. Omit until the city
+# has actually announced — the link is hidden rather than pointing nowhere.
+discussion = "https://community.openstreetmap.org/t/address-import-for-toronto/119368"
+# The import proposal or evidence document this checkout publishes. The static
+# export's banner describes the snapshot as evidence for it.
+proposal = "https://github.com/skfd/toronto-2-address-import/blob/main/IMPORT_PROPOSAL.mediawiki"
+# The source's open-data licence, credited in the footer beside OSM's. Both
+# keys or neither. Distinct from [export] source_license, which is the SPDX id
+# written onto the changeset; this is a name and a URL for a human to click.
+open_data = { name = "Toronto Open Data", url = "https://open.toronto.ca/open-data-licence/" }
+
 [run_defaults]
 # Small downtown rectangle for first test run
 bbox = [43.645, -79.42, 43.665, -79.39]
