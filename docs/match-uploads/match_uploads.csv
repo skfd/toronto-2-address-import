@@ -1,0 +1,102 @@
+kind,address,ours,matched,dist_m,matched_has,review_reason,note,run,candidate
+plain duplicate,1993 Yonge Street,https://www.openstreetmap.org/node/13832140857,https://www.openstreetmap.org/node/1395173000,5.0,,city_duplicate,,1299,10430672
+plain duplicate,226 Major Street,https://www.openstreetmap.org/node/13890012873,https://www.openstreetmap.org/node/803184126,9.9,,city_duplicate,,1943,836778
+plain duplicate,2461 Bloor Street West,https://www.openstreetmap.org/node/13850850755,https://www.openstreetmap.org/node/6365262301,10.4,,city_duplicate,,2127,10341131
+plain duplicate,355 Church Street,https://www.openstreetmap.org/node/13832441615,https://www.openstreetmap.org/node/7781400986,2.7,,intra_source_duplicate,,1319,30073679
+plain duplicate,508 Plains Road,https://www.openstreetmap.org/node/13874729167,https://www.openstreetmap.org/node/372495497,3.5,,city_duplicate,,2099,31956
+plain duplicate,51 Barton Avenue,https://www.openstreetmap.org/node/13865124720,https://www.openstreetmap.org/node/803152665,4.2,,city_duplicate,,1766,8432281
+plain duplicate,596A Mount Pleasant Road,https://www.openstreetmap.org/node/13832177688,https://www.openstreetmap.org/node/1392075302,9.6,,city_duplicate,,1375,13971409
+plain duplicate,62 Douro Street,https://www.openstreetmap.org/node/13859192051,https://www.openstreetmap.org/node/6150044838,2.4,,city_duplicate,,1627,14239141
+beside an addressed building/POI,100 Granby Street,https://www.openstreetmap.org/node/13854608677,https://www.openstreetmap.org/node/5994547825,1.6,email name phone website,potential_amenity,,1611,7730202
+beside an addressed building/POI,108 Harbord Street,https://www.openstreetmap.org/node/13890012983,https://www.openstreetmap.org/node/752192440,2.8,name,potential_amenity,,1943,5573727
+beside an addressed building/POI,108 Pendrith Street,https://www.openstreetmap.org/node/13832229235,https://www.openstreetmap.org/way/361821783,1.5,building building:levels,city_duplicate,,1316,853302
+beside an addressed building/POI,11 Gledhill Avenue,https://www.openstreetmap.org/node/13859310586,https://www.openstreetmap.org/way/663692602,2.3,building,city_duplicate,,2061,8140449
+beside an addressed building/POI,113 Balliol Street,https://www.openstreetmap.org/node/13832140933,https://www.openstreetmap.org/node/747482326,12.2,operator,potential_amenity,,1299,30011164
+beside an addressed building/POI,1183 Dundas Street West,https://www.openstreetmap.org/node/13890994090,https://www.openstreetmap.org/node/5440604823,6.9,disused:name,potential_amenity,,2165,7552915
+beside an addressed building/POI,119 Balliol Street,https://www.openstreetmap.org/node/13832140934,https://www.openstreetmap.org/node/747482325,6.5,operator,potential_amenity,,1299,30011168
+beside an addressed building/POI,125 St George Street,https://www.openstreetmap.org/node/13890013142,https://www.openstreetmap.org/node/1408807063,5.7,entrance name,potential_amenity,,1943,30097335
+beside an addressed building/POI,1340 Bloor Street West,https://www.openstreetmap.org/node/13890939769,https://www.openstreetmap.org/node/6373324130,4.5,name phone,potential_amenity,,2161,773337
+beside an addressed building/POI,135 Osler Street,https://www.openstreetmap.org/node/13832257927,https://www.openstreetmap.org/way/1436826007,1.1,building building:colour building:levels building:material,city_duplicate,,1311,14204979
+beside an addressed building/POI,140 Finchdene Square,https://www.openstreetmap.org/node/13833700998,https://www.openstreetmap.org/node/7563295957,7.9,access door entrance,potential_amenity,,1418,20141681
+beside an addressed building/POI,151 Indian Road,https://www.openstreetmap.org/node/13890682861,https://www.openstreetmap.org/way/793644352,1.0,building,city_duplicate,,2133,8006616
+beside an addressed building/POI,157 King Street East,https://www.openstreetmap.org/node/13890137933,https://www.openstreetmap.org/node/2537294247,14.2,historic memorial name website,potential_amenity,,1956,8344803
+beside an addressed building/POI,15D Cannon Road,https://www.openstreetmap.org/node/13850985328,https://www.openstreetmap.org/node/2424394091,1.5,opendata:type,city_duplicate,,2447,7939986
+beside an addressed building/POI,16 Fairglen Avenue,https://www.openstreetmap.org/node/13833636496,https://www.openstreetmap.org/node/10301195081,8.6,entrance,potential_amenity,,1390,4346887
+beside an addressed building/POI,165 Osler Street,https://www.openstreetmap.org/node/13832258102,https://www.openstreetmap.org/way/1436826021,0.7,building building:colour building:levels building:material,city_duplicate,,1311,30024340
+beside an addressed building/POI,174 Redgrave Drive,https://www.openstreetmap.org/node/13854889082,https://www.openstreetmap.org/node/4234629588,5.2,contact:facebook email name phone,potential_amenity,,2545,10731367
+beside an addressed building/POI,177 Hallam Street,https://www.openstreetmap.org/node/13832227808,https://www.openstreetmap.org/way/1433352258,1.1,building,city_duplicate,,1313,8015638
+beside an addressed building/POI,1792 Weston Road,https://www.openstreetmap.org/node/13854689700,https://www.openstreetmap.org/way/659321752,2.2,building,city_duplicate,,1897,7074360
+beside an addressed building/POI,181 Jane Street,https://www.openstreetmap.org/node/13854732011,https://www.openstreetmap.org/way/659628907,5.5,building building:levels building:material,city_duplicate,,1891,7368309
+beside an addressed building/POI,1910 Yonge Street,https://www.openstreetmap.org/node/13832129681,https://www.openstreetmap.org/node/4630015828,7.2,description name,potential_amenity,,1299,7274519
+beside an addressed building/POI,195 Exbury Road,https://www.openstreetmap.org/node/13832731626,https://www.openstreetmap.org/way/32224551,0.4,architect building building:levels name,intra_source_duplicate,,1350,7369994
+beside an addressed building/POI,233 Bessborough Drive,https://www.openstreetmap.org/node/13865705982,https://www.openstreetmap.org/way/804354053,5.2,building name,manual,,2386,17949
+beside an addressed building/POI,2387 Bloor Street West,https://www.openstreetmap.org/node/13850850739,https://www.openstreetmap.org/node/6365262318,12.0,name phone website,potential_amenity,,2127,10257848
+beside an addressed building/POI,2430 Yonge Street,https://www.openstreetmap.org/node/13881688333,https://www.openstreetmap.org/node/1355682883,4.9,name was:shop,potential_amenity,,1731,8540546
+beside an addressed building/POI,2440 Yonge Street,https://www.openstreetmap.org/node/13881688334,https://www.openstreetmap.org/node/1355683065,4.4,name was:shop,potential_amenity,,1731,8540549
+beside an addressed building/POI,256 Sherbourne Street,https://www.openstreetmap.org/node/13891161226,https://www.openstreetmap.org/node/380038282,4.7,name,potential_amenity,,1960,7668011
+beside an addressed building/POI,2615 Yonge Street,https://www.openstreetmap.org/node/13881640617,https://www.openstreetmap.org/node/6377377980,8.4,name opening_hours phone website,potential_amenity,,1738,888073
+beside an addressed building/POI,267 College Street,https://www.openstreetmap.org/node/13890114509,https://www.openstreetmap.org/node/10794699020,4.4,contact:phone description email name,potential_amenity,,1950,9942225
+beside an addressed building/POI,280 Jane Street,https://www.openstreetmap.org/node/13854732042,https://www.openstreetmap.org/way/505284499,3.1,building,city_duplicate,,1891,7369464
+beside an addressed building/POI,284 College Street,https://www.openstreetmap.org/node/13889989176,https://www.openstreetmap.org/node/11815693684,12.4,level name,potential_amenity,,1980,14210390
+beside an addressed building/POI,2983 Bloor Street West,https://www.openstreetmap.org/node/13891439230,https://www.openstreetmap.org/node/6418586541,5.2,name phone website,"city_duplicate,potential_amenity",,2451,8292404
+beside an addressed building/POI,302 Windermere Avenue,https://www.openstreetmap.org/node/13850820853,https://www.openstreetmap.org/way/659622519,1.9,building,city_duplicate,,2130,883802
+beside an addressed building/POI,33 Davisville Avenue,https://www.openstreetmap.org/node/13832140870,https://www.openstreetmap.org/way/31372737,6.5,building building:colour operator,intra_source_duplicate,,1299,11272483
+beside an addressed building/POI,386 Spadina Avenue,https://www.openstreetmap.org/node/13890102702,https://www.openstreetmap.org/node/11803596923,4.7,name,potential_amenity,,1949,10513347
+beside an addressed building/POI,389 Dundas Street East,https://www.openstreetmap.org/node/13891107131,https://www.openstreetmap.org/node/4457595706,9.3,category name opening_hours phone,potential_amenity,,1958,796152
+beside an addressed building/POI,392 Spadina Avenue,https://www.openstreetmap.org/node/13890102705,https://www.openstreetmap.org/node/11803596869,7.2,level name,potential_amenity,,1949,10513350
+beside an addressed building/POI,399 Yonge Street,https://www.openstreetmap.org/node/13854608673,https://www.openstreetmap.org/node/1684180213,13.1,amenity:disused old_name smoking,potential_amenity,,1611,7730099
+beside an addressed building/POI,401 Yonge Street,https://www.openstreetmap.org/node/13854608674,https://www.openstreetmap.org/node/7685080832,13.3,amenity:disused old_name,potential_amenity,,1611,7730100
+beside an addressed building/POI,402 Lumsden Avenue,https://www.openstreetmap.org/node/13864684667,https://www.openstreetmap.org/node/2351327710,1.0,opendata:type,city_duplicate,,2075,14188823
+beside an addressed building/POI,424 Horner Avenue,https://www.openstreetmap.org/node/13891384451,https://www.openstreetmap.org/node/7570784647,7.3,name phone,potential_amenity,,2421,1007909
+beside an addressed building/POI,428 Queen Street East,https://www.openstreetmap.org/node/13891109909,https://www.openstreetmap.org/way/195412978,4.4,building,city_duplicate,,1966,855534
+beside an addressed building/POI,45 Balliol Street,https://www.openstreetmap.org/node/13832140879,https://www.openstreetmap.org/way/31372739,0.9,building building:levels,"city_duplicate,intra_source_duplicate",,1299,14171801
+beside an addressed building/POI,5169 Yonge Street,https://www.openstreetmap.org/node/13890175732,https://www.openstreetmap.org/way/585746060,2.0,building check_date name phone,city_duplicate,,2261,7131353
+beside an addressed building/POI,523 Eglinton Avenue West,https://www.openstreetmap.org/node/13882165785,https://www.openstreetmap.org/way/104944291,1.4,building,city_duplicate,,1708,14209061
+beside an addressed building/POI,538 Beresford Avenue,https://www.openstreetmap.org/node/13890601574,https://www.openstreetmap.org/node/6180714935,6.2,name opening_hours phone website,potential_amenity,,2106,52219
+beside an addressed building/POI,604 College Street,https://www.openstreetmap.org/node/13889975125,https://www.openstreetmap.org/node/5720951121,8.9,club sport,potential_amenity,,1931,785406
+beside an addressed building/POI,64 Beaumonde Heights Drive,https://www.openstreetmap.org/node/13859244631,https://www.openstreetmap.org/node/4413106144,8.6,contact:facebook email name phone,potential_amenity,,2534,986397
+beside an addressed building/POI,69 Balliol Street,https://www.openstreetmap.org/node/13832140918,https://www.openstreetmap.org/node/747482323,6.1,operator,potential_amenity,,1299,30011114
+beside an addressed building/POI,7 Gledhill Avenue,https://www.openstreetmap.org/node/13859310587,https://www.openstreetmap.org/way/663692915,7.7,building,city_duplicate,,2061,8140451
+beside an addressed building/POI,7 Howland Avenue,https://www.openstreetmap.org/node/13889990249,https://www.openstreetmap.org/way/545964340,4.2,building building:levels image roof:levels,city_duplicate,,1942,14208679
+beside an addressed building/POI,713 Grandview Way,https://www.openstreetmap.org/node/13832841534,https://www.openstreetmap.org/node/2352673201,1.2,opendata:type,city_duplicate,,1361,30018782
+beside an addressed building/POI,781 Craven Road,https://www.openstreetmap.org/node/13890463717,https://www.openstreetmap.org/node/11202528981,12.7,contact:facebook description email image,potential_amenity,,2037,3950997
+beside an addressed building/POI,80 Six Point Road,https://www.openstreetmap.org/node/13891401645,https://www.openstreetmap.org/node/8964343946,3.6,name,"city_duplicate,potential_amenity",,2464,7791993
+beside an addressed building/POI,802 Bloor Street West,https://www.openstreetmap.org/node/13889976389,https://www.openstreetmap.org/node/6340610375,6.2,name phone,potential_amenity,,1937,772995
+beside an addressed building/POI,804 Bloor Street West,https://www.openstreetmap.org/node/13889976390,https://www.openstreetmap.org/node/6340610374,7.5,name phone,potential_amenity,,1937,772996
+beside an addressed building/POI,813 Dupont Street,https://www.openstreetmap.org/node/13832230330,https://www.openstreetmap.org/way/1433346748,0.7,building,city_duplicate,,1344,798583
+beside an addressed building/POI,82 Six Point Road,https://www.openstreetmap.org/node/13891401646,https://www.openstreetmap.org/node/8964343949,5.0,name,potential_amenity,,2464,7791994
+beside an addressed building/POI,831 Dundas Street West,https://www.openstreetmap.org/node/13859122461,https://www.openstreetmap.org/node/5720698121,14.0,name toilets:wheelchair website wheelchair,potential_amenity,,2172,796715
+beside an addressed building/POI,842 College Street,https://www.openstreetmap.org/node/13891021509,https://www.openstreetmap.org/node/6848476889,7.0,alt_name name sport,potential_amenity,,2169,10576980
+beside an addressed building/POI,915 Queen Street West,https://www.openstreetmap.org/node/13859191675,https://www.openstreetmap.org/node/6304072403,12.3,description name,potential_amenity,,1627,7569565
+beside an addressed building/POI,949 Bloor Street West,https://www.openstreetmap.org/node/13832217740,https://www.openstreetmap.org/way/423507889,7.1,building,city_duplicate,,1310,13990906
+beside an addressed building/POI,95 Dupont Street,https://www.openstreetmap.org/node/13882133164,https://www.openstreetmap.org/way/1396590642,1.4,building house,city_duplicate,,1779,2377658
+beside an addressed building/POI,960 Queen Street West,https://www.openstreetmap.org/node/13859191687,https://www.openstreetmap.org/node/6201102957,13.3,cuisine description name phone,"match_number_drift,potential_amenity",,1627,7570902
+gone: matched object deleted or changed,1008 Eglinton Avenue West,https://www.openstreetmap.org/node/13882198843,https://www.openstreetmap.org/way/104631926,6.6,building,city_duplicate,,1691,10706361
+gone: matched object deleted or changed,1332 Bloor Street West,https://www.openstreetmap.org/node/13890939768,https://www.openstreetmap.org/node/6373324133,6.3,name website,potential_amenity,,2161,773334
+gone: matched object deleted or changed,1966 Lawrence Avenue West,https://www.openstreetmap.org/node/13854752955,https://www.openstreetmap.org/way/659321971,12.5,building,match_number_drift,,1900,9796577
+gone: matched object deleted or changed,2 Craighurst Avenue,https://www.openstreetmap.org/node/13883055766,https://www.openstreetmap.org/node/803435179,10.2,,city_duplicate,,1714,8566074
+gone: matched object deleted or changed,2 St David Street,https://www.openstreetmap.org/node/13891153043,https://www.openstreetmap.org/node/5105391545,14.9,description email facebook name,potential_amenity,,1957,873342
+gone: matched object deleted or changed,207 Roxton Road,https://www.openstreetmap.org/node/13885561795,https://www.openstreetmap.org/node/803233598,10.2,,city_duplicate,,1928,862938
+gone: matched object deleted or changed,2510 Bloor Street West,https://www.openstreetmap.org/node/13850850549,https://www.openstreetmap.org/way/258237488,9.5,building,city_duplicate,,2127,773714
+gone: matched object deleted or changed,2512 Bloor Street West,https://www.openstreetmap.org/node/13850850550,https://www.openstreetmap.org/way/258237486,7.5,building,city_duplicate,,2127,773715
+gone: matched object deleted or changed,388 Spadina Avenue,https://www.openstreetmap.org/node/13890102703,https://www.openstreetmap.org/node/11803489368,5.5,level name,potential_amenity,,1949,10513348
+gone: matched object deleted or changed,54 Gough Avenue,https://www.openstreetmap.org/node/13890592284,https://www.openstreetmap.org/node/804609905,14.8,,city_duplicate,,2005,14171034
+gone: matched object deleted or changed,555 Eglinton Avenue West,https://www.openstreetmap.org/node/13864779814,https://www.openstreetmap.org/way/664727679,5.6,building,city_duplicate,,1724,14014739
+gone: matched object deleted or changed,575 Eglinton Avenue West,https://www.openstreetmap.org/node/13882165781,https://www.openstreetmap.org/way/664727676,6.7,building,city_duplicate,,1708,14014745
+gone: matched object deleted or changed,578 St Clair Avenue West,https://www.openstreetmap.org/node/13864399785,https://www.openstreetmap.org/way/598637693,9.6,building,city_duplicate,,1793,9171876
+gone: matched object deleted or changed,582 St Clair Avenue West,https://www.openstreetmap.org/node/13864399786,https://www.openstreetmap.org/way/598637694,10.3,building,city_duplicate,,1793,9171877
+gone: matched object deleted or changed,658 Queen Street West,https://www.openstreetmap.org/node/13891016889,https://www.openstreetmap.org/node/5456827022,11.2,level wheelchair wheelchair:description,potential_amenity,,2168,14038909
+gone: matched object deleted or changed,679 Queen Street West,https://www.openstreetmap.org/node/13891016730,https://www.openstreetmap.org/node/5508346822,4.7,wheelchair wheelchair:description,potential_amenity,,2168,856696
+gone: matched object deleted or changed,717 Queen Street East,https://www.openstreetmap.org/node/13890645086,https://www.openstreetmap.org/way/387957490,11.8,building,city_duplicate,,1972,14071416
+gone: matched object deleted or changed,759 Queen Street West,https://www.openstreetmap.org/node/13891016897,https://www.openstreetmap.org/node/6358218169,1.8,description,potential_amenity,,2168,14207637
+gone: matched object deleted or changed,80 Bonis Avenue,https://www.openstreetmap.org/node/13855466486,https://www.openstreetmap.org/node/2448963463,8.7,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195955
+gone: matched object deleted or changed,82 Bonis Avenue,https://www.openstreetmap.org/node/13855466487,https://www.openstreetmap.org/node/2448963480,10.5,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195956
+gone: matched object deleted or changed,84 Bonis Avenue,https://www.openstreetmap.org/node/13855466488,https://www.openstreetmap.org/node/2448963482,10.5,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195957
+gone: matched object deleted or changed,86 Bonis Avenue,https://www.openstreetmap.org/node/13855466489,https://www.openstreetmap.org/node/2448963483,10.8,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195958
+gone: matched object deleted or changed,88 Bonis Avenue,https://www.openstreetmap.org/node/13855466490,https://www.openstreetmap.org/node/2448963484,12.0,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195959
+gone: matched object deleted or changed,9 Fairmeadow Avenue,https://www.openstreetmap.org/node/13865801286,https://www.openstreetmap.org/node/2354354032,0.3,opendata:type,intra_source_duplicate,,2234,30028627
+gone: matched object deleted or changed,90 Bonis Avenue,https://www.openstreetmap.org/node/13855466491,https://www.openstreetmap.org/node/2448963485,13.4,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195960
+gone: matched object deleted or changed,90 Morningside Avenue,https://www.openstreetmap.org/node/13850829239,https://www.openstreetmap.org/way/659622378,9.5,building,city_duplicate,,2128,844518
+gone: matched object deleted or changed,92 Bonis Avenue,https://www.openstreetmap.org/node/13855466492,https://www.openstreetmap.org/node/2448963486,12.9,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195961
+gone: matched object deleted or changed,94 Bonis Avenue,https://www.openstreetmap.org/node/13855466493,https://www.openstreetmap.org/node/2448963487,14.4,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195962
+gone: matched object deleted or changed,96 Bonis Avenue,https://www.openstreetmap.org/node/13855466494,https://www.openstreetmap.org/node/2448963490,14.6,fixme opendata:type,"match_number_drift,potential_amenity",,1872,7195963
