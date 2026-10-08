@@ -112,7 +112,7 @@ Tens of addresses a window against the rollout's ~449,052 — a small, quiet tri
 
 '''Announcement:''' maintenance batches are not individually announced on the [https://community.openstreetmap.org/t/address-import-for-toronto/119368 forum thread] — at 20–30 addresses a batch that would be noise. The thread stays open and monitored, this table is the running record, and anything unusual (a large batch, a source change, a new failure mode) gets a post.
 
-The same approach is proposed for Guelph at [[Guelph/Address_Import/Continuous]], where the ''only'' product is maintenance because the bulk import was done by someone else in 2025.
+The same approach has run for Guelph since 2026-10, at [[Guelph/Address_Import/Continuous]], where the ''only'' product is maintenance because the bulk import was done by someone else in 2025.
 
 == Import data ==
 
