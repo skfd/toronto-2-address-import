@@ -90,6 +90,9 @@ proposal = "https://github.com/skfd/toronto-2-address-import/blob/main/IMPORT_PR
 # keys or neither. Distinct from [export] source_license, which is the SPDX id
 # written onto the changeset; this is a name and a URL for a human to click.
 open_data = { name = "Toronto Open Data", url = "https://open.toronto.ca/open-data-licence/" }
+# GoatCounter count endpoint. Every exported page carries the tag in <head>;
+# omit it and no page counts. Shared with the other osm-toronto sites.
+goatcounter = "https://osm-toronto.goatcounter.com/count"
 
 [run_defaults]
 # Small downtown rectangle for first test run
