@@ -172,7 +172,11 @@ badge = "Toronto · Open Data · OSM"
 
 
 [maintenance]
-# Read only by the engine's maintenance-reminder workflow (scripts/maintenance_reminder.py):
-# a monthly reminder issue is filed from the 1st after this date. The day the initial
-# import finished and continuous maintenance began.
+# `since`: the day the initial import finished and continuous maintenance began.
+# The engine's maintenance-reminder workflow files a monthly issue from the 1st after it.
 since = "2026-06-05"
+
+# The import runs in tool.db carry ids from the retired addresses.db (42 pilot, 45
+# citywide), which are 44 and 47 in toronto.db, translated by date on the source swap.
+# Without this the engine would read 42/45 off the runs and date them wrongly.
+import_snapshots = [44, 47]
