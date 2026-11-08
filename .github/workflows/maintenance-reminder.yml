@@ -1,0 +1,24 @@
+name: Maintenance reminder
+
+# Files the monthly address-maintenance reminder issue once this city is in
+# maintenance (`[maintenance] since` in config.toml); quiet until then. The
+# work is in skfd/address-importer-friend's reusable workflow of the same name.
+# Copied from address-importer-friend/scripts/maintenance-reminder.caller.yml.
+
+on:
+  schedule:
+    # 11:00 UTC on the 1st, roughly 06:00/07:00 Toronto, so the reminder is
+    # waiting by evening. Cron here is always UTC.
+    - cron: '0 11 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  # Lets the run re-enable its own schedule, which GitHub turns off after 60
+  # days without a commit.
+  actions: write
+
+jobs:
+  remind:
+    uses: skfd/address-importer-friend/.github/workflows/maintenance-reminder.yml@main

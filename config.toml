@@ -169,3 +169,10 @@ accent = "#DA291C"    # TTC corporate red
 accent_2 = "#FFCD32"  # Line 1 Yonge-University
 accent_3 = "#00923F"  # Line 2 Bloor-Danforth
 badge = "Toronto · Open Data · OSM"
+
+
+[maintenance]
+# Read only by the engine's maintenance-reminder workflow (scripts/maintenance_reminder.py):
+# a monthly reminder issue is filed from the 1st after this date. The day the initial
+# import finished and continuous maintenance began.
+since = "2026-06-05"
